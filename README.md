@@ -63,8 +63,8 @@ Tuesday, 25 August 2026                       05:51 UTC
   pauses/resumes, `↺` resets, `×` clears; several stopwatches and timers can
   run alongside zone clocks in any layout.
 - **World map** — the *Map* button opens a detailed, label-free SVG world
-  (Natural Earth 50 m, public domain, 235 countries) colored by UTC offset
-  with a 15° graticule. Click a country to adopt its zone; countries with
+  (Natural Earth 50 m, public domain, 235 countries) in monochrome
+  hairline style with a 15° graticule — no labels, no colors. Click a country to adopt its zone; countries with
   several zones open the picker pre-filtered to them; the current zone's
   country is outlined in yellow. Works by tap on phones.
 - **IP locator** — the *IP* button shows your public IP with its country

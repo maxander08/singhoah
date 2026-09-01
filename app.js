@@ -1362,9 +1362,6 @@ async function runSync() {
 let mapPaths = new Map();   // cc -> svg path
 let zoneWhitelist = null;   // map-driven picker filter
 
-/* one hue per UTC offset: the map reads as a timezone chart, no labels */
-const offsetHue = (minutes) => Math.round(((minutes + 720) / 1560) * 300);
-
 function buildMap() {
   const M = globalThis.__KLOCK_MAP;
   if (!M || !els.mapSvg) return;
@@ -1374,7 +1371,6 @@ function buildMap() {
   grat.setAttribute('d', M.grat);
   grat.setAttribute('class', 'map-grat');
   els.mapSvg.appendChild(grat);
-  const now = new Date();
   const ccZones = new Map();
   for (const z of allTimeZones()) {
     const cc = zoneCountry(z);
@@ -1390,7 +1386,6 @@ function buildMap() {
     p.dataset.cc = cc;
     const zs = ccZones.get(cc);
     if (!zs || !zs.length) p.classList.add('nozone');
-    else p.setAttribute('fill', `hsl(${offsetHue(zoneInfo(now, zs[0]).minutes)} 42% 44%)`);
     p.addEventListener('click', () => mapCountryClick(cc));
     els.mapSvg.appendChild(p);
     mapPaths.set(cc, p);

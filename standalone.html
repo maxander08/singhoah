@@ -252,7 +252,7 @@ button { font: inherit; color: inherit; }
 }
 .map-wrap[hidden] { display: none; }
 .map-wrap svg { width: 100%; height: 100%; }
-.map-cc { stroke: var(--paper); stroke-width: .6; cursor: pointer; }
+.map-cc { fill: var(--paper-2); stroke: var(--paper); stroke-width: .6; cursor: pointer; }
 .map-cc.nozone { fill: var(--border); cursor: default; }
 .map-cc:hover { stroke: var(--notification); stroke-width: 1; }
 .map-cc.sel { stroke: var(--notification); stroke-width: 1.4; filter: brightness(1.2); }
@@ -2363,9 +2363,6 @@ async function runSync() {
 let mapPaths = new Map();   // cc -> svg path
 let zoneWhitelist = null;   // map-driven picker filter
 
-/* one hue per UTC offset: the map reads as a timezone chart, no labels */
-const offsetHue = (minutes) => Math.round(((minutes + 720) / 1560) * 300);
-
 function buildMap() {
   const M = globalThis.__KLOCK_MAP;
   if (!M || !els.mapSvg) return;
@@ -2375,7 +2372,6 @@ function buildMap() {
   grat.setAttribute('d', M.grat);
   grat.setAttribute('class', 'map-grat');
   els.mapSvg.appendChild(grat);
-  const now = new Date();
   const ccZones = new Map();
   for (const z of allTimeZones()) {
     const cc = zoneCountry(z);
@@ -2391,7 +2387,6 @@ function buildMap() {
     p.dataset.cc = cc;
     const zs = ccZones.get(cc);
     if (!zs || !zs.length) p.classList.add('nozone');
-    else p.setAttribute('fill', `hsl(${offsetHue(zoneInfo(now, zs[0]).minutes)} 42% 44%)`);
     p.addEventListener('click', () => mapCountryClick(cc));
     els.mapSvg.appendChild(p);
     mapPaths.set(cc, p);
