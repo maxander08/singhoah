@@ -89,6 +89,9 @@ const barB = await page.locator('#secondFill').evaluate((el) => el.style.transfo
 ok('second progress bar animates', barA !== barB, `${barA} → ${barB}`);
 
 /* --- no layout overflow at 1440×900 --- */
+ok('page scrolling is locked site-wide (html/body overflow hidden)',
+  await page.evaluate(() => getComputedStyle(document.documentElement).overflow === 'hidden'
+    && getComputedStyle(document.body).overflow === 'hidden'));
 ok('no page scroll at 1440×900', await page.evaluate(
   () => document.documentElement.scrollHeight <= window.innerHeight + 1
   && document.documentElement.scrollWidth <= window.innerWidth + 1,
@@ -728,6 +731,9 @@ await wpage.goto(URL + 'wallet.html', { waitUntil: 'load' });
 await wpage.waitForTimeout(400);
 ok('SinghoWallet loads as its own app',
   (await wpage.locator('.wordmark').textContent()).includes('Wallet'));
+ok('the wallet page does not scroll', await wpage.evaluate(() =>
+  getComputedStyle(document.querySelector('.wallet-app')).overflow === 'hidden'
+  && getComputedStyle(document.querySelector('.wal-body')).overflow === 'hidden'));
 ok('錢包 sits beside the SinghoWallet wordmark',
   (await wpage.locator('.wordmark-zh').textContent()) === '錢包');
 ok('wallet defaults to USD', await (async () => {
@@ -842,6 +848,8 @@ await lp.goto(URL + 'launch.html', { waitUntil: 'load' });
 await lp.waitForTimeout(300);
 ok('launchpad wordmark reads SinghoLaunch',
   (await lp.locator('.wordmark').textContent()).includes('Launch'));
+ok('the launchpad does not scroll', await lp.evaluate(() =>
+  getComputedStyle(document.querySelector('.launch')).overflow === 'hidden'));
 const lpTick1 = (await lp.locator('#lpClock').textContent()).trim();
 await lp.waitForTimeout(300);
 const lpTick2 = (await lp.locator('#lpClock').textContent()).trim();
@@ -872,7 +880,7 @@ ok('launchpad clock follows the chosen zone', await (async () => {
   await lp.evaluate(() => localStorage.removeItem('singhoah:lptz'));
   return okNow;
 })());
-ok('launchpad tz rows are flat, borderless and full-width', await (async () => {
+ok('launchpad tz rows are flat and the dropdown stays compact', await (async () => {
   await lp.locator('#lpZoneBtn').click();
   await lp.waitForTimeout(120);
   const st = await lp.evaluate(() => {
@@ -883,10 +891,12 @@ ok('launchpad tz rows are flat, borderless and full-width', await (async () => {
       bw: parseFloat(cs.borderTopWidth),
       w: row.getBoundingClientRect().width,
       lw: document.getElementById('lpTzList').getBoundingClientRect().width,
+      pr: document.getElementById('lpTzPop').getBoundingClientRect(),
     };
   });
   await lp.locator('#lpZoneBtn').click();
-  return st.bg === 'rgba(0, 0, 0, 0)' && st.bw === 0 && st.w > st.lw - 20;
+  return st.bg === 'rgba(0, 0, 0, 0)' && st.bw === 0 && st.w > st.lw - 20
+    && st.pr.height > 0 && st.pr.height <= 330 && st.pr.width <= 310;
 })());
 ok('launchpad lists the clock and wallet apps', await lp.evaluate(() =>
   document.getElementById('cardClock').getAttribute('href') === 'index.html'
