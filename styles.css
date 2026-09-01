@@ -138,7 +138,15 @@ button { font: inherit; color: inherit; }
 }
 .tz-search::placeholder { color: var(--pigeon); }
 
-.tz-list { overflow: auto; padding: 4px; }
+.tz-list {
+  overflow: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pigeon) transparent;
+}
+.tz-list::-webkit-scrollbar { width: 8px; }
+.tz-list::-webkit-scrollbar-track { background: transparent; }
+.tz-list::-webkit-scrollbar-thumb { background: var(--pigeon); border-radius: 4px; }
 
 .tz-group {
   position: sticky;
@@ -157,7 +165,13 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: start;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;

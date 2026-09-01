@@ -859,6 +859,22 @@ ok('launchpad clock follows the chosen zone', await (async () => {
   await lp.evaluate(() => localStorage.removeItem('singhoah:lptz'));
   return okNow;
 })());
+ok('launchpad tz rows are flat, borderless and full-width', await (async () => {
+  await lp.locator('#lpZoneBtn').click();
+  await lp.waitForTimeout(120);
+  const st = await lp.evaluate(() => {
+    const row = document.querySelector('#lpTzList .tz-row:not([hidden])');
+    const cs = getComputedStyle(row);
+    return {
+      bg: cs.backgroundColor,
+      bw: parseFloat(cs.borderTopWidth),
+      w: row.getBoundingClientRect().width,
+      lw: document.getElementById('lpTzList').getBoundingClientRect().width,
+    };
+  });
+  await lp.locator('#lpZoneBtn').click();
+  return st.bg === 'rgba(0, 0, 0, 0)' && st.bw === 0 && st.w > st.lw - 20;
+})());
 ok('launchpad lists the clock and wallet apps', await lp.evaluate(() =>
   document.getElementById('cardClock').getAttribute('href') === 'index.html'
   && document.getElementById('cardWallet').getAttribute('href') === 'wallet.html'));
