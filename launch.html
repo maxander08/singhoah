@@ -30,7 +30,7 @@
       </div>
     </div>
     <button type="button" class="btn" id="btnNight" aria-pressed="false" title="Toggle night shift (N)">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C21.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C19.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/></svg>
       <span id="nightText">Light</span>
     </button>
   </div>
@@ -38,8 +38,18 @@
 
 <main class="launch">
   <div class="lp-clockwrap">
+    <div class="lp-dial" id="lpDial" aria-hidden="true"></div>
     <p class="lp-clock" id="lpClock" aria-label="HH:MM:SS:mmm"></p>
-    <p class="lp-clock-zone" id="lpZone"></p>
+    <div class="lp-tzwrap">
+      <button type="button" class="lp-zone-btn" id="lpZoneBtn" aria-haspopup="listbox" aria-expanded="false" title="Time zone">
+        <span class="lp-clock-zone" id="lpZone"></span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop" id="lpTzPop" hidden>
+        <input id="lpTzSearch" class="tz-search" type="search" autocomplete="off" aria-label="Search time zones">
+        <div class="tz-list" id="lpTzList" role="listbox" aria-label="Time zones"></div>
+      </div>
+    </div>
   </div>
   <div class="lp-grid">
     <a class="lp-card" id="cardClock" href="index.html">
@@ -62,11 +72,28 @@
 <script src="flags.js"></script>
 <script type="module" src="app.js"></script>
 <script type="module">
-  const { LANGS, t, langOf, ccFlag, makeLangPicker, formatClock } = globalThis.__SING_LIB;
+  const { LANGS, t, langOf, ccFlag, makeLangPicker, toSegments, anglesFromSegments,
+          makeDial, allTimeZones, cityOf, flagSrc, zoneInfo, clampPop } = globalThis.__SING_LIB;
   try { localStorage.setItem('singhoah:visited', '1'); } catch { /* ignore */ }
+  const $ = (id) => document.getElementById(id);
+  let lang = 'en';
 
-  /* small live clock widget */
-  const lpClock = document.getElementById('lpClock');
+  /* ---- chosen time zone (empty string = follow the device) ---- */
+  const localZone = (() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+  })();
+  let lpTz = '';
+  try {
+    const saved = localStorage.getItem('singhoah:lptz') || '';
+    if (saved) { new Intl.DateTimeFormat('en', { timeZone: saved }); lpTz = saved; }
+  } catch { lpTz = ''; }
+
+  /* ---- analog dial above the digits ---- */
+  const dial = makeDial();
+  $('lpDial').appendChild(dial.svg);
+
+  /* ---- small live clock widget (digits + hands, one segment pass per frame) ---- */
+  const lpClock = $('lpClock');
   const slots = [];
   for (let i = 0; i < 12; i++) {
     const sp = document.createElement('span');
@@ -75,14 +102,78 @@
     slots.push(sp);
   }
   (function tick() {
-    const str = formatClock(new Date());
+    const s = toSegments(new Date(), lpTz || undefined);
+    const str = `${s.hh}:${s.mm}:${s.ss}:${s.ms}`;
     for (let i = 0; i < 12; i++) if (slots[i].textContent !== str[i]) slots[i].textContent = str[i];
+    const a = anglesFromSegments(s);
+    dial.hands.hour.setAttribute('transform', `rotate(${a.hour} 100 100)`);
+    dial.hands.minute.setAttribute('transform', `rotate(${a.minute} 100 100)`);
+    dial.hands.second.setAttribute('transform', `rotate(${a.second} 100 100)`);
+    dial.hands.milli.setAttribute('transform', `rotate(${a.milli} 100 100)`);
     requestAnimationFrame(tick);
   })();
-  try { document.getElementById('lpZone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* ignore */ }
-  const $ = (id) => document.getElementById(id);
-  let lang = 'en';
 
+  /* ---- time-zone picker ---- */
+  const lpZoneBtn = $('lpZoneBtn');
+  const lpTzPop = $('lpTzPop');
+  const lpTzList = $('lpTzList');
+  const lpTzSearch = $('lpTzSearch');
+  function setZoneLabel() { $('lpZone').textContent = lpTz || localZone; }
+  function setLpTz(z) {
+    lpTz = z || '';
+    try {
+      if (lpTz) localStorage.setItem('singhoah:lptz', lpTz);
+      else localStorage.removeItem('singhoah:lptz');
+    } catch { /* ignore */ }
+    setZoneLabel();
+  }
+  setZoneLabel();
+
+  const rows = [];
+  const mkRow = (zone, isLocal) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tz-row';
+    b.dataset.zone = isLocal ? '' : zone;
+    const img = document.createElement('img');
+    img.className = 'flag'; img.width = 20; img.height = 15; img.alt = '';
+    img.src = flagSrc(zone);
+    const city = document.createElement('span');
+    city.className = 'tz-city';
+    city.textContent = isLocal ? cityOf(zone) : cityOf(zone);
+    const off = document.createElement('span');
+    off.className = 'tz-off';
+    off.textContent = zoneInfo(new Date(), zone).utc;
+    b.append(img, city, off);
+    b.dataset.search = `${zone} ${cityOf(zone)}`.toLowerCase();
+    b.addEventListener('click', () => { setLpTz(b.dataset.zone); closeTzPop(); });
+    rows.push({ b, city, isLocal });
+    lpTzList.appendChild(b);
+  };
+  mkRow(localZone, true);
+  for (const z of allTimeZones()) mkRow(z, false);
+  function refreshLocalLabel() {
+    for (const r of rows) {
+      if (r.isLocal) r.city.textContent = `${cityOf(localZone)} · ${t(lang, 'local')}`;
+      else r.city.textContent = cityOf(r.b.dataset.zone);
+    }
+  }
+
+  function closeTzPop() { lpTzPop.hidden = true; lpZoneBtn.setAttribute('aria-expanded', 'false'); }
+  lpZoneBtn.addEventListener('click', () => {
+    lpTzPop.hidden = !lpTzPop.hidden;
+    lpZoneBtn.setAttribute('aria-expanded', String(!lpTzPop.hidden));
+    if (!lpTzPop.hidden) { clampPop(lpTzPop); lpTzSearch.focus(); }
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (!lpTzPop.hidden && !e.target.closest('.lp-tzwrap')) closeTzPop();
+  });
+  lpTzSearch.addEventListener('input', () => {
+    const q = lpTzSearch.value.trim().toLowerCase();
+    for (const r of rows) r.b.hidden = !!q && !r.b.dataset.search.includes(q);
+  });
+
+  /* ---- language + theme (same chrome as the other apps) ---- */
   function applyLang(id, persist = true) {
     lang = langOf(id).id;
     const L = langOf(lang);
@@ -97,6 +188,9 @@
     $('lpOffClock').textContent = `${t(lang, 'lpClock')} · ${t(lang, 'lpOffline')}`;
     $('lpOffWallet').textContent = `${t(lang, 'wallet')} · ${t(lang, 'lpOffline')}`;
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');
+    lpTzSearch.placeholder = t(lang, 'search');
+    lpTzSearch.setAttribute('aria-label', t(lang, 'search'));
+    refreshLocalLabel();
     if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
   }
 

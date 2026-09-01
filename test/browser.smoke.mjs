@@ -829,6 +829,31 @@ await lp.waitForTimeout(300);
 const lpTick2 = (await lp.locator('#lpClock').textContent()).trim();
 ok('launchpad shows a live HH:MM:SS:mmm clock widget',
   /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(lpTick1) && lpTick1 !== lpTick2, `${lpTick1} → ${lpTick2}`);
+ok('launchpad shows the analog dial and its second hand sweeps', await (async () => {
+  await lp.waitForSelector('#lpDial svg [data-hand="second"]');
+  const h1 = await lp.locator('#lpDial [data-hand="second"]').getAttribute('transform');
+  await lp.waitForTimeout(300);
+  const h2 = await lp.locator('#lpDial [data-hand="second"]').getAttribute('transform');
+  return !!h1 && h1.startsWith('rotate(') && h1 !== h2;
+})());
+ok('launchpad zone picker searches and selects Asia/Taipei', await (async () => {
+  await lp.locator('#lpZoneBtn').click();
+  if (await lp.locator('#lpTzPop').isHidden()) return false;
+  await lp.locator('#lpTzSearch').fill('taipei');
+  await lp.locator('.tz-row[data-zone="Asia/Taipei"]').click();
+  await lp.waitForTimeout(150);
+  const label = (await lp.locator('#lpZone').textContent()).trim();
+  const stored = await lp.evaluate(() => localStorage.getItem('singhoah:lptz'));
+  const closed = await lp.locator('#lpTzPop').isHidden();
+  return label === 'Asia/Taipei' && stored === 'Asia/Taipei' && closed;
+})());
+ok('launchpad clock follows the chosen zone', await (async () => {
+  const expH = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', hour12: false }).format(new Date());
+  const got = (await lp.locator('#lpClock').textContent()).trim();
+  const okNow = got.startsWith(expH + ':');
+  await lp.evaluate(() => localStorage.removeItem('singhoah:lptz'));
+  return okNow;
+})());
 ok('launchpad lists the clock and wallet apps', await lp.evaluate(() =>
   document.getElementById('cardClock').getAttribute('href') === 'index.html'
   && document.getElementById('cardWallet').getAttribute('href') === 'wallet.html'));

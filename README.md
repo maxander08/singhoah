@@ -82,11 +82,13 @@ Tuesday, 25 August 2026                       05:51 UTC
   Entries persist locally; every label is translated in all ten languages
   and the app is touch-friendly on phones.
 - **SinghoLaunch** (`launch.html`) — the launchpad: a small live
-  HH:MM:SS:mmm clock widget, cards for the Singhoah clock and SinghoWallet
-  plus the offline single-file builds, translated in all ten languages; the
-  clock's top bar links to it via *Launchpad*. A first-ever visit to the
-  site lands here instead of the clock. The wordmarks fly 生活 beside
-  *Singhoah* and 錢包 beside *SinghoWallet*.
+  HH:MM:SS:mmm clock widget with a hairline analog dial above it and a
+  searchable time-zone picker (persisted per browser), cards for the
+  Singhoah clock and SinghoWallet plus the offline single-file builds,
+  translated in all ten languages; the clock's top bar links to it via
+  *Launchpad*. A first-ever visit to the site lands here instead of the
+  clock. The wordmarks fly 生活 beside *Singhoah* and 錢包 beside
+  *SinghoWallet*.
   The MAC row states plainly that browsers do not expose MAC addresses to
   web pages.
 - **Phone-friendly** — dropdowns open right below their button exactly as on
@@ -115,7 +117,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 118 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 121 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
