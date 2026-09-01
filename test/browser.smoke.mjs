@@ -511,7 +511,73 @@ await page.locator('#btnWindow').click();
 await page.locator('#winList .tz-row[data-layout="1"]').click();
 await page.waitForTimeout(200);
 
-/* --- phones: dropdowns become bottom sheets, taps work --- */
+/* --- stopwatch: counting-up panes --- */
+await page.locator('#btnStop').click();
+await page.waitForTimeout(400);
+const sw1 = await page.evaluate(() => ({
+  layout: document.getElementById('grid').dataset.layout,
+  stops: document.querySelectorAll('.cell.stop').length,
+  clock: [...document.querySelectorAll('.cell .clock')][1].textContent,
+}));
+ok('stopwatch button adds a counting-up pane',
+  sw1.layout === '2' && sw1.stops === 1 && /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(sw1.clock),
+  JSON.stringify(sw1));
+await page.waitForTimeout(1200);
+const sw2 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('the stopwatch counts up', sw2 > sw1.clock, `${sw1.clock} → ${sw2}`);
+await page.screenshot({ path: 'shot-stopwatch.png' });
+await page.locator('.cell.stop .cell-cap').click();
+await page.waitForTimeout(200);
+const sp1 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+await page.waitForTimeout(600);
+const sp2 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('caption tap pauses the stopwatch', sp1 === sp2, `${sp1} = ${sp2}`);
+await page.locator('.cell.stop .cap-reset').click();
+await page.waitForTimeout(300);
+const sp3 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('↺ resets to zero while paused', sp3.startsWith('00:00:00'), sp3);
+await page.locator('.cell.stop .cell-cap').click();
+await page.waitForTimeout(700);
+const sp4 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('resume continues after reset', sp4 > sp3, `${sp3} → ${sp4}`);
+await page.locator('.cell.stop .cap-x').click();
+await page.waitForTimeout(200);
+ok('× clears the stopwatch',
+  await page.evaluate(() => document.querySelectorAll('.cell.stop').length) === 0);
+await page.locator('#btnWindow').click();
+await page.locator('#winList .tz-row[data-layout="1"]').click();
+await page.waitForTimeout(200);
+
+/* --- IP locator: public IP, geolocation, honest MAC note --- */
+await page.locator('#btnIp').click();
+await page.waitForFunction(() => {
+  const v = document.getElementById('ipIp').textContent;
+  return v && v !== '—' && /[\d.]/.test(v);
+}, null, { timeout: 15000 }).catch(() => {});
+await page.waitForTimeout(300);
+const ipd = await page.evaluate(() => ({
+  ip: document.getElementById('ipIp').textContent,
+  mac: document.getElementById('ipMac').textContent,
+  loc: document.getElementById('ipLoc').textContent,
+  coord: document.getElementById('ipCoord').textContent,
+  useHidden: document.getElementById('ipUse').hidden,
+}));
+ok('IP locator resolves the public IP', /\d+\.\d+\.\d+\.\d+|:[0-9a-fA-F]/.test(ipd.ip), ipd.ip);
+ok('MAC row states the browser privacy limit', ipd.mac.length > 5, ipd.mac);
+ok('location and coordinates resolved from the IP',
+  ipd.loc.includes(',') && /^-?\d/.test(ipd.coord), `${ipd.loc} · ${ipd.coord}`);
+await page.screenshot({ path: 'shot-ip.png' });
+if (!ipd.useHidden) {
+  await page.locator('#ipUse').click();
+  await page.waitForTimeout(300);
+  ok('one tap adopts the located time zone',
+    await page.evaluate(() => document.getElementById('ipPop').hidden));
+} else {
+  await page.keyboard.press('Escape');
+  ok('one tap adopts the located time zone', true, 'located tz not in catalog — skipped');
+}
+
+/* --- phones: dropdowns anchor below their buttons, taps work --- */
 const mob = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const m = await mob.newPage();
 const merrors = [];
@@ -550,6 +616,16 @@ const tmb = await m.locator('#btnTimer').boundingBox();
 ok('timer dropdown hangs right below its button too',
   tb && tmb && tb.y >= tmb.y + tmb.height && tb.y <= tmb.y + tmb.height + 12
   && tb.x >= 0 && tb.x + tb.width <= 391, JSON.stringify(tb));
+await m.locator('#btnIp').tap();
+await m.waitForTimeout(300);
+const ib = await m.locator('#ipPop').boundingBox();
+const ibb = await m.locator('#btnIp').boundingBox();
+ok('IP dropdown hangs right below its button too',
+  ib && ibb && ib.y >= ibb.y + ibb.height && ib.y <= ibb.y + ibb.height + 12
+  && ib.x >= 0 && ib.x + ib.width <= 391, JSON.stringify(ib));
+await m.keyboard.press('Escape');
+await m.locator('#btnTimer').tap();
+await m.waitForTimeout(200);
 await m.locator('#timerPresets .btn').nth(0).tap();
 await m.waitForTimeout(400);
 ok('a timer pane works on the stacked phone layout', await m.evaluate(() =>

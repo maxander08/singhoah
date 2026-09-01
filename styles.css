@@ -366,7 +366,7 @@ button { font: inherit; color: inherit; }
   letter-spacing: .12em;
   text-transform: uppercase;
 }
-.cap-x {
+.cap-x, .cap-reset {
   display: none;
   align-items: center;
   justify-content: center;
@@ -381,9 +381,36 @@ button { font: inherit; color: inherit; }
   line-height: 1;
   cursor: pointer;
 }
-.cap-x:hover { color: var(--notification); border-color: var(--notification); }
-.cell.timer .cap-x { display: inline-flex; }
-.cell.timer .flag { display: none; }
+.cap-x:hover, .cap-reset:hover { color: var(--notification); border-color: var(--notification); }
+.cell.timer .cap-x, .cell.stop .cap-x { display: inline-flex; }
+.cell.timer .flag, .cell.stop .flag { display: none; }
+.cap-reset { display: none; }
+.cell.stop .cap-reset { display: inline-flex; }
+
+/* ---------- IP locator ---------- */
+.ipmenu { position: relative; }
+.ip-pop { width: 270px; padding: 10px; }
+.ip-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+  font-size: 14px;
+  letter-spacing: .02em;
+}
+.ip-row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 2px; }
+.ip-row span:first-child {
+  color: var(--pigeon);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-size: 10.5px;
+  padding-top: 2px;
+  flex: none;
+}
+.ip-row span:last-child { text-align: right; min-width: 0; }
+.ip-pop .btn { width: 100%; justify-content: center; margin-top: 6px; }
 .cell.done .clock { color: var(--notification); }
 .cell.done .clock .sep { animation: none; }
 

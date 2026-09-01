@@ -67,6 +67,23 @@
         </div>
       </div>
     </div>
+    <button type="button" class="btn" id="btnStop" title="Stopwatch">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="14" r="7.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 14V9.8M10 2.5h4M12 2.5v2M18.5 7.5l1.5-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span id="stopText">Stopwatch</span>
+    </button>
+    <div class="ipmenu">
+      <button type="button" class="btn" id="btnIp" aria-haspopup="dialog" aria-expanded="false" title="IP locator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c-4.8 5.4-4.8 12.6 0 18M12 3c4.8 5.4 4.8 12.6 0 18" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span id="ipText">IP</span>
+      </button>
+      <div class="tz-pop ip-pop" id="ipPop" hidden>
+        <div class="ip-head"><img id="ipFlag" class="flag" width="20" height="15" alt=""><strong id="ipIp">—</strong></div>
+        <div class="ip-row"><span id="lblMac">MAC</span><span id="ipMac">—</span></div>
+        <div class="ip-row"><span id="lblLoc">Location</span><span id="ipLoc">—</span></div>
+        <div class="ip-row"><span id="lblCoord">Coordinates</span><span id="ipCoord">—</span></div>
+        <button type="button" class="btn" id="ipUse" hidden>Use this time zone</button>
+      </div>
+    </div>
     <div class="layouts" id="layouts" role="group" aria-label="Window layout">
       <button type="button" class="btn lay-btn" data-layout="1" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/></svg></button>
       <button type="button" class="btn lay-btn" data-layout="2" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg></button>

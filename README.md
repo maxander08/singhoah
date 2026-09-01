@@ -58,6 +58,15 @@ Tuesday, 25 August 2026                       05:51 UTC
   pane: it counts down `HH:MM:SS:mmm` (analogue hands too), tap its caption
   to pause/resume, `×` to clear, finished timers glow yellow. Several timers
   can run side by side with clocks.
+- **Stopwatch** — the *Stopwatch* button drops a counting-up
+  `HH:MM:SS:mmm` pane into the window (analogue hands sweep too); caption tap
+  pauses/resumes, `↺` resets, `×` clears; several stopwatches and timers can
+  run alongside zone clocks in any layout.
+- **IP locator** — the *IP* button shows your public IP with its country
+  flag, the city/region/country and coordinates it geolocates to (ipapi.co
+  with an ipwho.is fallback), and a one-tap *Use this time zone* action.
+  The MAC row states plainly that browsers do not expose MAC addresses to
+  web pages.
 - **Phone-friendly** — dropdowns open right below their button exactly as on
   desktop (nudged sideways only enough to stay inside the viewport), rows and
   buttons grow to touch size, the search field avoids iOS focus-zoom, and
@@ -83,8 +92,8 @@ The committed files in this folder are already built — just serve the folder.
 ## Test
 
 ```sh
-npm test          # 22 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers
-npm run test:browser   # 72 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm test          # 23 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch
+npm run test:browser   # 83 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,

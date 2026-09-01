@@ -12,7 +12,7 @@ const {
   CLOCK_EMS, CLOCK_GLYPHS, MONO_ADVANCE, LETTER_SPACE_EM, fitFontSize, isCoarse,
   allTimeZones, zoneCountry, flagSrc, ccFlag, GLOBE_SVG, LANGS, t,
   parseLayout, layoutShape, zoneWindowUrl, handAngles,
-  timerSegments, anglesFromSegments,
+  timerSegments, anglesFromSegments, stopwatchElapsed,
 } = app;
 
 const at = (iso) => new Date(iso);
@@ -114,6 +114,13 @@ test('every language has a flag in the embedded set', () => {
   for (const L of LANGS) {
     assert.ok(ccFlag(L.flag).startsWith('data:image/svg+xml;base64'), `${L.id} -> ${L.flag}`);
   }
+});
+
+test('stopwatchElapsed accumulates while running, freezes when paused', () => {
+  const st = { startedAt: 1000, accum: 500, running: true };
+  assert.equal(stopwatchElapsed(st, 3000), 2500);
+  st.running = false;
+  assert.equal(stopwatchElapsed(st, 99999), 500);
 });
 
 test('timerSegments formats countdowns and clamps', () => {
