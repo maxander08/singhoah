@@ -7,6 +7,13 @@
 <meta name="description" content="A drift-corrected millisecond clock in the style of displaay.net.">
 <meta name="color-scheme" content="dark light">
 <script>
+  /* first visit ever lands on the SinghoLaunch launchpad instead of the clock */
+  try {
+    if (location.protocol.startsWith('http') && !localStorage.getItem('singhoah:visited')) {
+      localStorage.setItem('singhoah:visited', '1');
+      location.replace('launch.html');
+    }
+  } catch (e) { /* keep the clock */ }
   /* dark is the default scheme; a stored preference wins, pre-paint */
   try { if ((localStorage.getItem('singhoah:night') || '1') === '1') document.documentElement.classList.add('dark'); }
   catch (e) { document.documentElement.classList.add('dark'); }

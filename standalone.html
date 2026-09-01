@@ -7,6 +7,13 @@
 <meta name="description" content="A drift-corrected millisecond clock in the style of displaay.net.">
 <meta name="color-scheme" content="dark light">
 <script>
+  /* first visit ever lands on the SinghoLaunch launchpad instead of the clock */
+  try {
+    if (location.protocol.startsWith('http') && !localStorage.getItem('singhoah:visited')) {
+      localStorage.setItem('singhoah:visited', '1');
+      location.replace('launch.html');
+    }
+  } catch (e) { /* keep the clock */ }
   /* dark is the default scheme; a stored preference wins, pre-paint */
   try { if ((localStorage.getItem('singhoah:night') || '1') === '1') document.documentElement.classList.add('dark'); }
   catch (e) { document.documentElement.classList.add('dark'); }
@@ -574,6 +581,28 @@ button { font: inherit; color: inherit; }
   justify-content: center;
   gap: 20px;
   padding: 32px 16px;
+}
+.lp-clockwrap { text-align: center; }
+.lp-clock {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-variation-settings: "wght" 350, "MONO" 100;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-size: clamp(26px, 6vw, 42px);
+  line-height: 1;
+  letter-spacing: -.02em;
+  direction: ltr;
+  user-select: none;
+}
+.lp-clock .sep { color: var(--notification); }
+.lp-clock .ms { color: var(--pigeon); }
+.lp-clock-zone {
+  margin: 6px 0 0;
+  color: var(--pigeon);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .lp-grid {
   display: grid;
@@ -3174,7 +3203,7 @@ export function makeLangPicker(btn, pop, list, onPick, wrapSel = '.langwrap') {
 
 /* shared library for the sibling apps (SinghoWallet, SinghoLaunch) */
 globalThis.__SING_LIB = {
-  LANGS, STRINGS, t, langOf, pad, ccFlag,
+  LANGS, STRINGS, t, langOf, pad, ccFlag, formatClock,
   curSymbol, curName, curFlag, CURRENCIES,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,

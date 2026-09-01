@@ -37,6 +37,10 @@
 </header>
 
 <main class="launch">
+  <div class="lp-clockwrap">
+    <p class="lp-clock" id="lpClock" aria-label="HH:MM:SS:mmm"></p>
+    <p class="lp-clock-zone" id="lpZone"></p>
+  </div>
   <div class="lp-grid">
     <a class="lp-card" id="cardClock" href="index.html">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.5l3.1 1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -58,7 +62,24 @@
 <script src="flags.js"></script>
 <script type="module" src="app.js"></script>
 <script type="module">
-  const { LANGS, t, langOf, ccFlag, makeLangPicker } = globalThis.__SING_LIB;
+  const { LANGS, t, langOf, ccFlag, makeLangPicker, formatClock } = globalThis.__SING_LIB;
+  try { localStorage.setItem('singhoah:visited', '1'); } catch { /* ignore */ }
+
+  /* small live clock widget */
+  const lpClock = document.getElementById('lpClock');
+  const slots = [];
+  for (let i = 0; i < 12; i++) {
+    const sp = document.createElement('span');
+    sp.className = 'slot' + (i === 2 || i === 5 || i === 8 ? ' sep' : i >= 9 ? ' ms' : '');
+    lpClock.appendChild(sp);
+    slots.push(sp);
+  }
+  (function tick() {
+    const str = formatClock(new Date());
+    for (let i = 0; i < 12; i++) if (slots[i].textContent !== str[i]) slots[i].textContent = str[i];
+    requestAnimationFrame(tick);
+  })();
+  try { document.getElementById('lpZone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* ignore */ }
   const $ = (id) => document.getElementById(id);
   let lang = 'en';
 

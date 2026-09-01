@@ -1826,7 +1826,7 @@ export function makeLangPicker(btn, pop, list, onPick, wrapSel = '.langwrap') {
 
 /* shared library for the sibling apps (SinghoWallet, SinghoLaunch) */
 globalThis.__SING_LIB = {
-  LANGS, STRINGS, t, langOf, pad, ccFlag,
+  LANGS, STRINGS, t, langOf, pad, ccFlag, formatClock,
   curSymbol, curName, curFlag, CURRENCIES,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,

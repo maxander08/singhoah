@@ -63,7 +63,18 @@ whtml = whtml.replace('<script type="module" src="wallet.js"></script>',
                       '<script type="module">\n' + (SRC / "wallet.js").read_text(encoding="utf-8") + '\n</script>')
 (OUT / "wallet-standalone.html").write_text(whtml, encoding="utf-8")
 
+lhtml = (SRC / "launch.html").read_text(encoding="utf-8")
+lhtml = lhtml.replace('<link rel="stylesheet" href="fonts.css">',
+                      '<style>\n' + "\n".join(css) + '\n</style>')
+lhtml = lhtml.replace('<link rel="stylesheet" href="styles.css">',
+                      '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
+lhtml = lhtml.replace('<script src="flags.js"></script>',
+                      '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
+lhtml = lhtml.replace('<script type="module" src="app.js"></script>',
+                      '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
+(OUT / "launch-standalone.html").write_text(lhtml, encoding="utf-8")
+
 SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js", "standalone.html",
-           "wallet.html", "wallet.js", "launch.html", "wallet-standalone.html"]
+           "wallet.html", "wallet.js", "launch.html", "wallet-standalone.html", "launch-standalone.html"]
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))

@@ -30,8 +30,9 @@ page.on('pageerror', (e) => errors.push(`pageerror: ${e}`));
 page.on('requestfailed', (r) => errors.push(`request failed: ${r.url()} ${r.failure()?.errorText}`));
 
 await page.goto(URL, { waitUntil: 'load' });
-await page.evaluate(() => localStorage.clear());
-await page.reload({ waitUntil: 'load' });
+ok('first visit lands on the SinghoLaunch launchpad', page.url().includes('launch.html'), page.url());
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('singhoah:visited', '1'); });
+await page.goto(URL, { waitUntil: 'load' });
 await page.waitForTimeout(400);
 
 const clockOf = () => page.locator('#clock').textContent();
@@ -118,7 +119,7 @@ const steps = await page.evaluate(() => {
 ok('glyph slots advance uniformly (MONO axis)', steps.maxDev <= 1, `step ${steps.mean.toFixed(2)} px ± ${steps.maxDev.toFixed(2)}`);
 
 /* --- theme: dark is the default scheme, the toggle offers light --- */
-await page.evaluate(() => localStorage.clear());
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('singhoah:visited', '1'); });
 await page.reload({ waitUntil: 'load' });
 await page.waitForTimeout(300);
 const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 2);
@@ -644,8 +645,8 @@ const m = await mob.newPage();
 const merrors = [];
 m.on('pageerror', (e) => merrors.push(String(e)));
 await m.goto(URL, { waitUntil: 'load' });
-await m.evaluate(() => localStorage.clear());
-await m.reload({ waitUntil: 'load' });
+await m.evaluate(() => { localStorage.clear(); localStorage.setItem('singhoah:visited', '1'); });
+await m.goto(URL, { waitUntil: 'load' });
 await m.waitForTimeout(400);
 ok('mobile page has no horizontal scroll',
   await m.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
@@ -714,6 +715,8 @@ await wpage.goto(URL + 'wallet.html', { waitUntil: 'load' });
 await wpage.waitForTimeout(400);
 ok('SinghoWallet loads as its own app',
   (await wpage.locator('.wordmark').textContent()).includes('Wallet'));
+ok('錢包 sits beside the SinghoWallet wordmark',
+  (await wpage.locator('.wordmark-zh').textContent()) === '錢包');
 await wpage.locator('#walTypeIn').click();
 await wpage.locator('#walAmt').fill('100');
 await wpage.locator('#walAddBtn').click();
@@ -821,6 +824,11 @@ await lp.goto(URL + 'launch.html', { waitUntil: 'load' });
 await lp.waitForTimeout(300);
 ok('launchpad wordmark reads SinghoLaunch',
   (await lp.locator('.wordmark').textContent()).includes('Launch'));
+const lpTick1 = (await lp.locator('#lpClock').textContent()).trim();
+await lp.waitForTimeout(300);
+const lpTick2 = (await lp.locator('#lpClock').textContent()).trim();
+ok('launchpad shows a live HH:MM:SS:mmm clock widget',
+  /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(lpTick1) && lpTick1 !== lpTick2, `${lpTick1} → ${lpTick2}`);
 ok('launchpad lists the clock and wallet apps', await lp.evaluate(() =>
   document.getElementById('cardClock').getAttribute('href') === 'index.html'
   && document.getElementById('cardWallet').getAttribute('href') === 'wallet.html'));
