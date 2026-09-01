@@ -717,6 +717,11 @@ ok('SinghoWallet loads as its own app',
   (await wpage.locator('.wordmark').textContent()).includes('Wallet'));
 ok('錢包 sits beside the SinghoWallet wordmark',
   (await wpage.locator('.wordmark-zh').textContent()) === '錢包');
+ok('wallet defaults to USD', await (async () => {
+  const b = (await wpage.locator('#walCurBtn').textContent()).trim();
+  const s = (await wpage.locator('#walAmtSym').textContent()).trim();
+  return b.includes('USD') && s === '$';
+})());
 await wpage.locator('#walTypeIn').click();
 await wpage.locator('#walAmt').fill('100');
 await wpage.locator('#walAddBtn').click();

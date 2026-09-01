@@ -75,7 +75,8 @@ Tuesday, 25 August 2026                       05:51 UTC
 - **SinghoWallet** (`wallet.html`) — the wallet as its own app: current
   balance, an expense/income entry form, spending grouped per day, and a
   reports dashboard (month spent/income, daily average, largest expense and
-  a 7-day spending chart). A currency dropdown lists every ISO-4217 currency
+  a 7-day spending chart). The currency defaults to USD. A currency dropdown
+  lists every ISO-4217 currency
   plus BTC and ETH with flag, localized name and symbol; the amount field is
   a clean text input with the symbol as prefix and a real *Amount* label (no
   spinner arrows), and the date uses a built-in localized calendar picker.
@@ -117,7 +118,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 121 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 122 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,

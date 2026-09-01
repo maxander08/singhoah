@@ -3183,7 +3183,7 @@ for (const id of [
 ]) els[id] = document.getElementById(id);
 
 let lang = 'en';
-let wallet = { cur: '$', tx: [] };
+let wallet = { cur: 'USD', tx: [] };
 let walType = 'out';
 let walTab = 'days';
 let walPrevTab = 'days';
@@ -3199,12 +3199,14 @@ function loadWallet() {
     const w = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
     if (w && Array.isArray(w.tx)) {
       return {
-        cur: typeof w.cur === 'string' && w.cur.trim() ? w.cur.trim() : '$',
+        cur: typeof w.cur === 'string' && w.cur.trim()
+          ? (w.cur.trim() === '$' ? 'USD' : w.cur.trim())
+          : 'USD',
         tx: w.tx.filter((x) => x && (x.type === 'in' || x.type === 'out') && Number.isFinite(x.amt)),
       };
     }
   } catch { /* ignore */ }
-  return { cur: '$', tx: [] };
+  return { cur: 'USD', tx: [] };
 }
 function saveWallet() { try { localStorage.setItem('singhoah:wallet', JSON.stringify(wallet)); } catch { /* ignore */ } }
 
