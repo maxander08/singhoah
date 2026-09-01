@@ -1058,6 +1058,7 @@ function buildLangPicker() {
 
 function openLangPop() {
   els.langPop.hidden = false;
+  clampPop(els.langPop);
   els.langBtn.setAttribute('aria-expanded', 'true');
 }
 function closeLangPop() {
@@ -1153,8 +1154,21 @@ function applyFilter(q) {
   }
 }
 
+/** Dropdowns hang below their button on every viewport; on narrow screens
+    nudge them sideways just enough to stay inside the viewport. */
+function clampPop(pop) {
+  pop.style.transform = '';
+  const r = pop.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth;
+  let dx = 0;
+  if (r.left < 8) dx = 8 - r.left;
+  else if (r.right > vw - 8) dx = (vw - 8) - r.right;
+  if (dx) pop.style.transform = `translateX(${dx}px)`;
+}
+
 function openPop() {
   els.tzPop.hidden = false;
+  clampPop(els.tzPop);
   els.tzBtn.setAttribute('aria-expanded', 'true');
   els.tzSearch.value = '';
   applyFilter('');
@@ -1312,7 +1326,10 @@ function initUI() {
   });
   els.tzSearch.addEventListener('input', () => applyFilter(els.tzSearch.value));
   els.langBtn.addEventListener('click', () => (els.langPop.hidden ? openLangPop() : closeLangPop()));
-  els.btnWindow.addEventListener('click', () => { els.winPop.hidden = !els.winPop.hidden; });
+  els.btnWindow.addEventListener('click', () => {
+    els.winPop.hidden = !els.winPop.hidden;
+    if (!els.winPop.hidden) clampPop(els.winPop);
+  });
   document.querySelectorAll('.lay-btn').forEach((b) =>
     b.addEventListener('click', () => setLayout(Number(b.dataset.layout))));
   document.addEventListener('pointerdown', (e) => {
@@ -1337,7 +1354,10 @@ function initUI() {
   });
 
   els.btnMode.addEventListener('click', () =>    setMode(!document.documentElement.classList.contains('analog')));
-  els.btnTimer.addEventListener('click', () => { els.timerPop.hidden = !els.timerPop.hidden; });
+  els.btnTimer.addEventListener('click', () => {
+    els.timerPop.hidden = !els.timerPop.hidden;
+    if (!els.timerPop.hidden) clampPop(els.timerPop);
+  });
 
   els.btnSync.addEventListener('click', runSync);
 

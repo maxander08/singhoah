@@ -525,8 +525,11 @@ ok('mobile page has no horizontal scroll',
 await m.locator('#tzBtn').tap();
 await m.waitForTimeout(200);
 const pb = await m.locator('#tzPop').boundingBox();
-ok('zone picker opens as a sheet inside the phone viewport',
-  pb && pb.x >= 0 && pb.x + pb.width <= 391 && pb.y + pb.height <= 845, JSON.stringify(pb));
+const tzb = await m.locator('#tzBtn').boundingBox();
+ok('zone dropdown hangs right below its button on mobile',
+  pb && tzb && pb.y >= tzb.y + tzb.height && pb.y <= tzb.y + tzb.height + 12
+  && pb.x >= 0 && pb.x + pb.width <= 391, JSON.stringify({ pop: pb, btn: tzb }));
+await m.screenshot({ path: 'shot-mobile-pop.png' });
 await m.locator('#tzSearch').fill('tokyo');
 await m.locator('.tz-row[data-zone="Asia/Tokyo"]').tap();
 await m.waitForTimeout(300);
@@ -535,13 +538,18 @@ ok('tapping a row selects the zone on touch',
 await m.locator('#langBtn').tap();
 await m.waitForTimeout(200);
 const lb = await m.locator('#langPop').boundingBox();
-ok('language dropdown fits the phone too', lb && lb.x >= 0 && lb.x + lb.width <= 391, JSON.stringify(lb));
+const lbb = await m.locator('#langBtn').boundingBox();
+ok('language dropdown hangs right below its button too',
+  lb && lbb && lb.y >= lbb.y + lbb.height && lb.y <= lbb.y + lbb.height + 12
+  && lb.x >= 0 && lb.x + lb.width <= 391, JSON.stringify(lb));
 await m.locator('#langList .tz-row[data-lang="en"]').tap();
 await m.locator('#btnTimer').tap();
 await m.waitForTimeout(200);
 const tb = await m.locator('#timerPop').boundingBox();
-ok('timer popup fits the phone', tb && tb.x >= 0 && tb.x + tb.width <= 391 && tb.y + tb.height <= 845,
-  JSON.stringify(tb));
+const tmb = await m.locator('#btnTimer').boundingBox();
+ok('timer dropdown hangs right below its button too',
+  tb && tmb && tb.y >= tmb.y + tmb.height && tb.y <= tmb.y + tmb.height + 12
+  && tb.x >= 0 && tb.x + tb.width <= 391, JSON.stringify(tb));
 await m.locator('#timerPresets .btn').nth(0).tap();
 await m.waitForTimeout(400);
 ok('a timer pane works on the stacked phone layout', await m.evaluate(() =>

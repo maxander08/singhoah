@@ -519,17 +519,8 @@ button { font: inherit; color: inherit; }
   .second-bar { width: 74px; }
 }
 
-/* ---------- phones: dropdowns become bottom sheets, touch-first ---------- */
+/* ---------- phones: same anchored dropdowns, touch-first sizing ---------- */
 @media (max-width: 560px) {
-  .tz-pop, .lang-pop, .win-pop, .timer-pop {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    top: auto;
-    width: auto;
-    max-height: 70vh;
-  }
   .tz-row { padding: 12px 14px; }
   .tz-search { font-size: 16px; }   /* prevents iOS focus zoom */
   .btn { padding: 8px 12px; }

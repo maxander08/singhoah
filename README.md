@@ -58,10 +58,10 @@ Tuesday, 25 August 2026                       05:51 UTC
   pane: it counts down `HH:MM:SS:mmm` (analogue hands too), tap its caption
   to pause/resume, `×` to clear, finished timers glow yellow. Several timers
   can run side by side with clocks.
-- **Phone-friendly** — under 560 px the dropdowns become fixed bottom sheets
-  that always fit the viewport, rows and buttons grow to touch size, the
-  search field avoids iOS focus-zoom, and side-by-side layouts stack
-  vertically so every pane stays legible.
+- **Phone-friendly** — dropdowns open right below their button exactly as on
+  desktop (nudged sideways only enough to stay inside the viewport), rows and
+  buttons grow to touch size, the search field avoids iOS focus-zoom, and
+  side-by-side layouts stack vertically so every pane stays legible.
 - **Dark by default** — the colour scheme is true black (`#000000` paper,
   white ink, yellow `#fff200` accents); the toggle switches to the original
   paper-light scheme. The choice is remembered and applied pre-paint.
