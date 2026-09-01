@@ -227,10 +227,11 @@ button { font: inherit; color: inherit; }
 }
 .map-wrap[hidden] { display: none; }
 .map-wrap svg { width: 100%; height: 100%; }
-.map-cc { fill: var(--paper-2); stroke: var(--paper); stroke-width: .6; cursor: pointer; }
-.map-cc.nozone { fill: var(--border); cursor: default; }
-.map-cc:hover { stroke: var(--notification); stroke-width: 1; }
-.map-cc.sel { stroke: var(--notification); stroke-width: 1.4; filter: brightness(1.2); }
+/* monochrome atlas: dark-grey landmasses, white country borders */
+.map-cc { fill: #2e2e2e; stroke: #ffffff; stroke-width: .6; cursor: pointer; }
+.map-cc.nozone { fill: #1f1f1f; cursor: default; }
+.map-cc:not(.nozone):hover { stroke: var(--notification); stroke-width: 1; }
+.map-cc.sel { stroke: var(--notification); stroke-width: 1.4; filter: brightness(1.25); }
 .map-grat {
   fill: none;
   stroke: var(--pigeon);
