@@ -20,7 +20,7 @@
 <body>
 
 <header class="topbar">
-  <p class="wordmark">S<em>inghoah</em></p>
+  <div class="brand"><p class="wordmark">S<em>inghoah</em></p><p class="wordmark-zh" lang="zh-Hant">生活</p></div>
   <div class="controls">
     <div class="lang">
       <button type="button" class="btn tz-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language · 語言">
@@ -95,17 +95,21 @@
             <p class="meta-label" id="walBalLabel">Balance</p>
             <p class="wal-bal" id="walBal">—</p>
           </div>
-          <input id="walCur" class="wal-cur" value="$" maxlength="3" title="Currency symbol" aria-label="Currency symbol">
+          <button type="button" class="wal-cur-btn" id="walCurBtn" aria-haspopup="listbox" aria-expanded="false" title="Currency symbol"></button>
         </div>
         <form class="wal-form" id="walForm">
           <div class="wal-seg" role="group" aria-label="Type">
             <button type="button" id="walTypeOut" aria-pressed="true">Expense</button>
             <button type="button" id="walTypeIn" aria-pressed="false">Income</button>
           </div>
-          <input id="walAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Amount" aria-label="Amount" required>
-          <input id="walDate" type="date" aria-label="Date">
+          <div class="wal-amt-wrap">
+            <span class="wal-amt-sym" id="walAmtSym" aria-hidden="true">$</span>
+            <input id="walAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="Amount" aria-label="Amount" required>
+          </div>
+          <button type="button" class="wal-date-btn" id="walDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Date"></button>
           <input id="walNote" type="text" maxlength="40" placeholder="Note" aria-label="Note">
           <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
+          <div class="wal-cal" id="walCal" hidden></div>
         </form>
         <div class="wal-tabs">
           <button type="button" class="btn wal-tab" id="walTabD" aria-pressed="true">Days</button>
@@ -113,6 +117,7 @@
         </div>
         <div class="wal-body" id="walDaysBox"></div>
         <div class="wal-body" id="walRepBox" hidden></div>
+        <div class="wal-body" id="walCurBox" hidden></div>
       </div>
     </div>
     <button type="button" class="btn" id="btnMap" aria-pressed="false" title="Map">

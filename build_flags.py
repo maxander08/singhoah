@@ -59,7 +59,21 @@ for _ in range(3):  # a few passes in case of chained links
 # manual overrides
 zone_cc["UTC"] = "UN"
 
-ccs = sorted(set(zone_cc.values()))
+# extra cc's needed by the wallet's currency dropdown (ISO 4217 homes + EU)
+EXTRA_CCS = {
+    "EU", "AE", "AF", "AL", "AM", "AO", "AR", "AU", "AW", "AZ", "BA", "BB", "BD", "BG", "BH",
+    "BI", "BM", "BN", "BO", "BR", "BS", "BT", "BW", "BY", "BZ", "CA", "CD", "CH", "CL", "CM",
+    "CN", "CO", "CR", "CU", "CV", "CW", "CZ", "DJ", "DK", "DM", "DO", "DZ", "EG", "ER", "ET",
+    "FJ", "FK", "GB", "GE", "GH", "GI", "GM", "GN", "GT", "GY", "HK", "HN", "HT", "HU", "ID",
+    "IL", "IN", "IQ", "IR", "IS", "JM", "JO", "JP", "KE", "KG", "KH", "KM", "KP", "KR", "KW",
+    "KY", "KZ", "LA", "LB", "LK", "LR", "LS", "LY", "MA", "MD", "MG", "MK", "MM", "MN", "MO",
+    "MR", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NG", "NI", "NO", "NP", "NZ", "OM", "PA",
+    "PE", "PG", "PH", "PK", "PL", "PF", "PY", "QA", "RO", "RS", "RU", "RW", "SA", "SB", "SC",
+    "SD", "SE", "SG", "SH", "SL", "SN", "SO", "SR", "SS", "ST", "SV", "SY", "SZ", "TH", "TJ",
+    "TM", "TN", "TO", "TR", "TT", "TW", "TZ", "UA", "UG", "US", "UY", "UZ", "VE", "VN", "VU",
+    "WS", "YE", "ZA", "ZM", "ZW",
+}
+ccs = sorted(set(zone_cc.values()) | EXTRA_CCS)
 FLAG_DIR.mkdir(exist_ok=True)
 
 

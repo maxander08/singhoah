@@ -635,6 +635,62 @@ await page.keyboard.press('Escape');
 ok('escape closes the wallet popup',
   await page.evaluate(() => document.getElementById('walletPop').hidden));
 
+/* --- wallet: currency dropdown + custom date picker --- */
+ok('生活 sits beside the Singhoah wordmark',
+  (await page.locator('.wordmark-zh').textContent()) === '生活');
+await page.locator('#btnWallet').click();
+await page.waitForTimeout(150);
+ok('amount field is a plain text input — no spinner arrows',
+  await page.evaluate(() => document.getElementById('walAmt').type === 'text'));
+await page.locator('#walCurBtn').click();
+await page.waitForTimeout(150);
+const cur1 = await page.evaluate(() => ({
+  rows: document.querySelectorAll('#curList .cur-row').length,
+  btc: (document.querySelector('#curList .cur-row[data-code="BTC"]') || {}).textContent || '',
+  eth: (document.querySelector('#curList .cur-row[data-code="ETH"]') || {}).textContent || '',
+  usd: (document.querySelector('#curList .cur-row[data-code="USD"]') || {}).textContent || '',
+  euFlag: (document.querySelector('#curList .cur-row[data-code="EUR"] img') || {}).src || '',
+}));
+ok('currency dropdown lists 140+ currencies with flags',
+  cur1.rows >= 140 && cur1.euFlag.startsWith('data:image/svg'), `${cur1.rows} rows`);
+ok('BTC and ETH are listed with their symbols',
+  cur1.btc.includes('₿') && cur1.eth.includes('Ξ'), `${cur1.btc.trim()} · ${cur1.eth.trim()}`);
+ok('currency rows carry localized names', /Dollar/.test(cur1.usd), cur1.usd.trim().slice(0, 60));
+await page.locator('#curSearch').fill('euro');
+await page.waitForTimeout(120);
+await page.locator('#curList .cur-row[data-code="EUR"]').click();
+await page.waitForTimeout(150);
+const cur2 = await page.evaluate(() => ({
+  sym: document.getElementById('walAmtSym').textContent,
+  btn: document.getElementById('walCurBtn').textContent,
+}));
+ok('picking a currency updates the symbol prefix and button',
+  cur2.sym === '€' && cur2.btn.includes('EUR'), JSON.stringify(cur2));
+await page.locator('#walDateBtn').click();
+await page.waitForTimeout(120);
+const cal1 = await page.evaluate(() => ({
+  days: document.querySelectorAll('#walCal .wal-cal-day:not(.dim)').length,
+  head: (document.querySelector('#walCal .wal-cal-head strong') || {}).textContent || '',
+}));
+ok('the date picker shows a full localized month',
+  cal1.days >= 28 && cal1.days <= 31 && cal1.head.length > 3, JSON.stringify(cal1));
+await page.locator('#walCal .wal-cal-nav[data-d="1"]').click();
+await page.waitForTimeout(120);
+await page.locator('#walCal .wal-cal-day[data-date$="-15"]').first().click();
+await page.waitForTimeout(120);
+ok('picking a day closes the calendar and labels the button',
+  await page.evaluate(() => document.getElementById('walCal').hidden
+    && /15/.test(document.getElementById('walDateBtn').textContent)));
+await page.locator('#walAmt').fill('9');
+await page.locator('#walNote').fill('Metro');
+await page.locator('#walAddBtn').click();
+await page.waitForTimeout(150);
+ok('the entry lands on the picked day',
+  await page.evaluate(() => /Metro/.test(document.getElementById('walDaysBox').textContent)
+    && /15/.test(document.getElementById('walDaysBox').textContent)));
+await page.screenshot({ path: 'shot-wallet2.png' });
+await page.keyboard.press('Escape');
+
 /* --- the world map: detailed SVG, click a country to pick its zone --- */
 await page.locator('#btnMap').click();
 await page.waitForTimeout(300);
@@ -745,6 +801,27 @@ ok('wallet dropdown hangs right below its button on mobile',
   wb && wbtn && wb.y >= wbtn.y + wbtn.height && wb.y <= wbtn.y + wbtn.height + 12
   && wb.x >= 0 && wb.x + wb.width <= 391, JSON.stringify(wb));
 await m.screenshot({ path: 'shot-wallet-mobile.png' });
+await m.locator('#walCurBtn').tap();
+await m.waitForTimeout(150);
+const cb = await m.locator('#walletPop').boundingBox();
+ok('currency list fits the phone viewport',
+  cb && cb.x >= 0 && cb.x + cb.width <= 391, JSON.stringify(cb));
+await m.locator('#curSearch').fill('yen');
+await m.waitForTimeout(120);
+await m.locator('#curList .cur-row[data-code="JPY"]').tap();
+await m.waitForTimeout(150);
+ok('tapping a currency selects it on touch',
+  await m.evaluate(() => document.getElementById('walCurBtn').textContent.includes('JPY')));
+await m.locator('#walDateBtn').tap();
+await m.waitForTimeout(150);
+const db = await m.locator('#walCal').boundingBox();
+ok('the date picker fits the phone viewport',
+  db && db.x >= 0 && db.x + db.width <= 391, JSON.stringify(db));
+await m.screenshot({ path: 'shot-wallet-mobile2.png' });
+await m.locator('#walCal .wal-cal-day:not(.dim)').nth(9).tap();
+await m.waitForTimeout(120);
+ok('tapping a day selects it on touch',
+  await m.evaluate(() => document.getElementById('walCal').hidden));
 await m.keyboard.press('Escape');
 await m.locator('#btnTimer').tap();
 await m.waitForTimeout(200);

@@ -15,6 +15,7 @@ const {
   parseLayout, layoutShape, zoneWindowUrl, handAngles,
   timerSegments, anglesFromSegments, stopwatchElapsed,
   walBalance, walByDay, walMonthStats, walWeekSeries,
+  curSymbol, curName,
 } = app;
 
 const at = (iso) => new Date(iso);
@@ -344,4 +345,13 @@ test('week series returns 7 days ending at today', () => {
   assert.equal(s7[4].spent, 5);
   assert.equal(s7[5].spent, 0);
   assert.equal(walWeekSeries([], '2026-01-01')[6].spent, 0);
+});
+
+test('currency symbols localize and the coins get theirs', () => {
+  assert.equal(curSymbol('USD', 'en-GB'), '$');
+  assert.equal(curSymbol('EUR', 'en-GB'), '€');
+  assert.equal(curSymbol('BTC'), '₿');
+  assert.equal(curSymbol('ETH'), 'Ξ');
+  assert.equal(curName('BTC', 'zh-Hant'), '比特幣');
+  assert.match(curName('USD', 'en'), /Dollar/);
 });

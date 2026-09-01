@@ -80,6 +80,14 @@ button { font: inherit; color: inherit; }
   font-variation-settings: "wght" 400;
   letter-spacing: 0;
 }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.wordmark-zh {
+  margin: 0;
+  color: var(--pigeon);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .3em;
+}
 
 .controls { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
 
@@ -265,18 +273,21 @@ button { font: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
   font-variation-settings: "wght" 600;
 }
-.wal-cur {
-  width: 56px;
+.wal-cur-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 14px;
-  padding: 6px 8px;
-  text-align: center;
-  outline: none;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 9px;
+  cursor: pointer;
 }
+.wal-cur-btn:hover { background: var(--paper-2); }
 .wal-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -391,11 +402,108 @@ button { font: inherit; color: inherit; }
 .wal-bar { fill: var(--pigeon); opacity: .55; }
 .wal-bar.now { fill: var(--notification); opacity: 1; }
 .wal-chart text { fill: var(--pigeon); font-size: 10px; text-anchor: middle; }
+.wal-amt-wrap { position: relative; display: flex; min-width: 0; }
+.wal-amt-sym {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--pigeon);
+  font-size: 13px;
+  pointer-events: none;
+}
+#walAmt { padding-left: 28px; }
+.wal-date-btn {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 10px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wal-date-btn:hover { background: var(--paper-2); }
+.wal-cal {
+  grid-column: 1 / -1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.wal-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.wal-cal-head strong { font-size: 13px; font-weight: 600; }
+.wal-cal-nav {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  flex: none;
+}
+.wal-cal-nav:hover { background: var(--notification); color: var(--on-notification); border-color: var(--notification); }
+.wal-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.wal-cal-grid .dow {
+  padding: 3px 0;
+  text-align: center;
+  color: var(--pigeon);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.wal-cal-day {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.wal-cal-day:hover { background: var(--paper-2); }
+.wal-cal-day.dim { color: var(--pigeon); opacity: .45; cursor: default; }
+.wal-cal-day.today { box-shadow: inset 0 0 0 1px var(--border); }
+.wal-cal-day.sel { background: var(--notification); color: var(--on-notification); }
+.wal-cur-search {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  margin-bottom: 6px;
+}
+.wal-cur-search::placeholder { color: var(--pigeon); }
+.wal-cur-list { max-height: 240px; overflow: auto; padding: 2px; }
+.cur-row.sel-cur { background: var(--paper-2); }
 @media (max-width: 560px) {
-  .wal-form input { font-size: 16px; }  /* prevents iOS focus zoom */
+  .wal-form input, .wal-cur-search { font-size: 16px; }  /* prevents iOS focus zoom */
   .wal-seg button, .wal-tab { min-height: 40px; }
   .wal-bal { font-size: 23px; }
   .wal-item { padding: 9px 2px; }
+  .wal-date-btn, .wal-cur-btn { min-height: 40px; }
+  .wal-cal-day, .wal-cal-nav { min-height: 38px; }
+  .wordmark-zh { letter-spacing: .2em; }
 }
 
 /* ---------- meta row: date + time above the clock ---------- */
