@@ -342,6 +342,51 @@ button { font: inherit; color: inherit; }
 .dial-hub { fill: var(--black); }
 .dial-hub2 { fill: var(--notification); }
 
+/* ---------- timer ---------- */
+.timermenu { position: relative; }
+.timer-pop { width: 250px; padding: 10px; }
+.timer-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.timer-presets .btn { justify-content: center; padding: 6px 4px; }
+.timer-custom { display: flex; gap: 8px; align-items: center; }
+.timer-custom input {
+  width: 64px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  border-radius: 6px;
+  outline: none;
+}
+.timer-min-label {
+  flex: 1;
+  color: var(--pigeon);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.cap-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  margin-left: 2px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pigeon);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cap-x:hover { color: var(--notification); border-color: var(--notification); }
+.cell.timer .cap-x { display: inline-flex; }
+.cell.timer .flag { display: none; }
+.cell.done .clock { color: var(--notification); }
+.cell.done .clock .sep { animation: none; }
+
 /* zen windows keep only the controls they need */
 .zen .meta-row, .zen .status, .zen .wordmark,
 .zen .winmenu, .zen #btnSync, .zen #btnFull { display: none; }
@@ -472,4 +517,23 @@ button { font: inherit; color: inherit; }
   .meta-row { flex-direction: column; gap: 8px; align-items: flex-start; }
   .status-right { gap: 10px; }
   .second-bar { width: 74px; }
+}
+
+/* ---------- phones: dropdowns become bottom sheets, touch-first ---------- */
+@media (max-width: 560px) {
+  .tz-pop, .lang-pop, .win-pop, .timer-pop {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    top: auto;
+    width: auto;
+    max-height: 70vh;
+  }
+  .tz-row { padding: 12px 14px; }
+  .tz-search { font-size: 16px; }   /* prevents iOS focus zoom */
+  .btn { padding: 8px 12px; }
+  .grid[data-layout="2"] { grid-template: 1fr 1fr / 1fr; }  /* stack on phones */
+  .cell-cap { font-size: 11px; gap: 6px; }
+  .clock .sep { animation-duration: 1s; }
 }

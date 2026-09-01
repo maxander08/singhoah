@@ -456,6 +456,100 @@ ok('every cell gets its own analog dial', an2.dials === 4 && an2.visible.every((
   JSON.stringify(an2));
 await page.screenshot({ path: 'shot-analog-2x2.png' });
 
+/* --- timers: countdown panes join the current window --- */
+await page.locator('#btnMode').click(); // back to digital
+await page.waitForTimeout(200);
+await page.locator('#btnWindow').click();
+await page.locator('#winList .tz-row[data-layout="1"]').click();
+await page.waitForTimeout(200);
+await page.locator('#btnTimer').click();
+await page.waitForTimeout(120);
+ok('timer popup offers six presets and a custom input',
+  await page.locator('#timerPresets .btn').count() === 6);
+await page.locator('#timerPresets .btn').nth(1).click(); // 5:00
+await page.waitForTimeout(400);
+const t1 = await page.evaluate(() => ({
+  layout: document.getElementById('grid').dataset.layout,
+  timerCells: document.querySelectorAll('.cell.timer').length,
+  clock1: [...document.querySelectorAll('.cell .clock')][1].textContent,
+  cap: [...document.querySelectorAll('.cell.timer .cap-zone')][0].textContent,
+}));
+ok('starting a timer adds a countdown pane',
+  t1.layout === '2' && t1.timerCells === 1 && /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(t1.clock1)
+  && t1.cap === 'Timer', JSON.stringify(t1));
+await page.waitForTimeout(1500);
+const t1b = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('the timer counts down', t1b < t1.clock1, `${t1.clock1} → ${t1b}`);
+await page.screenshot({ path: 'shot-timer.png' });
+
+await page.locator('.cell.timer .cell-cap').click();
+await page.waitForTimeout(200);
+const p1 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+await page.waitForTimeout(700);
+const p2 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('caption tap pauses the countdown', p1 === p2, `${p1} = ${p2}`);
+await page.locator('.cell.timer .cell-cap').click();
+await page.waitForTimeout(700);
+const p3 = await page.evaluate(() => [...document.querySelectorAll('.cell .clock')][1].textContent);
+ok('caption tap resumes it', p3 < p2, `${p2} → ${p3}`);
+
+await page.locator('#btnTimer').click();
+await page.locator('#timerMin').fill('0.05');
+await page.locator('#timerStart').click();
+await page.waitForTimeout(4200);
+const dn = await page.evaluate(() => ({
+  done: document.querySelectorAll('.cell.done').length,
+  timers: document.querySelectorAll('.cell.timer').length,
+}));
+ok('a finished timer flags done', dn.done === 1 && dn.timers === 2, JSON.stringify(dn));
+await page.locator('.cell.done .cap-x').click();
+await page.locator('.cell.timer .cap-x').click();
+await page.waitForTimeout(300);
+ok('× clears timer panes',
+  await page.evaluate(() => document.querySelectorAll('.cell.timer').length) === 0);
+await page.locator('#btnWindow').click();
+await page.locator('#winList .tz-row[data-layout="1"]').click();
+await page.waitForTimeout(200);
+
+/* --- phones: dropdowns become bottom sheets, taps work --- */
+const mob = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+const m = await mob.newPage();
+const merrors = [];
+m.on('pageerror', (e) => merrors.push(String(e)));
+await m.goto(URL, { waitUntil: 'load' });
+await m.evaluate(() => localStorage.clear());
+await m.reload({ waitUntil: 'load' });
+await m.waitForTimeout(400);
+ok('mobile page has no horizontal scroll',
+  await m.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+await m.locator('#tzBtn').tap();
+await m.waitForTimeout(200);
+const pb = await m.locator('#tzPop').boundingBox();
+ok('zone picker opens as a sheet inside the phone viewport',
+  pb && pb.x >= 0 && pb.x + pb.width <= 391 && pb.y + pb.height <= 845, JSON.stringify(pb));
+await m.locator('#tzSearch').fill('tokyo');
+await m.locator('.tz-row[data-zone="Asia/Tokyo"]').tap();
+await m.waitForTimeout(300);
+ok('tapping a row selects the zone on touch',
+  (await m.locator('#tzLabel').textContent()).trim() === 'Tokyo');
+await m.locator('#langBtn').tap();
+await m.waitForTimeout(200);
+const lb = await m.locator('#langPop').boundingBox();
+ok('language dropdown fits the phone too', lb && lb.x >= 0 && lb.x + lb.width <= 391, JSON.stringify(lb));
+await m.locator('#langList .tz-row[data-lang="en"]').tap();
+await m.locator('#btnTimer').tap();
+await m.waitForTimeout(200);
+const tb = await m.locator('#timerPop').boundingBox();
+ok('timer popup fits the phone', tb && tb.x >= 0 && tb.x + tb.width <= 391 && tb.y + tb.height <= 845,
+  JSON.stringify(tb));
+await m.locator('#timerPresets .btn').nth(0).tap();
+await m.waitForTimeout(400);
+ok('a timer pane works on the stacked phone layout', await m.evaluate(() =>
+  document.querySelectorAll('.cell').length === 2 && document.querySelectorAll('.cell.timer').length === 1));
+await m.screenshot({ path: 'shot-mobile.png' });
+ok('no page errors on mobile', merrors.length === 0, merrors.join('; '));
+await mob.close();
+
 await browser.close();
 
 console.log(`\n${errors.length ? 'CONSOLE/NETWORK ISSUES:\n' + errors.join('\n') : 'no console or network errors'}`);

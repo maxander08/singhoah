@@ -53,6 +53,15 @@ Tuesday, 25 August 2026                       05:51 UTC
   sweeping continuously off the same drift-corrected time; in multi-cell
   layouts every zone gets its own dial. The choice is remembered and applied
   pre-paint, like the theme.
+- **Timers** — the *Timer* button starts a countdown (1/5/10/25/45/60 min
+  presets or any minute value) that joins the window exactly like a zone
+  pane: it counts down `HH:MM:SS:mmm` (analogue hands too), tap its caption
+  to pause/resume, `×` to clear, finished timers glow yellow. Several timers
+  can run side by side with clocks.
+- **Phone-friendly** — under 560 px the dropdowns become fixed bottom sheets
+  that always fit the viewport, rows and buttons grow to touch size, the
+  search field avoids iOS focus-zoom, and side-by-side layouts stack
+  vertically so every pane stays legible.
 - **Dark by default** — the colour scheme is true black (`#000000` paper,
   white ink, yellow `#fff200` accents); the toggle switches to the original
   paper-light scheme. The choice is remembered and applied pre-paint.
@@ -74,8 +83,8 @@ The committed files in this folder are already built — just serve the folder.
 ## Test
 
 ```sh
-npm test          # 21 unit tests for formatting, zones, flags, i18n, sync, layouts, hands
-npm run test:browser   # 58 checks in real Chromium (needs the server above)
+npm test          # 22 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers
+npm run test:browser   # 72 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,

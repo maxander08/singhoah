@@ -12,6 +12,7 @@ const {
   CLOCK_EMS, CLOCK_GLYPHS, MONO_ADVANCE, LETTER_SPACE_EM, fitFontSize, isCoarse,
   allTimeZones, zoneCountry, flagSrc, ccFlag, GLOBE_SVG, LANGS, t,
   parseLayout, layoutShape, zoneWindowUrl, handAngles,
+  timerSegments, anglesFromSegments,
 } = app;
 
 const at = (iso) => new Date(iso);
@@ -113,6 +114,13 @@ test('every language has a flag in the embedded set', () => {
   for (const L of LANGS) {
     assert.ok(ccFlag(L.flag).startsWith('data:image/svg+xml;base64'), `${L.id} -> ${L.flag}`);
   }
+});
+
+test('timerSegments formats countdowns and clamps', () => {
+  assert.deepEqual(timerSegments(90000), { hh: '00', mm: '01', ss: '30', ms: '000' });
+  assert.deepEqual(timerSegments(-5), { hh: '00', mm: '00', ss: '00', ms: '000' });
+  assert.deepEqual(timerSegments(359999999), { hh: '99', mm: '59', ss: '59', ms: '999' });
+  assert.equal(anglesFromSegments({ hh: '03', mm: '00', ss: '00', ms: '000' }).hour, 90);
 });
 
 test('handAngles maps a moment to dial degrees', () => {

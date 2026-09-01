@@ -61,14 +61,28 @@ export const SEGMENT_SHAPE = [
 ];
 
 /** ['1','4',':','0','5',':','0','9',':','0','0','7'] */
-export function toDigits(date, timeZone) {
-  const s = toSegments(date, timeZone);
+/** hh/mm/ss/ms parts of a countdown duration, clamped at 99:59:59.999. */
+export function timerSegments(ms) {
+  const t = Math.max(0, Math.floor(ms));
+  return {
+    hh: pad(Math.min(Math.floor(t / 3600000), 99)),
+    mm: pad(Math.floor(t / 60000) % 60),
+    ss: pad(Math.floor(t / 1000) % 60),
+    ms: pad(t % 1000, 3),
+  };
+}
+
+const segDigits = (s) => {
   const out = [];
   for (const [key, len] of SEGMENT_SHAPE) {
     const v = key === 'sep' ? ':' : s[key];
     for (let i = 0; i < len; i++) out.push(v[i]);
   }
   return out;
+};
+
+export function toDigits(date, timeZone) {
+  return segDigits(toSegments(date, timeZone));
 }
 
 export const DIGIT_KIND = SEGMENT_SHAPE.flatMap(([, len, kind]) =>
@@ -224,6 +238,7 @@ export const STRINGS = {
     addZone: 'Add zone', single: 'Single', side: 'Side by side', quad: '2 × 2',
     winTitle: 'Window layout', winAdd: 'Add to this window',
     analog: 'Analog', digital: 'Digital',
+    timer: 'Timer', start: 'Start', pause: 'Pause', resume: 'Resume', done: 'Done', running: 'running', paused: 'paused', minutes: 'Minutes', clear: 'Clear',
     synced: 'Synced · {src}', corrected: 'Corrected · {src}',
     drift: 'device drift {mag} — corrected{res}',
     offLabel: 'System clock — reference unavailable', offDetail: 'no drift correction applied',
@@ -235,6 +250,7 @@ export const STRINGS = {
     addZone: '新增時區', single: '單一', side: '並排', quad: '2 × 2',
     winTitle: '視窗格式', winAdd: '加入此視窗',
     analog: '類比', digital: '數位',
+    timer: '計時器', start: '開始', pause: '暫停', resume: '繼續', done: '完成', running: '運行中', paused: '已暫停', minutes: '分鐘', clear: '清除',
     synced: '已同步 · {src}', corrected: '已校正 · {src}',
     drift: '裝置漂移 {mag} — 已校正{res}',
     offLabel: '系統時鐘 — 無可用時間來源', offDetail: '未套用漂移校正',
@@ -246,6 +262,7 @@ export const STRINGS = {
     addZone: 'ज़ोन जोड़ें', single: 'एकल', side: 'साथ-साथ', quad: '2 × 2',
     winTitle: 'विंडो लेआउट', winAdd: 'इस विंडो में जोड़ें',
     analog: 'एनालॉग', digital: 'डिजिटल',
+    timer: 'टाइमर', start: 'शुरू', pause: 'रोकें', resume: 'जारी', done: 'हो गया', running: 'चल रहा', paused: 'रुका', minutes: 'मिनट', clear: 'हटाएँ',
     synced: 'सिंक हुआ · {src}', corrected: 'समायोजित · {src}',
     drift: 'डिवाइस ड्रिफ्ट {mag} — समायोजित{res}',
     offLabel: 'सिस्टम घड़ी — संदर्भ अनुपलब्ध', offDetail: 'कोई ड्रिफ्ट सुधार लागू नहीं',
@@ -257,6 +274,7 @@ export const STRINGS = {
     addZone: 'Añadir zona', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
     winTitle: 'Formato de ventana', winAdd: 'Añadir a esta ventana',
     analog: 'Analógico', digital: 'Digital',
+    timer: 'Temporizador', start: 'Iniciar', pause: 'Pausa', resume: 'Seguir', done: 'Listo', running: 'en marcha', paused: 'en pausa', minutes: 'Minutos', clear: 'Quitar',
     synced: 'Sincronizado · {src}', corrected: 'Corregido · {src}',
     drift: 'deriva del dispositivo {mag} — corregida{res}',
     offLabel: 'Reloj del sistema — referencia no disponible', offDetail: 'sin corrección de deriva',
@@ -268,6 +286,7 @@ export const STRINGS = {
     addZone: 'Ajouter un fuseau', single: 'Seul', side: 'Côte à côte', quad: '2 × 2',
     winTitle: 'Format de fenêtre', winAdd: 'Ajouter à cette fenêtre',
     analog: 'Analogique', digital: 'Numérique',
+    timer: 'Minuteur', start: 'Démarrer', pause: 'Pause', resume: 'Reprendre', done: 'Terminé', running: 'en cours', paused: 'en pause', minutes: 'Minutes', clear: 'Retirer',
     synced: 'Synchronisé · {src}', corrected: 'Corrigé · {src}',
     drift: 'dérive de l’appareil {mag} — corrigée{res}',
     offLabel: 'Horloge système — référence indisponible', offDetail: 'aucune correction de dérive',
@@ -279,6 +298,7 @@ export const STRINGS = {
     addZone: 'أضف منطقة', single: 'واحدة', side: 'جنباً إلى جنب', quad: '2 × 2',
     winTitle: 'تنسيق النافذة', winAdd: 'أضف إلى هذه النافذة',
     analog: 'تناظري', digital: 'رقمي',
+    timer: 'مؤقت', start: 'ابدأ', pause: 'إيقاف مؤقت', resume: 'استئناف', done: 'انتهى', running: 'جارٍ', paused: 'متوقف مؤقتاً', minutes: 'دقائق', clear: 'إزالة',
     synced: 'متزامن · {src}', corrected: 'مصَحَّح · {src}',
     drift: 'انحراف الجهاز {mag} — مصحَّح{res}',
     offLabel: 'ساعة النظام — لا مرجع متاح', offDetail: 'دون تصحيح للانحراف',
@@ -290,6 +310,7 @@ export const STRINGS = {
     addZone: 'অঞ্চল যোগ করুন', single: 'একক', side: 'পাশাপাশি', quad: '2 × 2',
     winTitle: 'উইন্ডো বিন্যাস', winAdd: 'এই উইন্ডোতে যোগ করুন',
     analog: 'অ্যানালগ', digital: 'ডিজিটল',
+    timer: 'টাইমার', start: 'শুরু', pause: 'বিরতি', resume: 'চালু', done: 'হয়ে গেছে', running: 'চলছে', paused: 'বিরাম', minutes: 'মিনিট', clear: 'সরান',
     synced: 'সিঙ্ক হয়েছে · {src}', corrected: 'সংশোধিত · {src}',
     drift: 'ডিভাইস ড্রিফ্ট {mag} — সংশোধিত{res}',
     offLabel: 'সিস্টেম ঘড়ি — রেফারেন্স নেই', offDetail: 'ড্রিফ্ট সংশোধন প্রযোজ্য নয়',
@@ -301,6 +322,7 @@ export const STRINGS = {
     addZone: 'Добавить пояс', single: 'Один', side: 'Рядом', quad: '2 × 2',
     winTitle: 'Формат окна', winAdd: 'Добавить в это окно',
     analog: 'Аналоговый', digital: 'Цифровой',
+    timer: 'Таймер', start: 'Старт', pause: 'Пауза', resume: 'Продолжить', done: 'Готово', running: 'идёт', paused: 'пауза', minutes: 'Минуты', clear: 'Убрать',
     synced: 'Синхронизировано · {src}', corrected: 'Скорректировано · {src}',
     drift: 'дрейф устройства {mag} — скорректировано{res}',
     offLabel: 'Системные часы — эталон недоступен', offDetail: 'коррекция дрейфа не применяется',
@@ -312,6 +334,7 @@ export const STRINGS = {
     addZone: 'Adicionar fuso', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
     winTitle: 'Formato da janela', winAdd: 'Adicionar a esta janela',
     analog: 'Analógico', digital: 'Digital',
+    timer: 'Timer', start: 'Iniciar', pause: 'Pausa', resume: 'Retomar', done: 'Pronto', running: 'correndo', paused: 'pausado', minutes: 'Minutos', clear: 'Remover',
     synced: 'Sincronizado · {src}', corrected: 'Corrigido · {src}',
     drift: 'deriva do dispositivo {mag} — corrigida{res}',
     offLabel: 'Relógio do sistema — referência indisponível', offDetail: 'sem correção de deriva',
@@ -323,6 +346,7 @@ export const STRINGS = {
     addZone: 'زون شامل کریں', single: 'واحد', side: 'بہ پہلو', quad: '2 × 2',
     winTitle: 'ونڈو فارمیٹ', winAdd: 'اس ونڈو میں شامل کریں',
     analog: 'انالاگ', digital: 'ڈیجیٹل',
+    timer: 'ٹائمر', start: 'شروع', pause: 'روکیں', resume: 'جاری', done: 'ہو گیا', running: 'جاری ہے', paused: 'موقوف', minutes: 'منٹ', clear: 'ہٹائیں',
     synced: 'ہم آہنگ · {src}', corrected: 'درست · {src}',
     drift: 'ڈیوائس ڈرفٹ {mag} — درست{res}',
     offLabel: 'سسٹم گھڑی — ماخذ دستیاب نہیں', offDetail: 'کوئی ڈرفٹ اصلاح لاگو نہیں',
@@ -355,13 +379,17 @@ export const layoutShape = (n) =>
 
 /** Dial angles in degrees for hour/minute/second/millisecond hands.
     All four sweep continuously — the milli hand does one turn per second. */
-export function handAngles(date, timeZone) {
-  const s = toSegments(date, timeZone);
+/** Dial angles from any hh/mm/ss/ms segment set (clocks and countdowns). */
+export function anglesFromSegments(s) {
   const ms = Number(s.ms);
   const secF = Number(s.ss) + ms / 1000;
   const minF = Number(s.mm) + secF / 60;
   const hourF = (Number(s.hh) % 12) + minF / 60;
   return { hour: hourF * 30, minute: minF * 6, second: secF * 6, milli: ms * 0.36 };
+}
+
+export function handAngles(date, timeZone) {
+  return anglesFromSegments(toSegments(date, timeZone));
 }
 
 /* ---------------- NTP-ish synchronisation ---------------- */
@@ -552,6 +580,9 @@ let layout = 1;           // 1 | 2 | 4 cells
 let cellZones = [null];   // per-cell zone (cell 0 mirrors timeZone)
 let cells = [];           // { el, cap, flag, zspan, dspan, add, clock, prev, capKey }
 let pickerCell = null;    // which cell the zone picker edits (null = main)
+let timers = new Map();   // id -> { duration, endsAt, remaining, running }
+let timerSeq = 0;
+const isTimer = (z) => typeof z === 'string' && z.startsWith('timer:');
 let prev = null;
 let lastMetaKey = null;
 let syncResult = null;
@@ -652,6 +683,7 @@ function grabElements() {
     'tzBtn', 'tzFlag', 'tzLabel', 'tzPop', 'tzSearch', 'tzList',
     'langBtn', 'langFlag', 'langLabel', 'langPop', 'langList',
     'dateLabel', 'timeLabel', 'winText', 'resyncText', 'btnMode',
+    'btnTimer', 'timerPop', 'timerPresets', 'timerMin', 'timerMinLabel', 'timerStart', 'timerText',
   ]) els[id] = document.getElementById(id);
 }
 
@@ -685,8 +717,13 @@ function makeCell(i) {
   sep2.textContent = '—';
   const tspan = document.createElement('span');
   tspan.className = 'cap-time';
-  cap.append(flag, zspan, sep, dspan, sep2, tspan);
-  cap.addEventListener('click', () => openPickerFor(i));
+  const xbtn = document.createElement('button');
+  xbtn.type = 'button';
+  xbtn.className = 'cap-x';
+  xbtn.textContent = '×';
+  xbtn.addEventListener('click', (e) => { e.stopPropagation(); clearTimerCell(i); });
+  cap.append(flag, zspan, sep, dspan, sep2, tspan, xbtn);
+  cap.addEventListener('click', () => capClick(i));
 
   const add = document.createElement('button');
   add.type = 'button';
@@ -709,7 +746,7 @@ function makeCell(i) {
   dial.appendChild(dialSvg);
 
   el.append(cap, add, clock, dial);
-  return { el, cap, flag, zspan, dspan, tspan, sep, add, clock, dial, hands, prev: null, capKey: null };
+  return { el, cap, flag, zspan, dspan, tspan, xbtn, sep, add, clock, dial, hands, prev: null, capKey: null };
 }
 
 function cellZone(i) {
@@ -733,13 +770,48 @@ function refreshCellStates() {
   cells.forEach((cell, i) => {
     const z = cellZone(i);
     cell.el.classList.toggle('unset', !z);
+    cell.el.classList.toggle('timer', isTimer(z));
     if (!z) { cell.prev = null; cell.capKey = null; }
   });
+}
+
+const durationLabel = (ms) => {
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor(ms / 1000) % 60;
+  return m >= 60 ? `${Math.floor(m / 60)}:${pad(m % 60)}:${pad(s)}` : `${m}:${pad(s)}`;
+};
+
+function updateTimerCell(cell, tm, date) {
+  const remaining = tm.running ? tm.endsAt - date.getTime() : tm.remaining;
+  const doneAt = remaining <= 0;
+  if (doneAt && tm.running) { tm.running = false; tm.remaining = 0; }
+  const seg = timerSegments(remaining);
+  const digits = segDigits(seg);
+  for (let k = 0; k < digits.length; k++) {
+    if (!cell.prev || cell.prev[k] !== digits[k]) cell.clock.children[k].textContent = digits[k];
+  }
+  cell.prev = digits;
+  cell.el.classList.toggle('done', doneAt);
+  cell.zspan.textContent = t(lang, 'timer');
+  cell.dspan.textContent = durationLabel(tm.duration);
+  cell.tspan.textContent = doneAt ? t(lang, 'done') : t(lang, tm.running ? 'running' : 'paused');
+  if (document.documentElement.classList.contains('analog')) {
+    const a = anglesFromSegments(seg);
+    cell.hands.hour.setAttribute('transform', `rotate(${a.hour} 100 100)`);
+    cell.hands.minute.setAttribute('transform', `rotate(${a.minute} 100 100)`);
+    cell.hands.second.setAttribute('transform', `rotate(${a.second} 100 100)`);
+    cell.hands.milli.setAttribute('transform', `rotate(${a.milli} 100 100)`);
+  }
 }
 
 function updateCell(cell, i, date, locale) {
   const z = cellZone(i);
   if (!z) return;
+  if (isTimer(z)) {
+    const tm = timers.get(z.slice(6));
+    if (tm) updateTimerCell(cell, tm, date);
+    return;
+  }
   const digits = toDigits(date, z);
   for (let k = 0; k < digits.length; k++) {
     if (!cell.prev || cell.prev[k] !== digits[k]) cell.clock.children[k].textContent = digits[k];
@@ -792,7 +864,7 @@ export function render(date) {
   const analog = document.documentElement.classList.contains('analog');
   cells.forEach((cell, i) => {
     updateCell(cell, i, date, locale);
-    if (analog && cellZone(i)) {
+    if (analog && cellZone(i) && !isTimer(cellZone(i))) {
       const a = handAngles(date, cellZone(i));
       cell.hands.hour.setAttribute('transform', `rotate(${a.hour} 100 100)`);
       cell.hands.minute.setAttribute('transform', `rotate(${a.minute} 100 100)`);
@@ -812,7 +884,7 @@ function refreshURL() {
   if (layout === 1) {
     u.search = `?tz=${encodeURIComponent(timeZone || 'UTC')}${zen}`;
   } else {
-    const zones = Array.from({ length: layout }, (_, i) => cellZone(i) || '');
+    const zones = Array.from({ length: layout }, (_, i) => (isTimer(cellZone(i)) ? '' : cellZone(i) || ''));
     u.search = `?tz=${encodeURIComponent(timeZone || 'UTC')}&layout=${shape}`
       + `&zones=${zones.map((z) => encodeURIComponent(z)).join(',')}${zen}`;
   }
@@ -859,8 +931,49 @@ function persistLayout() {
   if (zenMode) return;
   try {
     localStorage.setItem('klock:layout', String(layout));
-    localStorage.setItem('klock:zones', JSON.stringify(cellZones));
+    localStorage.setItem('klock:zones', JSON.stringify(cellZones.map((z) => (isTimer(z) ? null : z))));
   } catch { /* ignore */ }
+}
+
+/** A countdown joins the current window exactly like a zone pane does. */
+function addTimerToWindow(ms) {
+  const id = `t${++timerSeq}`;
+  const now = (window.__clock ? window.__clock.now() : new Date()).getTime();
+  timers.set(id, { duration: ms, endsAt: now + ms, remaining: ms, running: true });
+  const shown = Array.from({ length: layout }, (_, i) => cellZone(i));
+  let slot = shown.indexOf(null);
+  if (slot === -1 && layout < 4) {
+    setLayout(layout === 1 ? 2 : 4);
+    slot = Array.from({ length: layout }, (_, i) => cellZone(i)).indexOf(null);
+  }
+  if (slot === -1) slot = layout - 1;
+  setCellZone(slot, `timer:${id}`);
+}
+
+function toggleTimer(i, z) {
+  const tm = timers.get(z.slice(6));
+  if (!tm) return;
+  const now = (window.__clock ? window.__clock.now() : new Date()).getTime();
+  if (tm.running) {
+    tm.remaining = Math.max(0, tm.endsAt - now);
+    tm.running = false;
+  } else if (tm.remaining > 0) {
+    tm.endsAt = now + tm.remaining;
+    tm.running = true;
+  }
+  if (window.__clock) render(window.__clock.now());
+}
+
+function clearTimerCell(i) {
+  const z = cellZone(i);
+  if (isTimer(z)) timers.delete(z.slice(6));
+  setCellZone(i, null);
+}
+
+function capClick(i) {
+  const z = cellZone(i);
+  if (isTimer(z)) toggleTimer(i, z);
+  else openPickerFor(i);
 }
 
 /** ⧉ on a picker row: the zone joins the current window — no new tabs.
@@ -889,6 +1002,14 @@ function applyLang(id, persist = true) {
   els.timeLabel.textContent = t(lang, 'time');
   els.winText.textContent = t(lang, 'window');
   els.btnWindow.title = t(lang, 'winTitle');
+  els.timerText.textContent = t(lang, 'timer');
+  els.btnTimer.title = t(lang, 'timer');
+  els.timerMinLabel.textContent = t(lang, 'minutes');
+  els.timerStart.textContent = t(lang, 'start');
+  document.querySelectorAll('.cap-x').forEach((b) => {
+    b.title = t(lang, 'clear');
+    b.setAttribute('aria-label', t(lang, 'clear'));
+  });
   document.querySelectorAll('.tz-win').forEach((b) => {
     b.title = t(lang, 'winAdd');
     b.setAttribute('aria-label', t(lang, 'winAdd'));
@@ -1106,6 +1227,26 @@ async function runSync() {
 
 /* ---------------- boot ---------------- */
 
+function buildTimerPop() {
+  for (const m of [1, 5, 10, 25, 45, 60]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn';
+    b.textContent = m >= 60 ? '1:00:00' : `${m}:00`;
+    b.addEventListener('click', () => {
+      els.timerPop.hidden = true;
+      addTimerToWindow(m * 60000);
+    });
+    els.timerPresets.appendChild(b);
+  }
+  els.timerStart.addEventListener('click', () => {
+    const mins = parseFloat(els.timerMin.value);
+    if (!Number.isFinite(mins) || mins <= 0) return;
+    els.timerPop.hidden = true;
+    addTimerToWindow(Math.round(mins * 60000));
+  });
+}
+
 function buildWindowMenu() {
   for (const [n, icon] of [[1, LAY_ICONS[1]], [2, LAY_ICONS[2]], [4, LAY_ICONS[4]]]) {
     const row = document.createElement('div');
@@ -1142,6 +1283,7 @@ function initUI() {
   buildPicker();
   buildLangPicker();
   buildWindowMenu();
+  buildTimerPop();
 
   const zones = allTimeZones();
   const system = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -1177,6 +1319,7 @@ function initUI() {
     if (!els.tzPop.hidden && !e.target.closest('.tz')) closePop();
     if (!els.langPop.hidden && !e.target.closest('.lang')) closeLangPop();
     if (!els.winPop.hidden && !e.target.closest('.winmenu')) els.winPop.hidden = true;
+    if (!els.timerPop.hidden && !e.target.closest('.timermenu')) els.timerPop.hidden = true;
   });
 
   fitClock();
@@ -1194,6 +1337,7 @@ function initUI() {
   });
 
   els.btnMode.addEventListener('click', () =>    setMode(!document.documentElement.classList.contains('analog')));
+  els.btnTimer.addEventListener('click', () => { els.timerPop.hidden = !els.timerPop.hidden; });
 
   els.btnSync.addEventListener('click', runSync);
 
@@ -1205,7 +1349,7 @@ function initUI() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; return; }
+    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; els.timerPop.hidden = true; return; }
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,textarea,select')) return;
     if (e.key === 'n' || e.key === 'N') els.btnNight.click();
     if (e.key === 'a' || e.key === 'A') els.btnMode.click();
