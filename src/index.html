@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Klock — HH:MM:SS:mmm</title>
+<meta name="description" content="A drift-corrected millisecond clock in the style of displaay.net.">
+<meta name="color-scheme" content="dark light">
+<script>
+  /* dark is the default scheme; a stored preference wins, pre-paint */
+  try { if ((localStorage.getItem('klock:night') || '1') === '1') document.documentElement.classList.add('dark'); }
+  catch (e) { document.documentElement.classList.add('dark'); }
+  try { if (localStorage.getItem('klock:mode') === 'analog') document.documentElement.classList.add('analog'); }
+  catch (e) { /* digital */ }
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2f0e6'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23000dff' stroke-width='2'/%3E%3Cpath d='M16 9v7l5 3' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <p class="wordmark">K<em>lock</em></p>
+  <div class="controls">
+    <div class="lang">
+      <button type="button" class="btn tz-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language · 語言">
+        <img id="langFlag" class="flag" alt="" width="20" height="15">
+        <span id="langLabel">EN</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop lang-pop" id="langPop" hidden>
+        <div class="tz-list" id="langList" role="listbox" aria-label="Language"></div>
+      </div>
+    </div>
+    <div class="tz">
+      <button type="button" class="btn tz-btn" id="tzBtn" aria-haspopup="listbox" aria-expanded="false" title="Time zone">
+        <img id="tzFlag" class="flag" alt="" width="20" height="15">
+        <span id="tzLabel">UTC</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop" id="tzPop" hidden>
+        <input id="tzSearch" class="tz-search" type="search" placeholder="Search city or country…" aria-label="Search time zones" autocomplete="off">
+        <div class="tz-list" id="tzList" role="listbox" aria-label="Time zones"></div>
+      </div>
+    </div>
+    <div class="winmenu">
+      <button type="button" class="btn" id="btnWindow" title="Window layout" aria-haspopup="listbox" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M9 4h9a2 2 0 0 1 2 2v9" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span id="winText">Window</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop win-pop" id="winPop" hidden>
+        <div class="tz-list" id="winList" role="listbox" aria-label="Window format"></div>
+      </div>
+    </div>
+    <div class="layouts" id="layouts" role="group" aria-label="Window layout">
+      <button type="button" class="btn lay-btn" data-layout="1" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      <button type="button" class="btn lay-btn" data-layout="2" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      <button type="button" class="btn lay-btn" data-layout="4" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg></button>
+    </div>
+    <button type="button" class="btn" id="btnMode" aria-pressed="false" title="Analog / digital (A)"></button>
+    <button type="button" class="btn" id="btnNight" aria-pressed="false" title="Toggle night shift (N)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C21.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/>
+      </svg>
+      Night Shift
+    </button>
+    <button type="button" class="btn" id="btnSync" title="Re-check the reference time (R)">
+      <span class="btn-dot" aria-hidden="true"></span>
+      <span id="resyncText">Re-sync</span>
+    </button>
+    <button type="button" class="btn" id="btnFull" title="Full screen (F)" aria-label="Full screen">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<div class="meta-row">
+  <div class="meta-left">
+    <p class="meta-label" id="dateLabel">Date</p>
+    <p class="meta-value" id="dateLong">—</p>
+  </div>
+  <div class="meta-right">
+    <p class="meta-label" id="timeLabel">Time</p>
+    <p class="meta-value" id="dateTime">—</p>
+  </div>
+</div>
+
+<main class="clock-wrap" id="clockWrap">
+  <div class="grid" id="grid" data-layout="1"></div>
+</main>
+
+<footer class="status">
+  <div class="status-group">
+    <span class="status-dot" id="syncDot" data-level="off" aria-hidden="true"></span>
+    <p class="status-text" id="syncText">System clock</p>
+    <p class="status-detail" id="syncDetail">checking reference…</p>
+  </div>
+  <div class="status-right">
+    <p class="status-detail" id="lastSync">checking…</p>
+    <p class="status-detail" id="zoneText">—</p>
+    <div class="second-bar" aria-hidden="true"><span id="secondFill"></span></div>
+  </div>
+</footer>
+
+<script src="flags.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

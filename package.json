@@ -1,0 +1,21 @@
+{
+  "name": "displaay-clock",
+  "version": "1.0.0",
+  "main": "app.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "python3 build.py",
+    "test": "node --test test/app.test.mjs",
+    "test:browser": "node test/browser.smoke.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  },
+  "type": "module"
+}

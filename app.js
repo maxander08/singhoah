@@ -1,0 +1,1227 @@
+/* ============================================================
+   Klock — core logic (runs in the browser *and* in node)
+   Every function below is pure / dependency-injected so it can be
+   exercised by test/app.test.mjs without a DOM.
+   ============================================================ */
+
+/* ---------------- formatting ---------------- */
+
+export const pad = (n, len = 2) => {
+  const s = String(Math.floor(Math.abs(n)));
+  return s.length >= len ? s.slice(-len) : '0'.repeat(len - s.length) + s;
+};
+
+/* Intl formatters are expensive to build and cheap to reuse — one per key. */
+const dtfCache = new Map();
+const cachedDTF = (key, make) => {
+  let f = dtfCache.get(key);
+  if (!f) { f = make(); dtfCache.set(key, f); }
+  return f;
+};
+
+export const timeFormatter = (timeZone) => cachedDTF(`t|${timeZone}`, () =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone, hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23', fractionalSecondDigits: 3,
+  }));
+
+/** Split a millisecond timestamp into the parts the display needs.
+    With a timeZone, hours/minutes/seconds come from that zone; the
+    millisecond-within-the-second is the same instant everywhere. */
+export function toSegments(date, timeZone) {
+  const ms = pad(date.getMilliseconds(), 3);
+  if (!timeZone) {
+    return { hh: pad(date.getHours()), mm: pad(date.getMinutes()), ss: pad(date.getSeconds()), ms };
+  }
+  const parts = timeFormatter(timeZone).formatToParts(date);
+  const get = (t) => {
+    const p = parts.find((x) => x.type === t);
+    return p ? p.value : '00';
+  };
+  const hh = get('hour') === '24' ? '00' : get('hour');
+  return { hh, mm: get('minute'), ss: get('second'), ms: get('fractionalSecond').slice(0, 3).padEnd(3, '0') };
+}
+
+/** "14:05:09:007" — HH:MM:SS:mmm */
+export function formatClock(date, timeZone) {
+  const s = toSegments(date, timeZone);
+  return `${s.hh}:${s.mm}:${s.ss}:${s.ms}`;
+}
+
+/* The big display is built from these alternating runs:
+   hh : mm : ss : mmm                                         */
+export const SEGMENT_SHAPE = [
+  ['hh', 2, 'digit'],
+  ['sep', 1, 'sep'],
+  ['mm', 2, 'digit'],
+  ['sep', 1, 'sep'],
+  ['ss', 2, 'digit'],
+  ['sep', 1, 'sep'],
+  ['ms', 3, 'ms'],
+];
+
+/** ['1','4',':','0','5',':','0','9',':','0','0','7'] */
+export function toDigits(date, timeZone) {
+  const s = toSegments(date, timeZone);
+  const out = [];
+  for (const [key, len] of SEGMENT_SHAPE) {
+    const v = key === 'sep' ? ':' : s[key];
+    for (let i = 0; i < len; i++) out.push(v[i]);
+  }
+  return out;
+}
+
+export const DIGIT_KIND = SEGMENT_SHAPE.flatMap(([, len, kind]) =>
+  Array.from({ length: len }, () => kind),
+);
+
+/**
+ * In Saans with MONO=100 every glyph we render — digits, colon and period —
+ * advances exactly 600/1000 em (verified against the font's hmtx table), so the
+ * whole HH:MM:SS:mmm string is 12 × 0.6 em wide. That makes the clock fit any
+ * viewport with one multiplication instead of a measurement round trip.
+ */
+export const MONO_ADVANCE = 0.6;
+export const LETTER_SPACE_EM = 0.02; // mirrors .clock { letter-spacing: -.02em } in styles.css
+export const CLOCK_GLYPHS = SEGMENT_SHAPE.reduce((n, [, len]) => n + len, 0); // 12
+// effective width of the whole string in em: 12 × (0.6 advance − 0.02 letter-spacing)
+export const CLOCK_EMS = 6.96;
+
+/* ---------------- header line (date + time above the clock) ---------------- */
+
+const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MO = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export function formatDateLong(date, opts = {}) {
+  const locale = opts.locale || 'en-GB';
+  try {
+    return cachedDTF(`d|${locale}|${opts.timeZone || ''}`, () => new Intl.DateTimeFormat(locale, {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: opts.timeZone,
+    })).format(date);
+  } catch {
+    return `${WD[date.getDay()]} ${date.getDate()} ${MO[date.getMonth()]} ${date.getFullYear()}`;
+  }
+}
+
+export function formatTimeShort(date, opts = {}) {
+  const locale = opts.locale || 'en-GB';
+  try {
+    return cachedDTF(`s|${locale}|${opts.timeZone || ''}`, () => new Intl.DateTimeFormat(locale, {
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: opts.timeZone,
+    })).format(date);
+  } catch {
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+}
+
+export function zoneInfo(date = new Date(), timeZone) {
+  const tz = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  let abbr = '';
+  try {
+    abbr = cachedDTF(`a|${tz}`, () => new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, timeZoneName: 'short',
+    })).formatToParts(date).find((p) => p.type === 'timeZoneName')?.value ?? '';
+  } catch { /* ignore */ }
+  let minutes = null;
+  try {
+    const gmt = cachedDTF(`o|${tz}`, () => new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, timeZoneName: 'longOffset',
+    })).formatToParts(date).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    const m = gmt.match(/GMT([+-])(\d{2}):(\d{2})/);
+    minutes = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+  } catch { /* ignore */ }
+  if (minutes === null) minutes = -date.getTimezoneOffset();
+  const sign = minutes < 0 ? '−' : '+';
+  const abs = Math.abs(minutes);
+  const utc = `UTC${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+  return { tz, abbr, utc, minutes };
+}
+
+/* ---------------- timezone catalogue + flags ---------------- */
+
+const FALLBACK_ZONES = [
+  'UTC', 'Africa/Cairo', 'Africa/Johannesburg', 'Africa/Lagos', 'Africa/Nairobi',
+  'America/Argentina/Buenos_Aires', 'America/Bogota', 'America/Chicago', 'America/Denver',
+  'America/Lima', 'America/Los_Angeles', 'America/Mexico_City', 'America/New_York',
+  'America/Santiago', 'America/Sao_Paulo', 'America/Toronto', 'America/Vancouver',
+  'Asia/Bangkok', 'Asia/Dubai', 'Asia/Hong_Kong', 'Asia/Jakarta', 'Asia/Jerusalem',
+  'Asia/Karachi', 'Asia/Kolkata', 'Asia/Manila', 'Asia/Seoul', 'Asia/Shanghai',
+  'Asia/Singapore', 'Asia/Tokyo', 'Australia/Melbourne', 'Australia/Perth',
+  'Australia/Sydney', 'Europe/Amsterdam', 'Europe/Athens', 'Europe/Berlin',
+  'Europe/Brussels', 'Europe/Istanbul', 'Europe/Lisbon', 'Europe/London',
+  'Europe/Madrid', 'Europe/Moscow', 'Europe/Paris', 'Europe/Prague', 'Europe/Rome',
+  'Europe/Stockholm', 'Europe/Vienna', 'Europe/Warsaw', 'Europe/Zurich',
+  'Pacific/Auckland', 'Pacific/Honolulu',
+];
+
+/** Every IANA zone the runtime knows about (400+), with a sane fallback. */
+export function allTimeZones() {
+  try {
+    if (typeof Intl.supportedValuesOf === 'function') {
+      const list = [...Intl.supportedValuesOf('timeZone')];
+      // ICU lists Etc/UTC but not the plain "UTC" alias — a clock must offer it
+      if (!list.includes('UTC')) list.unshift('UTC');
+      if (Array.isArray(list) && list.length) return list;
+    }
+  } catch { /* ignore */ }
+  return FALLBACK_ZONES;
+}
+
+export const cityOf = (z) =>
+  z.indexOf('/') === -1 ? z : z.slice(z.indexOf('/') + 1).replace(/_/g, ' ');
+
+export const regionOf = (z) =>
+  z.indexOf('/') === -1 ? 'UTC' : z.slice(0, z.indexOf('/'));
+
+/* flags.js (generated by build_flags.py) puts the IANA zone→country table and
+   the flag SVG data URIs on globalThis.__KLOCK_FLAGS. */
+
+export const GLOBE_SVG = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 15"><rect width="20" height="15" rx="2" fill="#898a90"/><circle cx="10" cy="7.5" r="5.2" fill="none" stroke="#fff" stroke-width="1.1"/><path d="M4.8 7.5h10.4M10 2.3c2.2 1.7 2.2 8.7 0 10.4c-2.2-1.7-2.2-8.7 0-10.4" fill="none" stroke="#fff" stroke-width="1"/></svg>',
+)}`;
+
+/** ISO 3166-1 alpha-2 for a zone, or null (unknown zones). */
+export function zoneCountry(tz) {
+  const m = globalThis.__KLOCK_FLAGS;
+  return (m && m.zoneCc && m.zoneCc[tz]) || null;
+}
+
+/** Flag image for an ISO country code; the globe only for unknown codes. */
+export function ccFlag(cc) {
+  const m = globalThis.__KLOCK_FLAGS;
+  return (m && cc && m.png[cc]) || GLOBE_SVG;
+}
+
+/** Flag image for a zone, via its country. */
+export function flagSrc(tz) {
+  return ccFlag(zoneCountry(tz));
+}
+
+/* ---------------- languages ---------------- */
+
+/* Ten of the world's most-spoken languages; the Chinese entry is
+   Traditional Chinese, as flown by TW. Arabic and Urdu run RTL. */
+export const LANGS = [
+  { id: 'en', locale: 'en-GB', flag: 'GB', name: 'English', dir: 'ltr' },
+  { id: 'zh-Hant', locale: 'zh-Hant-TW', flag: 'TW', name: '中文（繁體）', dir: 'ltr' },
+  { id: 'hi', locale: 'hi-IN', flag: 'IN', name: 'हिन्दी', dir: 'ltr' },
+  { id: 'es', locale: 'es-ES', flag: 'ES', name: 'Español', dir: 'ltr' },
+  { id: 'fr', locale: 'fr-FR', flag: 'FR', name: 'Français', dir: 'ltr' },
+  { id: 'ar', locale: 'ar', flag: 'SA', name: 'العربية', dir: 'rtl' },
+  { id: 'bn', locale: 'bn', flag: 'BD', name: 'বাংলা', dir: 'ltr' },
+  { id: 'ru', locale: 'ru-RU', flag: 'RU', name: 'Русский', dir: 'ltr' },
+  { id: 'pt', locale: 'pt-BR', flag: 'BR', name: 'Português', dir: 'ltr' },
+  { id: 'ur', locale: 'ur', flag: 'PK', name: 'اردو', dir: 'rtl' },
+];
+
+export const STRINGS = {
+  en: {
+    date: 'Date', time: 'Time', window: 'Window', light: 'Light', night: 'Night Shift',
+    resync: 'Re-sync', search: 'Search city or country…', language: 'Language',
+    addZone: 'Add zone', single: 'Single', side: 'Side by side', quad: '2 × 2',
+    winTitle: 'Window layout', winAdd: 'Add to this window',
+    analog: 'Analog', digital: 'Digital',
+    synced: 'Synced · {src}', corrected: 'Corrected · {src}',
+    drift: 'device drift {mag} — corrected{res}',
+    offLabel: 'System clock — reference unavailable', offDetail: 'no drift correction applied',
+    lastCheck: 'last check {t}', syncing: 'syncing…', secondRes: ' · second resolution', checking: 'checking…',
+  },
+  'zh-Hant': {
+    date: '日期', time: '時間', window: '視窗', light: '淺色', night: '夜間模式',
+    resync: '重新同步', search: '搜尋城市或國家…', language: '語言',
+    addZone: '新增時區', single: '單一', side: '並排', quad: '2 × 2',
+    winTitle: '視窗格式', winAdd: '加入此視窗',
+    analog: '類比', digital: '數位',
+    synced: '已同步 · {src}', corrected: '已校正 · {src}',
+    drift: '裝置漂移 {mag} — 已校正{res}',
+    offLabel: '系統時鐘 — 無可用時間來源', offDetail: '未套用漂移校正',
+    lastCheck: '上次檢查 {t}', syncing: '同步中…', secondRes: ' · 秒級解析度', checking: '檢查中…',
+  },
+  hi: {
+    date: 'तिथि', time: 'समय', window: 'विंडो', light: 'लाइट', night: 'नाइट शिफ्ट',
+    resync: 'री-सिंक', search: 'शहर या देश खोजें…', language: 'भाषा',
+    addZone: 'ज़ोन जोड़ें', single: 'एकल', side: 'साथ-साथ', quad: '2 × 2',
+    winTitle: 'विंडो लेआउट', winAdd: 'इस विंडो में जोड़ें',
+    analog: 'एनालॉग', digital: 'डिजिटल',
+    synced: 'सिंक हुआ · {src}', corrected: 'समायोजित · {src}',
+    drift: 'डिवाइस ड्रिफ्ट {mag} — समायोजित{res}',
+    offLabel: 'सिस्टम घड़ी — संदर्भ अनुपलब्ध', offDetail: 'कोई ड्रिफ्ट सुधार लागू नहीं',
+    lastCheck: 'अंतिम जाँच {t}', syncing: 'सिंक हो रहा है…', secondRes: ' · सेकंड रिज़ॉल्यूशन', checking: 'जाँच हो रही है…',
+  },
+  es: {
+    date: 'Fecha', time: 'Hora', window: 'Ventana', light: 'Claro', night: 'Turno de noche',
+    resync: 'Resincronizar', search: 'Buscar ciudad o país…', language: 'Idioma',
+    addZone: 'Añadir zona', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
+    winTitle: 'Formato de ventana', winAdd: 'Añadir a esta ventana',
+    analog: 'Analógico', digital: 'Digital',
+    synced: 'Sincronizado · {src}', corrected: 'Corregido · {src}',
+    drift: 'deriva del dispositivo {mag} — corregida{res}',
+    offLabel: 'Reloj del sistema — referencia no disponible', offDetail: 'sin corrección de deriva',
+    lastCheck: 'última comprobación {t}', syncing: 'sincronizando…', secondRes: ' · resolución de segundos', checking: 'comprobando…',
+  },
+  fr: {
+    date: 'Date', time: 'Heure', window: 'Fenêtre', light: 'Clair', night: 'Mode nuit',
+    resync: 'Resynchroniser', search: 'Rechercher une ville ou un pays…', language: 'Langue',
+    addZone: 'Ajouter un fuseau', single: 'Seul', side: 'Côte à côte', quad: '2 × 2',
+    winTitle: 'Format de fenêtre', winAdd: 'Ajouter à cette fenêtre',
+    analog: 'Analogique', digital: 'Numérique',
+    synced: 'Synchronisé · {src}', corrected: 'Corrigé · {src}',
+    drift: 'dérive de l’appareil {mag} — corrigée{res}',
+    offLabel: 'Horloge système — référence indisponible', offDetail: 'aucune correction de dérive',
+    lastCheck: 'dernier contrôle {t}', syncing: 'synchronisation…', secondRes: ' · résolution à la seconde', checking: 'contrôle…',
+  },
+  ar: {
+    date: 'التاريخ', time: 'الوقت', window: 'نافذة', light: 'فاتح', night: 'الوضع الليلي',
+    resync: 'إعادة المزامنة', search: 'ابحث عن مدينة أو دولة…', language: 'اللغة',
+    addZone: 'أضف منطقة', single: 'واحدة', side: 'جنباً إلى جنب', quad: '2 × 2',
+    winTitle: 'تنسيق النافذة', winAdd: 'أضف إلى هذه النافذة',
+    analog: 'تناظري', digital: 'رقمي',
+    synced: 'متزامن · {src}', corrected: 'مصَحَّح · {src}',
+    drift: 'انحراف الجهاز {mag} — مصحَّح{res}',
+    offLabel: 'ساعة النظام — لا مرجع متاح', offDetail: 'دون تصحيح للانحراف',
+    lastCheck: 'آخر فحص {t}', syncing: 'جارٍ المزامنة…', secondRes: ' · دقة بالثواني', checking: 'جارٍ الفحص…',
+  },
+  bn: {
+    date: 'তারিখ', time: 'সময়', window: 'উইন্ডো', light: 'লাইট', night: 'নাইট শিফ্ট',
+    resync: 'রি-সিঙ্ক', search: 'শহর বা দেশ খুঁজুন…', language: 'ভাষা',
+    addZone: 'অঞ্চল যোগ করুন', single: 'একক', side: 'পাশাপাশি', quad: '2 × 2',
+    winTitle: 'উইন্ডো বিন্যাস', winAdd: 'এই উইন্ডোতে যোগ করুন',
+    analog: 'অ্যানালগ', digital: 'ডিজিটল',
+    synced: 'সিঙ্ক হয়েছে · {src}', corrected: 'সংশোধিত · {src}',
+    drift: 'ডিভাইস ড্রিফ্ট {mag} — সংশোধিত{res}',
+    offLabel: 'সিস্টেম ঘড়ি — রেফারেন্স নেই', offDetail: 'ড্রিফ্ট সংশোধন প্রযোজ্য নয়',
+    lastCheck: 'সর্বশেষ যাচাই {t}', syncing: 'সিঙ্ক হচ্ছে…', secondRes: ' · সেকেন্ড রেজোলিউশন', checking: 'যাচাই হচ্ছে…',
+  },
+  ru: {
+    date: 'Дата', time: 'Время', window: 'Окно', light: 'Светлая', night: 'Ночной режим',
+    resync: 'Синхронизировать', search: 'Поиск города или страны…', language: 'Язык',
+    addZone: 'Добавить пояс', single: 'Один', side: 'Рядом', quad: '2 × 2',
+    winTitle: 'Формат окна', winAdd: 'Добавить в это окно',
+    analog: 'Аналоговый', digital: 'Цифровой',
+    synced: 'Синхронизировано · {src}', corrected: 'Скорректировано · {src}',
+    drift: 'дрейф устройства {mag} — скорректировано{res}',
+    offLabel: 'Системные часы — эталон недоступен', offDetail: 'коррекция дрейфа не применяется',
+    lastCheck: 'последняя проверка {t}', syncing: 'синхронизация…', secondRes: ' · точность до секунды', checking: 'проверка…',
+  },
+  pt: {
+    date: 'Data', time: 'Hora', window: 'Janela', light: 'Claro', night: 'Modo noturno',
+    resync: 'Ressincronizar', search: 'Buscar cidade ou país…', language: 'Idioma',
+    addZone: 'Adicionar fuso', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
+    winTitle: 'Formato da janela', winAdd: 'Adicionar a esta janela',
+    analog: 'Analógico', digital: 'Digital',
+    synced: 'Sincronizado · {src}', corrected: 'Corrigido · {src}',
+    drift: 'deriva do dispositivo {mag} — corrigida{res}',
+    offLabel: 'Relógio do sistema — referência indisponível', offDetail: 'sem correção de deriva',
+    lastCheck: 'última verificação {t}', syncing: 'sincronizando…', secondRes: ' · resolução de segundos', checking: 'verificando…',
+  },
+  ur: {
+    date: 'تاریخ', time: 'وقت', window: 'ونڈو', light: 'ہلکا', night: 'نائٹ موڈ',
+    resync: 'دوبارہ سنک', search: 'شہر یا ملک تلاش کریں…', language: 'زبان',
+    addZone: 'زون شامل کریں', single: 'واحد', side: 'بہ پہلو', quad: '2 × 2',
+    winTitle: 'ونڈو فارمیٹ', winAdd: 'اس ونڈو میں شامل کریں',
+    analog: 'انالاگ', digital: 'ڈیجیٹل',
+    synced: 'ہم آہنگ · {src}', corrected: 'درست · {src}',
+    drift: 'ڈیوائس ڈرفٹ {mag} — درست{res}',
+    offLabel: 'سسٹم گھڑی — ماخذ دستیاب نہیں', offDetail: 'کوئی ڈرفٹ اصلاح لاگو نہیں',
+    lastCheck: 'آخری معائنہ {t}', syncing: 'سنک ہو رہا ہے…', secondRes: ' · سیکنڈ ریزولیوشن', checking: 'معائنہ ہو رہا ہے…',
+  },
+};
+
+/** Tiny formatter: t('es', 'synced', { src: 'x' }) -> 'Sincronizado · x' */
+export function t(lang, key, vars = {}) {
+  const table = STRINGS[lang] || STRINGS.en;
+  const raw = table[key] ?? STRINGS.en[key] ?? key;
+  return raw.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? vars[k] : `{${k}}`));
+}
+
+export const langOf = (id) => LANGS.find((l) => l.id === id) || LANGS[0];
+
+/* ---------------- window layouts ---------------- */
+
+/** '2'/'1x2' -> 2 (side by side), '2x2'/'4' -> 4 (grid), anything else -> 1 */
+export function parseLayout(v) {
+  if (v === '2' || v === '1x2' || v === '2x1') return 2;
+  if (v === '4' || v === '2x2') return 4;
+  return 1;
+}
+
+export const layoutShape = (n) =>
+  n === 2 ? { rows: 1, cols: 2, id: '2' }
+    : n === 4 ? { rows: 2, cols: 2, id: '2x2' }
+      : { rows: 1, cols: 1, id: '1' };
+
+/** Dial angles in degrees for hour/minute/second/millisecond hands.
+    All four sweep continuously — the milli hand does one turn per second. */
+export function handAngles(date, timeZone) {
+  const s = toSegments(date, timeZone);
+  const ms = Number(s.ms);
+  const secF = Number(s.ss) + ms / 1000;
+  const minF = Number(s.mm) + secF / 60;
+  const hourF = (Number(s.hh) % 12) + minF / 60;
+  return { hour: hourF * 30, minute: minF * 6, second: secF * 6, milli: ms * 0.36 };
+}
+
+/* ---------------- NTP-ish synchronisation ---------------- */
+
+export const NTP_SOURCES = [
+  {
+    // ~50 ms round trip, millisecond resolution in the payload
+    name: 'timeapi.io',
+    url: 'https://timeapi.io/api/time/current/zone?timeZone=UTC',
+    parse: (j) => Date.parse(String(j.dateTime).endsWith('Z') ? j.dateTime : j.dateTime + 'Z'),
+  },
+  {
+    // fallback: any fast CORS-enabled CDN answers with an RFC 7231 Date header.
+    // 1 s resolution, so compensate for the truncation (+500 ms) and mark it
+    // coarse — it is only trusted when no millisecond-resolution source answers.
+    name: 'jsdelivr Date header',
+    url: 'https://cdn.jsdelivr.net/npm/left-pad@1.3.0/package.json',
+    header: 'date',
+    coarse: true,
+    parse: (_j, res) => Date.parse(res.headers.get('date')) + 500,
+  },
+];
+
+/** True when the source's own timestamp granularity limits its accuracy. */
+export const isCoarse = (source) => Boolean(source && source.coarse);
+
+/**
+ * One sample against one endpoint, using the symmetric latency correction
+ * from NTP: offset = serverTime + rtt/2 − localReceiveTime.
+ */
+export async function sampleNtp(source, deps = {}) {
+  const fetchFn = deps.fetch || globalThis.fetch;
+  const now = deps.now || (() => Date.now());
+  const t0 = now();
+  let res;
+  try {
+    res = await fetchFn(source.url, { cache: 'no-store', signal: deps.signal });
+  } catch (e) {
+    return { ok: false, source: source.name, error: String(e) };
+  }
+  const t1 = now();
+  if (!res) return { ok: false, source: source.name, error: 'no response' };
+
+  // Date-header sources only need the headers — the body/status is irrelevant.
+  if (!source.header && !res.ok) {
+    return { ok: false, source: source.name, error: `HTTP ${res.status}` };
+  }
+
+  let json = null;
+  if (!source.header) {
+    try {
+      json = await res.json();
+    } catch (e) {
+      return { ok: false, source: source.name, error: String(e) };
+    }
+  }
+  let serverNow;
+  try {
+    serverNow = source.parse(json, res);
+  } catch (e) {
+    return { ok: false, source: source.name, error: String(e) };
+  }
+  if (!Number.isFinite(serverNow)) return { ok: false, source: source.name, error: 'unparsable time' };
+  const rtt = t1 - t0;
+  return {
+    ok: true,
+    source: source.name,
+    coarse: Boolean(source.coarse),
+    rtt,
+    offset: Math.round(serverNow + rtt / 2 - t1),
+    at: t1,
+  };
+}
+
+const median = (xs) => {
+  const a = [...xs].sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+};
+
+/**
+ * Keep the low-latency samples, drop the rest, take the median offset.
+ * Coarse (second-resolution) sources are only used when nothing finer answered.
+ */
+export function pickNtpResult(samples, opts = {}) {
+  const maxRtt = opts.maxRtt ?? 900;
+  let good = (samples || []).filter((s) => s && s.ok && s.rtt <= maxRtt);
+  if (!good.length) return null;
+
+  const precise = good.filter((s) => !s.coarse);
+  let resolution = 'millisecond';
+  if (precise.length) good = precise;
+  else resolution = 'second';
+
+  const offset = median(good.map((s) => s.offset));
+  const best = good.reduce((a, b) => (b.rtt < a.rtt ? b : a));
+  return {
+    ok: true,
+    source: best.source,
+    resolution,
+    offset,
+    rtt: best.rtt,
+    spread: Math.max(...good.map((s) => s.offset)) - Math.min(...good.map((s) => s.offset)),
+    samples: good.length,
+    at: best.at,
+  };
+}
+
+export function syncStatus(result, opts = {}) {
+  const driftLimit = opts.driftLimit ?? 250;
+  const lang = opts.lang || 'en';
+  if (!result || !result.ok) {
+    return { level: 'off', label: t(lang, 'offLabel'), detail: t(lang, 'offDetail') };
+  }
+  const o = result.offset;
+  const sign = o < 0 ? '−' : '+';
+  const mag = `${sign}${Math.abs(o)} ms`;
+  const res = result.resolution === 'second' ? t(lang, 'secondRes') : '';
+  const vars = { src: result.source, mag, res };
+  if (Math.abs(o) <= driftLimit) {
+    return { level: 'ok', label: t(lang, 'synced', vars), detail: t(lang, 'drift', vars) };
+  }
+  return { level: 'warn', label: t(lang, 'corrected', vars), detail: t(lang, 'drift', vars) };
+}
+
+/* ---------------- the ticking clock ---------------- */
+
+/**
+ * Owns "what time is it right now" (system clock + measured drift) and the
+ * render loop. `deps` lets the tests drive it with fake time and a fake rAF.
+ */
+export class ClockCore {
+  constructor(deps = {}) {
+    this.nowFn = deps.now || (() => Date.now());
+    this.schedule = deps.schedule || ((fn) => requestAnimationFrame(fn));
+    this.onTick = deps.onTick || (() => {});
+    this.offset = 0;
+    this._running = false;
+    this.start();
+  }
+
+  get running() { return this._running; }
+
+  /** Time the display should show: local system time, drift-corrected. */
+  now() { return new Date(this.nowFn() + this.offset); }
+
+  setOffset(ms) {
+    this.offset = Number.isFinite(ms) ? Math.round(ms) : 0;
+    this.onTick(this.now());
+  }
+
+  start() {
+    if (this._running) return;
+    this._running = true;
+    const step = () => {
+      if (!this._running) return;
+      this.onTick(this.now());
+      this.schedule(step);
+    };
+    step();
+  }
+
+  stop() { this._running = false; }
+}
+
+/**
+ * Largest font size for which the clock still fits, given a box in CSS px.
+ * Width: the string is CLOCK_EMS em wide. Height: line-height is .84, and we
+ * leave a little air so the descenderless digits never touch the rules.
+ */
+export function fitFontSize(w, h, opts = {}) {
+  const padX = opts.padX ?? 0;
+  const padY = opts.padY ?? 0;
+  const lineBox = opts.lineBox ?? 0.84;
+  const max = opts.max ?? 340;
+  const byWidth = (w - padX) / CLOCK_EMS;
+  const byHeight = (h - padY) / lineBox;
+  return Math.max(12, Math.floor(Math.min(byWidth, byHeight, max) * 100) / 100);
+}
+
+/* ---------------- UI (browser only) ---------------- */
+
+const els = {};
+let timeZone = null;      // cell 0 zone; the picker always holds a value
+let lang = 'en';          // UI language id (LANGS)
+let zenMode = false;
+let layout = 1;           // 1 | 2 | 4 cells
+let cellZones = [null];   // per-cell zone (cell 0 mirrors timeZone)
+let cells = [];           // { el, cap, flag, zspan, dspan, add, clock, prev, capKey }
+let pickerCell = null;    // which cell the zone picker edits (null = main)
+let prev = null;
+let lastMetaKey = null;
+let syncResult = null;
+let syncing = false;
+let pickerRows = [];
+let pickerGroups = [];
+
+const WIN_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 4h9a2 2 0 0 1 2 2v9" stroke="currentColor" stroke-width="2"/></svg>';
+
+const MOON_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C21.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/></svg>';
+const SUN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4.4" fill="currentColor"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2L19 19M19 5l-1.8 1.8M6.8 17.2L5 19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+
+const ANALOG_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.5l3.1 1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const DIGIT_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 12h2.4M13.6 12H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+/** Hairline displaay-style dial: rim, 60 ticks, 12/3/6/9 and four hands. */
+function makeDial() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 200 200');
+  const el = (name, attrs, cls) => {
+    const n = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+    if (cls) n.setAttribute('class', cls);
+    n.setAttribute('vector-effect', 'non-scaling-stroke');
+    return n;
+  };
+  svg.appendChild(el('circle', { cx: 100, cy: 100, r: 97 }, 'dial-rim'));
+  for (let i = 0; i < 60; i++) {
+    const hour = i % 5 === 0;
+    const a = (i * 6) * Math.PI / 180;
+    const r1 = 94;
+    const r2 = hour ? 85 : 90;
+    svg.appendChild(el('line', {
+      x1: 100 + r1 * Math.sin(a), y1: 100 - r1 * Math.cos(a),
+      x2: 100 + r2 * Math.sin(a), y2: 100 - r2 * Math.cos(a),
+    }, hour ? 'dial-tick dial-tick-h' : 'dial-tick'));
+  }
+  for (const [txt, x, y] of [['12', 100, 27], ['3', 173, 100], ['6', 100, 173], ['9', 27, 100]]) {
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', y);
+    t.setAttribute('class', 'dial-num');
+    t.textContent = txt;
+    svg.appendChild(t);
+  }
+  const hand = (cls, y1, y2, name) => {
+    const l = el('line', { x1: 100, y1, x2: 100, y2 }, `dial-hand ${cls}`);
+    l.dataset.hand = name;
+    return l;
+  };
+  const hands = {
+    hour: hand('h-hour', 112, 55, 'hour'),
+    minute: hand('h-min', 114, 38, 'minute'),
+    second: hand('h-sec', 120, 30, 'second'),
+    milli: hand('h-ms', 116, 24, 'milli'),
+  };
+  svg.append(hands.hour, hands.minute, hands.second, hands.milli);
+  svg.appendChild(el('circle', { cx: 100, cy: 100, r: 4 }, 'dial-hub'));
+  svg.appendChild(el('circle', { cx: 100, cy: 100, r: 1.8 }, 'dial-hub2'));
+  return { svg, hands };
+}
+
+const LAY_ICONS = {
+  1: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>',
+  2: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>',
+  4: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>',
+};
+
+/** The mode toggle advertises the face it will switch TO, like the theme one. */
+function updateModeBtn() {
+  const analog = document.documentElement.classList.contains('analog');
+  els.btnMode.innerHTML = `${analog ? DIGIT_ICON : ANALOG_ICON}<span>${t(lang, analog ? 'digital' : 'analog')}</span>`;
+  els.btnMode.setAttribute('aria-pressed', String(analog));
+}
+
+function setMode(analog, persist = true) {
+  document.documentElement.classList.toggle('analog', analog);
+  if (persist) {
+    try { localStorage.setItem('klock:mode', analog ? 'analog' : 'digital'); } catch { /* ignore */ }
+  }
+  updateModeBtn();
+  fitClock();
+  if (window.__clock) render(window.__clock.now());
+}
+
+/** The toggle advertises the scheme it will switch TO. Dark is the default. */
+function updateThemeBtn() {
+  const dark = document.documentElement.classList.contains('dark');
+  els.btnNight.innerHTML = `${dark ? SUN_ICON : MOON_ICON}<span>${t(lang, dark ? 'light' : 'night')}</span>`;
+  els.btnNight.setAttribute('aria-pressed', String(dark));
+}
+
+function grabElements() {
+  for (const id of [
+    'dateLong', 'dateTime', 'clockWrap', 'grid', 'syncDot', 'syncText', 'syncDetail',
+    'zoneText', 'lastSync', 'secondFill', 'btnNight', 'btnSync', 'btnFull', 'btnWindow',
+    'winPop', 'winList', 'layouts',
+    'tzBtn', 'tzFlag', 'tzLabel', 'tzPop', 'tzSearch', 'tzList',
+    'langBtn', 'langFlag', 'langLabel', 'langPop', 'langList',
+    'dateLabel', 'timeLabel', 'winText', 'resyncText', 'btnMode',
+  ]) els[id] = document.getElementById(id);
+}
+
+/* ---------------- cells ---------------- */
+
+function makeCell(i) {
+  const withIds = i === 0; // keep the original ids on the first cell for a11y/tests
+  const el = document.createElement('div');
+  el.className = 'cell';
+
+  const cap = document.createElement('p');
+  cap.className = 'cell-cap';
+  if (withIds) cap.id = 'zenCaption';
+  const flag = document.createElement('img');
+  flag.className = 'flag';
+  flag.width = 20; flag.height = 15; flag.alt = '';
+  if (withIds) flag.id = 'zenFlag';
+  const zspan = document.createElement('span');
+  zspan.className = 'cap-zone';
+  if (withIds) zspan.id = 'zenZone';
+  const sep = document.createElement('span');
+  sep.className = 'zen-sep';
+  sep.setAttribute('aria-hidden', 'true');
+  sep.textContent = '—';
+  const dspan = document.createElement('span');
+  dspan.className = 'cap-date';
+  if (withIds) dspan.id = 'zenDate';
+  const sep2 = document.createElement('span');
+  sep2.className = 'zen-sep';
+  sep2.setAttribute('aria-hidden', 'true');
+  sep2.textContent = '—';
+  const tspan = document.createElement('span');
+  tspan.className = 'cap-time';
+  cap.append(flag, zspan, sep, dspan, sep2, tspan);
+  cap.addEventListener('click', () => openPickerFor(i));
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'cell-add';
+  add.textContent = `+ ${t(lang, 'addZone')}`;
+  add.addEventListener('click', () => openPickerFor(i));
+
+  const clock = document.createElement('p');
+  clock.className = 'clock';
+  if (withIds) clock.id = 'clock';
+  DIGIT_KIND.forEach((kind) => {
+    const span = document.createElement('span');
+    span.className = kind === 'ms' ? 'ms' : kind === 'sep' ? 'sep' : 'digit';
+    clock.appendChild(span);
+  });
+
+  const { svg: dialSvg, hands } = makeDial();
+  const dial = document.createElement('div');
+  dial.className = 'dial';
+  dial.appendChild(dialSvg);
+
+  el.append(cap, add, clock, dial);
+  return { el, cap, flag, zspan, dspan, tspan, sep, add, clock, dial, hands, prev: null, capKey: null };
+}
+
+function cellZone(i) {
+  return i === 0 ? timeZone : cellZones[i];
+}
+
+function buildCells() {
+  els.grid.textContent = '';
+  els.grid.dataset.layout = layoutShape(layout).id;
+  cells = [];
+  for (let i = 0; i < layout; i++) {
+    const cell = makeCell(i);
+    els.grid.appendChild(cell.el);
+    cells.push(cell);
+  }
+  refreshCellStates();
+  fitClock();
+}
+
+function refreshCellStates() {
+  cells.forEach((cell, i) => {
+    const z = cellZone(i);
+    cell.el.classList.toggle('unset', !z);
+    if (!z) { cell.prev = null; cell.capKey = null; }
+  });
+}
+
+function updateCell(cell, i, date, locale) {
+  const z = cellZone(i);
+  if (!z) return;
+  const digits = toDigits(date, z);
+  for (let k = 0; k < digits.length; k++) {
+    if (!cell.prev || cell.prev[k] !== digits[k]) cell.clock.children[k].textContent = digits[k];
+  }
+  cell.prev = digits;
+  const key = `${z}|${Math.floor(date.getTime() / 60000)}`;
+  if (key !== cell.capKey) {
+    cell.capKey = key;
+    cell.flag.src = flagSrc(z);
+    cell.zspan.textContent = z;
+    cell.dspan.textContent = formatDateLong(date, { timeZone: z, locale });
+    cell.tspan.textContent = `${formatTimeShort(date, { timeZone: z, locale })} ${zoneInfo(date, z).abbr}`.trim();
+  }
+}
+
+/** Keep every clock as large as its cell allows, on every resize/rotate. */
+function fitClock() {
+  for (const cell of cells) {
+    const box = cell.el.getBoundingClientRect();
+    const capH = (zenMode || layout > 1) ? cell.cap.offsetHeight + 14 : 0;
+    const size = fitFontSize(box.width, box.height - capH, { padX: 24, padY: 8 });
+    cell.clock.style.fontSize = `${size}px`;
+    const side = Math.max(96, Math.floor(Math.min(box.width, box.height - capH) - 28));
+    cell.dial.style.width = `${side}px`;
+    cell.dial.style.height = `${side}px`;
+  }
+}
+
+function renderMeta(date) {
+  const locale = langOf(lang).locale;
+  const zone = zoneInfo(date, timeZone);
+  els.dateLong.textContent = formatDateLong(date, { timeZone, locale });
+  els.dateTime.textContent = `${formatTimeShort(date, { timeZone, locale })} ${zone.abbr}`;
+  els.zoneText.textContent = `${zone.tz} · ${zone.utc}`;
+  // picker button follows the selection
+  els.tzFlag.src = flagSrc(zone.tz);
+  els.tzLabel.textContent = cityOf(zone.tz);
+}
+
+/** Meta text only changes once a minute (or on zone change) — skip otherwise. */
+function maybeRenderMeta(date) {
+  const key = `${timeZone}|${Math.floor(date.getTime() / 60000)}`;
+  if (key === lastMetaKey) return;
+  lastMetaKey = key;
+  renderMeta(date);
+}
+
+export function render(date) {
+  const locale = langOf(lang).locale;
+  const analog = document.documentElement.classList.contains('analog');
+  cells.forEach((cell, i) => {
+    updateCell(cell, i, date, locale);
+    if (analog && cellZone(i)) {
+      const a = handAngles(date, cellZone(i));
+      cell.hands.hour.setAttribute('transform', `rotate(${a.hour} 100 100)`);
+      cell.hands.minute.setAttribute('transform', `rotate(${a.minute} 100 100)`);
+      cell.hands.second.setAttribute('transform', `rotate(${a.second} 100 100)`);
+      cell.hands.milli.setAttribute('transform', `rotate(${a.milli} 100 100)`);
+    }
+  });
+  maybeRenderMeta(date);
+  const progress = (date.getSeconds() * 1000 + date.getMilliseconds()) / 60000;
+  els.secondFill.style.transform = `scaleX(${progress.toFixed(4)})`;
+}
+
+function refreshURL() {
+  const u = new URL(location.href);
+  const shape = layoutShape(layout).id;
+  const zen = zenMode ? '&zen=1' : '';
+  if (layout === 1) {
+    u.search = `?tz=${encodeURIComponent(timeZone || 'UTC')}${zen}`;
+  } else {
+    const zones = Array.from({ length: layout }, (_, i) => cellZone(i) || '');
+    u.search = `?tz=${encodeURIComponent(timeZone || 'UTC')}&layout=${shape}`
+      + `&zones=${zones.map((z) => encodeURIComponent(z)).join(',')}${zen}`;
+  }
+  history.replaceState(null, '', u);
+}
+
+function setTimeZone(tz, persist = true) {
+  timeZone = tz || null;
+  if (zenMode) cellZones[0] = timeZone;
+  lastMetaKey = null;
+  prev = null;
+  if (persist && !zenMode) {
+    try { localStorage.setItem('klock:tz', tz || ''); } catch { /* ignore */ }
+  }
+  refreshCellStates();
+  persistLayout();
+  refreshURL();
+  if (window.__clock) render(window.__clock.now());
+}
+
+function setCellZone(i, z) {
+  if (i === 0) { setTimeZone(z, !zenMode); return; }
+  cellZones[i] = z;
+  refreshCellStates();
+  persistLayout();
+  refreshURL();
+  if (window.__clock) render(window.__clock.now());
+}
+
+function setLayout(n) {
+  layout = n;
+  const keep = [timeZone, ...cellZones.slice(1)];
+  cellZones = Array.from({ length: n }, (_, i) => keep[i] ?? null);
+  document.documentElement.classList.toggle('multi', n > 1);
+  document.querySelectorAll('.lay-btn').forEach((b) =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.layout) === n)));
+  buildCells();
+  persistLayout();
+  refreshURL();
+}
+
+/** Remember format + zones so a reload restores the window (main app only). */
+function persistLayout() {
+  if (zenMode) return;
+  try {
+    localStorage.setItem('klock:layout', String(layout));
+    localStorage.setItem('klock:zones', JSON.stringify(cellZones));
+  } catch { /* ignore */ }
+}
+
+/** ⧉ on a picker row: the zone joins the current window — no new tabs.
+    Fills the first empty cell, growing 1→2→4 when needed; a full 2×2
+    replaces the last cell. */
+function addZoneToWindow(z) {
+  const shown = Array.from({ length: layout }, (_, i) => cellZone(i));
+  if (shown.includes(z)) return;
+  let slot = shown.indexOf(null);
+  if (slot === -1 && layout < 4) {
+    setLayout(layout === 1 ? 2 : 4);
+    slot = Array.from({ length: layout }, (_, i) => cellZone(i)).indexOf(null);
+  }
+  if (slot === -1) slot = layout - 1;
+  setCellZone(slot, z);
+}
+
+/* ---------------- language toggle ---------------- */
+
+function applyLang(id, persist = true) {
+  lang = langOf(id).id;
+  const L = langOf(lang);
+  document.documentElement.lang = L.locale;
+  document.documentElement.dir = L.dir;
+  els.dateLabel.textContent = t(lang, 'date');
+  els.timeLabel.textContent = t(lang, 'time');
+  els.winText.textContent = t(lang, 'window');
+  els.btnWindow.title = t(lang, 'winTitle');
+  document.querySelectorAll('.tz-win').forEach((b) => {
+    b.title = t(lang, 'winAdd');
+    b.setAttribute('aria-label', t(lang, 'winAdd'));
+  });
+  els.resyncText.textContent = t(lang, 'resync');
+  els.tzSearch.placeholder = t(lang, 'search');
+  els.langFlag.src = ccFlag(L.flag);
+  els.langLabel.textContent = lang === 'zh-Hant' ? '繁中' : lang.toUpperCase();
+  document.querySelectorAll('.lay-btn').forEach((b) => {
+    b.title = t(lang, Number(b.dataset.layout) === 2 ? 'side' : Number(b.dataset.layout) === 4 ? 'quad' : 'single');
+  });
+  document.querySelectorAll('#winList .tz-row').forEach((r) => {
+    const n = Number(r.dataset.layout);
+    r.querySelector('.tz-city').textContent = t(lang, n === 2 ? 'side' : n === 4 ? 'quad' : 'single');
+  });
+  cells.forEach((c) => { c.add.textContent = `+ ${t(lang, 'addZone')}`; });
+  updateThemeBtn();
+  updateModeBtn();
+  lastMetaKey = null;
+  prev = null;
+  if (persist) {
+    try { localStorage.setItem('klock:lang', lang); } catch { /* ignore */ }
+  }
+  renderSync();
+  if (window.__clock) render(window.__clock.now());
+}
+
+function buildLangPicker() {
+  for (const L of LANGS) {
+    const row = document.createElement('div');
+    row.className = 'tz-row';
+    row.setAttribute('role', 'option');
+    row.dataset.lang = L.id;
+    const img = document.createElement('img');
+    img.className = 'flag';
+    img.width = 20; img.height = 15; img.alt = '';
+    img.src = ccFlag(L.flag);
+    const name = document.createElement('span');
+    name.className = 'tz-city';
+    name.textContent = L.name;
+    row.append(img, name);
+    row.addEventListener('click', () => { applyLang(L.id); closeLangPop(); els.langBtn.focus(); });
+    els.langList.appendChild(row);
+  }
+}
+
+function openLangPop() {
+  els.langPop.hidden = false;
+  els.langBtn.setAttribute('aria-expanded', 'true');
+}
+function closeLangPop() {
+  if (els.langPop.hidden) return;
+  els.langPop.hidden = true;
+  els.langBtn.setAttribute('aria-expanded', 'false');
+}
+
+/* ---------------- the zone picker ---------------- */
+
+function openPickerFor(i) {
+  pickerCell = i;
+  openPop();
+}
+
+function buildPicker() {
+  const zones = allTimeZones();
+  const now = new Date();
+  const byRegion = new Map();
+  for (const z of zones) {
+    const r = regionOf(z);
+    if (!byRegion.has(r)) byRegion.set(r, []);
+    byRegion.get(r).push(z);
+  }
+  const frag = document.createDocumentFragment();
+  for (const [region, list] of byRegion) {
+    const head = document.createElement('div');
+    head.className = 'tz-group';
+    head.textContent = region;
+    frag.appendChild(head);
+    const entry = { el: head, rows: [] };
+    for (const z of list) {
+      const row = document.createElement('div');
+      row.className = 'tz-row';
+      row.setAttribute('role', 'option');
+      row.dataset.zone = z;
+      row.dataset.search = `${z} ${region} ${zoneCountry(z) || ''}`.toLowerCase();
+
+      const img = document.createElement('img');
+      img.className = 'flag';
+      img.width = 20; img.height = 15; img.alt = '';
+      img.src = flagSrc(z);
+      row.appendChild(img);
+
+      const city = document.createElement('span');
+      city.className = 'tz-city';
+      city.textContent = cityOf(z);
+      row.appendChild(city);
+
+      const off = document.createElement('span');
+      off.className = 'tz-off';
+      off.textContent = zoneInfo(now, z).utc.replace('UTC', '');
+      row.appendChild(off);
+
+      const win = document.createElement('button');
+      win.type = 'button';
+      win.className = 'tz-win';
+      win.title = t(lang, 'winAdd');
+      win.setAttribute('aria-label', t(lang, 'winAdd'));
+      win.innerHTML = WIN_SVG;
+      win.addEventListener('click', (e) => { e.stopPropagation(); addZoneToWindow(z); });
+      row.appendChild(win);
+
+      row.addEventListener('click', () => {
+        if (pickerCell != null) setCellZone(pickerCell, z);
+        else setTimeZone(z);
+        pickerCell = null;
+        closePop();
+        els.tzBtn.focus();
+      });
+
+      frag.appendChild(row);
+      entry.rows.push(row);
+      pickerRows.push(row);
+    }
+    pickerGroups.push(entry);
+  }
+  els.tzList.appendChild(frag);
+}
+
+function applyFilter(q) {
+  const query = q.trim().toLowerCase();
+  const underscored = query.replace(/\s+/g, '_'); // "new york" finds New_York
+  for (const g of pickerGroups) {
+    let visible = 0;
+    for (const r of g.rows) {
+      const show = !query || r.dataset.search.includes(query)
+        || r.dataset.search.includes(underscored);
+      r.hidden = !show;
+      if (show) visible++;
+    }
+    g.el.hidden = visible === 0;
+  }
+}
+
+function openPop() {
+  els.tzPop.hidden = false;
+  els.tzBtn.setAttribute('aria-expanded', 'true');
+  els.tzSearch.value = '';
+  applyFilter('');
+  els.tzSearch.focus();
+}
+
+function closePop() {
+  if (els.tzPop.hidden) return;
+  els.tzPop.hidden = true;
+  els.tzBtn.setAttribute('aria-expanded', 'false');
+}
+
+/* ---------------- extra windows (splitscreen & co.) ---------------- */
+
+export function zoneWindowUrl(z, lay = 1, base = (typeof location !== 'undefined' ? location.href : 'index.html')) {
+  const u = new URL(base);
+  u.hash = '';
+  if (lay === 1) {
+    u.search = `?tz=${encodeURIComponent(z)}&zen=1`;
+  } else {
+    const shape = layoutShape(lay).id;
+    const zones = Array.from({ length: lay }, (_, i) => (i === 0 ? z : ''));
+    u.search = `?zen=1&layout=${shape}&zones=${zones.map((x) => encodeURIComponent(x)).join(',')}`;
+  }
+  return u.href;
+}
+
+/* ---------------- sync ---------------- */
+
+function renderSync() {
+  const st = syncStatus(syncResult, { lang });
+  els.syncDot.dataset.level = st.level;
+  els.syncText.textContent = st.label;
+  els.syncDetail.textContent = st.detail;
+  els.lastSync.textContent = syncResult && syncResult.at
+    ? t(lang, 'lastCheck', { t: new Date(syncResult.at).toTimeString().slice(0, 8) })
+    : t(lang, 'checking');
+}
+
+async function runSync() {
+  if (syncing) return;
+  syncing = true;
+  els.btnSync.disabled = true;
+  els.btnSync.classList.add('is-busy');
+  els.lastSync.textContent = t(lang, 'syncing');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  const rounds = [0, 1, 2].map(async (i) => {
+    if (i) await new Promise((r) => setTimeout(r, 120 * i));
+    const results = await Promise.all(NTP_SOURCES.map((s) => sampleNtp(s, {
+      fetch: (...a) => fetch(...a, { signal: controller.signal, cache: 'no-store' }),
+    })));
+    return pickNtpResult(results);
+  });
+
+  const picked = (await Promise.all(rounds)).filter(Boolean)
+    .sort((a, b) => a.rtt - b.rtt)[0] || null;
+
+  clearTimeout(timer);
+  syncing = false;
+  els.btnSync.disabled = false;
+  els.btnSync.classList.remove('is-busy');
+
+  syncResult = picked;
+  if (picked) window.__clock.setOffset(picked.offset);
+  renderSync();
+  window.dispatchEvent(new CustomEvent('klock:sync', { detail: picked }));
+}
+
+/* ---------------- boot ---------------- */
+
+function buildWindowMenu() {
+  for (const [n, icon] of [[1, LAY_ICONS[1]], [2, LAY_ICONS[2]], [4, LAY_ICONS[4]]]) {
+    const row = document.createElement('div');
+    row.className = 'tz-row';
+    row.setAttribute('role', 'option');
+    row.dataset.layout = String(n);
+    row.innerHTML = `${icon}<span class="tz-city"></span>`;
+    row.addEventListener('click', () => {
+      els.winPop.hidden = true;
+      setLayout(n);
+    });
+    els.winList.appendChild(row);
+  }
+}
+
+function initUI() {
+  grabElements();
+
+  // URL beats storage beats system: ?tz=… lets each window run its own zone
+  const params = new URLSearchParams(location.search);
+  zenMode = params.has('zen');
+  if (zenMode) document.documentElement.classList.add('zen');
+  let savedLayout = 1;
+  let savedZones = [];
+  if (!zenMode) {
+    try { savedLayout = parseLayout(localStorage.getItem('klock:layout')); } catch { /* ignore */ }
+    try { savedZones = JSON.parse(localStorage.getItem('klock:zones') || '[]') || []; } catch { savedZones = []; }
+  }
+  const layParam = params.get('layout');
+  layout = layParam != null ? parseLayout(layParam) : (zenMode ? 1 : savedLayout);
+  const tzParam = params.get('tz');
+  const zonesParam = (params.get('zones') || '').split(',').map((s) => decodeURIComponent(s.trim()));
+
+  buildPicker();
+  buildLangPicker();
+  buildWindowMenu();
+
+  const zones = allTimeZones();
+  const system = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  let saved = '';
+  try { saved = localStorage.getItem('klock:tz') || ''; } catch { /* ignore */ }
+  const first = zonesParam[0] && zones.includes(zonesParam[0]) ? zonesParam[0]
+    : zones.includes(tzParam) ? tzParam
+      : zones.includes(saved) ? saved : system;
+  timeZone = first;
+  cellZones = Array.from({ length: layout }, (_, i) => {
+    if (i === 0) return first;
+    if (zones.includes(zonesParam[i])) return zonesParam[i];
+    if (!zenMode && typeof savedZones[i] === 'string' && zones.includes(savedZones[i])) return savedZones[i];
+    return null;
+  });
+
+  setLayout(layout);
+
+  let savedLang = '';
+  try { savedLang = localStorage.getItem('klock:lang') || ''; } catch { /* ignore */ }
+  applyLang(LANGS.some((l) => l.id === savedLang) ? savedLang : 'en', false);
+
+  els.tzBtn.addEventListener('click', () => {
+    if (els.tzPop.hidden) openPickerFor(zenMode ? 0 : null);
+    else closePop();
+  });
+  els.tzSearch.addEventListener('input', () => applyFilter(els.tzSearch.value));
+  els.langBtn.addEventListener('click', () => (els.langPop.hidden ? openLangPop() : closeLangPop()));
+  els.btnWindow.addEventListener('click', () => { els.winPop.hidden = !els.winPop.hidden; });
+  document.querySelectorAll('.lay-btn').forEach((b) =>
+    b.addEventListener('click', () => setLayout(Number(b.dataset.layout))));
+  document.addEventListener('pointerdown', (e) => {
+    if (!els.tzPop.hidden && !e.target.closest('.tz')) closePop();
+    if (!els.langPop.hidden && !e.target.closest('.lang')) closeLangPop();
+    if (!els.winPop.hidden && !e.target.closest('.winmenu')) els.winPop.hidden = true;
+  });
+
+  fitClock();
+  new ResizeObserver(fitClock).observe(els.clockWrap);
+  window.addEventListener('orientationchange', fitClock);
+
+  window.__clock = new ClockCore({ onTick: render });
+
+  const root = document.documentElement;
+  els.btnNight.addEventListener('click', () => {
+    root.classList.toggle('dark');
+    const dark = root.classList.contains('dark');
+    try { localStorage.setItem('klock:night', dark ? '1' : '0'); } catch { /* ignore */ }
+    updateThemeBtn();
+  });
+
+  els.btnMode.addEventListener('click', () =>    setMode(!document.documentElement.classList.contains('analog')));
+
+  els.btnSync.addEventListener('click', runSync);
+
+  els.btnFull.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch { /* ignore */ }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; return; }
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,textarea,select')) return;
+    if (e.key === 'n' || e.key === 'N') els.btnNight.click();
+    if (e.key === 'a' || e.key === 'A') els.btnMode.click();
+    if (e.key === 'f' || e.key === 'F') els.btnFull.click();
+    if (e.key === 'r' || e.key === 'R') runSync();
+  });
+
+  // the <head> script applied the stored (or default-dark) scheme pre-paint
+  updateThemeBtn();
+
+  renderSync();
+  runSync();
+  setInterval(runSync, 5 * 60 * 1000);
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initUI);
+  else initUI();
+}

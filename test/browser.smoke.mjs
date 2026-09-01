@@ -1,0 +1,464 @@
+/* Real-browser smoke test for the clock app (Playwright / Chromium).
+   Run: node test/browser.smoke.mjs   (needs the static server on :4173) */
+import { chromium } from 'playwright';
+
+const URL = process.env.APP_URL || 'http://127.0.0.1:4173/';
+const results = [];
+const ok = (name, cond, extra = '') => {
+  results.push({ name, pass: !!cond, extra });
+  console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  → ' + extra : ''}`);
+};
+
+const browser = await chromium.launch();
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const page = await context.newPage();
+
+const errors = [];
+page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+page.on('pageerror', (e) => errors.push(`pageerror: ${e}`));
+page.on('requestfailed', (r) => errors.push(`request failed: ${r.url()} ${r.failure()?.errorText}`));
+
+await page.goto(URL, { waitUntil: 'load' });
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(400);
+
+const clockOf = () => page.locator('#clock').textContent();
+
+/* --- the name --- */
+ok('wordmark reads Klock', (await page.locator('.wordmark').textContent()).trim() === 'Klock',
+  (await page.locator('.wordmark').textContent()).trim());
+
+/* --- the clock itself --- */
+const clockText = (await clockOf()).trim();
+ok('clock matches HH:MM:SS:mmm', /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(clockText), clockText);
+
+const slots = await page.locator('#clock span').count();
+ok('clock renders 12 glyph slots (8 digits + 3 colons + 3 ms)', slots === 12, `got ${slots}`);
+
+/* --- it really runs on the system clock --- */
+const first = await clockOf();
+await page.waitForTimeout(700);
+const second = await clockOf();
+ok('milliseconds advance between frames', first !== second, `${first.trim()} → ${second.trim()}`);
+
+const drift = await page.evaluate((t) => {
+  const [h, m, s, ms] = t.trim().split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, s, ms);
+  return Math.abs(d.getTime() - (Date.now() + window.__clock.offset));
+}, second);
+ok('displayed time is the real clock (±400 ms)', drift < 400, `delta ${drift} ms`);
+
+/* --- seconds tick over --- */
+const secA = Number(second.split(':')[2]);
+await page.waitForTimeout(1300);
+const third = await clockOf();
+const secB = Number(third.split(':')[2]);
+ok('seconds advance', Number.isFinite(secB) && secB !== secA, `${secA} → ${secB}`);
+
+/* --- date + time line above the clock --- */
+const dateLong = (await page.locator('#dateLong').textContent()).trim();
+const dateTime = (await page.locator('#dateTime').textContent()).trim();
+const today = new Date();
+const weekday = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()];
+ok('date line shows today', dateLong.includes(weekday) && dateLong.includes(String(today.getFullYear())), dateLong);
+ok('time line shows HH:MM + zone', /^\d{2}:\d{2}/.test(dateTime), dateTime);
+ok('date row sits above the clock', await page.evaluate(() => {
+  const a = document.querySelector('.meta-row').getBoundingClientRect();
+  const b = document.querySelector('.clock').getBoundingClientRect();
+  return a.bottom <= b.top + 1 && a.top < b.top;
+}));
+
+/* --- the second progress bar moves --- */
+const barA = await page.locator('#secondFill').evaluate((el) => el.style.transform);
+await page.waitForTimeout(200);
+const barB = await page.locator('#secondFill').evaluate((el) => el.style.transform);
+ok('second progress bar animates', barA !== barB, `${barA} → ${barB}`);
+
+/* --- no layout overflow at 1440×900 --- */
+ok('no page scroll at 1440×900', await page.evaluate(
+  () => document.documentElement.scrollHeight <= window.innerHeight + 1
+  && document.documentElement.scrollWidth <= window.innerWidth + 1,
+));
+
+/* --- the webfonts actually loaded --- */
+await page.evaluate(() => document.fonts.ready);
+const fontInfo = await page.evaluate(() => ({
+  saans: document.fonts.check('700 16px Saans'),
+  serrif: document.fonts.check('italic 400 16px Serrif'),
+  clockFont: getComputedStyle(document.getElementById('clock')).fontFamily,
+  size: getComputedStyle(document.getElementById('clock')).fontSize,
+  fvs: getComputedStyle(document.getElementById('clock')).fontVariationSettings,
+}));
+ok('Saans variable font loaded', fontInfo.saans, `clock font-size ${fontInfo.size}, ${fontInfo.fvs}`);
+ok('Serrif loaded for the wordmark accent', fontInfo.serrif, fontInfo.clockFont);
+
+/* --- digits are truly monospaced, so the clock never jitters ---
+   glyph boxes are pixel-snapped by the browser (±1 px noise), so we assert the
+   *steps* between slots stay within snapping tolerance of one constant value */
+const steps = await page.evaluate(() => {
+  const lefts = [...document.querySelectorAll('#clock span')].map(
+    (s) => s.getBoundingClientRect().left);
+  const d = lefts.slice(1).map((x, i) => x - lefts[i]);
+  const mean = d.reduce((a, b) => a + b, 0) / d.length;
+  return { maxDev: Math.max(...d.map((x) => Math.abs(x - mean))), mean };
+});
+ok('glyph slots advance uniformly (MONO axis)', steps.maxDev <= 1, `step ${steps.mean.toFixed(2)} px ± ${steps.maxDev.toFixed(2)}`);
+
+/* --- theme: dark is the default scheme, the toggle offers light --- */
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(300);
+const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 2);
+const parse = (s) => s.match(/\d+/g).map(Number);
+const start = await page.evaluate(() => ({
+  dark: document.documentElement.classList.contains('dark'),
+  bg: getComputedStyle(document.body).backgroundColor,
+  label: document.getElementById('btnNight').textContent.trim(),
+}));
+ok('starts in dark mode (the default scheme)', start.dark && near(parse(start.bg), [0, 0, 0]), `bg ${start.bg}`);
+ok('theme toggle offers Light while dark', start.label === 'Light', start.label);
+
+await page.locator('#btnNight').click();
+await page.waitForTimeout(400); // background transition is .2s
+const lightNow = await page.evaluate(() => ({
+  dark: document.documentElement.classList.contains('dark'),
+  bg: getComputedStyle(document.body).backgroundColor,
+  fg: getComputedStyle(document.body).color,
+  saved: localStorage.getItem('klock:night'),
+  label: document.getElementById('btnNight').textContent.trim(),
+}));
+ok('toggle switches to the paper scheme',
+  !lightNow.dark && near(parse(lightNow.bg), [242, 240, 230]) && near(parse(lightNow.fg), [0, 0, 0]),
+  `bg ${lightNow.bg} · fg ${lightNow.fg}`);
+ok('theme choice is remembered', lightNow.saved === '0' && lightNow.label === 'Night Shift',
+  `localStorage=${lightNow.saved} · label=${lightNow.label}`);
+await page.screenshot({ path: 'shot-light.png' });
+await page.locator('#btnNight').click();
+await page.waitForTimeout(400);
+ok('toggling back restores black', await page.evaluate(
+  () => getComputedStyle(document.body).backgroundColor) === 'rgb(0, 0, 0)');
+
+/* --- NTP sync finished --- */
+await page.waitForFunction(
+  () => document.getElementById('lastSync').textContent.includes('last check'),
+  null, { timeout: 15000 },
+).catch(() => {});
+const sync = await page.evaluate(() => ({
+  level: document.getElementById('syncDot').dataset.level,
+  text: document.getElementById('syncText').textContent,
+  detail: document.getElementById('syncDetail').textContent,
+  last: document.getElementById('lastSync').textContent,
+  offset: window.__clock.offset,
+}));
+ok('clock syncs to a reference time', sync.level !== 'off',
+  `${sync.level} · ${sync.text} · ${sync.detail} · offset ${sync.offset} ms`);
+
+/* --- manual re-sync button --- */
+await page.locator('#btnSync').click();
+await page.waitForTimeout(1200);
+const resynced = await page.evaluate(() => document.getElementById('lastSync').textContent);
+ok('re-sync button re-checks the reference', resynced.includes('last check') || resynced.includes('syncing'), resynced);
+
+/* --- time zones: every IANA zone with flags, selectable, live, persisted --- */
+await page.locator('#tzBtn').click();
+await page.waitForTimeout(150);
+const rowCount = await page.locator('#tzList .tz-row').count();
+ok('the picker lists every IANA time zone', rowCount > 400, `${rowCount} zones`);
+
+const flagStats = await page.evaluate(() => {
+  const imgs = [...document.querySelectorAll('#tzList .tz-row img')];
+  return {
+    total: imgs.length,
+    png: imgs.filter((i) => i.src.startsWith('data:image/svg+xml;base64')).length,
+    globe: imgs.filter((i) => i.src.startsWith('data:image/svg+xml,')).length,
+  };
+});
+ok('every row carries an SVG flag — no globes',
+  flagStats.png === flagStats.total && flagStats.globe === 0,
+  JSON.stringify(flagStats));
+ok('picker button shows the current flag',
+  await page.evaluate(() => document.getElementById('tzFlag').src.startsWith('data:image')));
+
+await page.locator('#tzSearch').fill('tokyo');
+const filtered = await page.locator('#tzList .tz-row:not([hidden])').count();
+ok('search filters the list', filtered === 1, `${filtered} row(s)`);
+await page.locator('.tz-row[data-zone="Asia/Tokyo"]').click();
+await page.waitForTimeout(250);
+const tokyo = await page.evaluate(() => {
+  const now = new Date(Date.now() + window.__clock.offset);
+  const exp = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(now);
+  return {
+    exp,
+    clock: document.getElementById('clock').textContent,
+    dateTime: document.getElementById('dateTime').textContent,
+    zone: document.getElementById('zoneText').textContent,
+    label: document.getElementById('tzLabel').textContent,
+    popHidden: getComputedStyle(document.getElementById('tzPop')).display === 'none',
+  };
+});
+ok('the big clock follows the selected zone', tokyo.clock.startsWith(tokyo.exp.slice(0, 5)),
+  `${tokyo.clock.trim()} vs ${tokyo.exp} JST`);
+ok('the date/time line follows too', tokyo.dateTime.startsWith(tokyo.exp.slice(0, 5)), tokyo.dateTime);
+ok('the readout shows the selected zone', tokyo.zone.startsWith('Asia/Tokyo'), tokyo.zone);
+ok('picker button shows flag + city and closes', tokyo.label.trim() === 'Tokyo' && tokyo.popHidden,
+  `${tokyo.label} · pop ${tokyo.popHidden ? 'closed' : 'STILL OPEN'}`);
+
+/* --- extra zones join the CURRENT window — never a new tab --- */
+await page.locator('#tzBtn').click();
+await page.locator('#tzSearch').fill('jakarta');
+await page.locator('.tz-row[data-zone="Asia/Jakarta"] .tz-win').click();
+await page.waitForTimeout(400);
+const w1 = await page.evaluate(() => {
+  const cs = [...document.querySelectorAll('.cell')];
+  return {
+    layout: document.getElementById('grid').dataset.layout,
+    cells: cs.length,
+    zone1: cs[1] && cs[1].querySelector('.cap-zone').textContent,
+    meta: getComputedStyle(document.querySelector('.meta-row')).display,
+    cap: getComputedStyle(document.querySelector('.cell-cap')).display,
+  };
+});
+ok('row button adds the zone inside the current window',
+  w1.layout === '2' && w1.cells === 2 && w1.zone1 === 'Asia/Jakarta', JSON.stringify(w1));
+ok('adding a zone opens no new tab', page.context().pages().length === 1,
+  `${page.context().pages().length} page(s)`);
+ok('multi mode swaps the header line for per-cell captions',
+  w1.meta === 'none' && w1.cap === 'flex', `${w1.meta}/${w1.cap}`);
+const jakHour = await page.evaluate(() => new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Jakarta', hour: '2-digit', hourCycle: 'h23',
+}).format(new Date()));
+const w1clocks = await page.evaluate(() =>
+  [...document.querySelectorAll('.cell .clock')].map((x) => x.textContent));
+ok('each pane runs its own zone', w1clocks[1].startsWith(jakHour) && w1clocks[1] !== w1clocks[0],
+  w1clocks.join(' | '));
+const caps = await page.evaluate(() => [...document.querySelectorAll('.cell')].map((x) => ({
+  zone: x.querySelector('.cap-zone').textContent,
+  date: x.querySelector('.cap-date').textContent,
+  time: x.querySelector('.cap-time').textContent,
+})));
+ok('multi captions carry the full date and HH:MM zone per cell',
+  caps.every((x) => /\d{4}/.test(x.date) && /^\d{2}:\d{2} \S+/.test(x.time))
+  && caps[1].time.startsWith(jakHour),
+  caps.map((x) => `${x.zone}: ${x.date} · ${x.time}`).join(' | '));
+await page.keyboard.press('Escape');
+
+/* --- the Window menu reflows the current window: 2x2, side by side, single --- */
+await page.locator('#btnWindow').click();
+await page.waitForTimeout(120);
+ok('window button offers three formats', await page.locator('#winList .tz-row').count() === 3);
+await page.locator('#winList .tz-row[data-layout="4"]').click();
+await page.waitForTimeout(400);
+const m1 = await page.evaluate(() => ({
+  layout: document.getElementById('grid').dataset.layout,
+  cells: document.querySelectorAll('.cell').length,
+  unset: document.querySelectorAll('.cell.unset').length,
+  zone0: document.getElementById('zenZone').textContent,
+}));
+ok('choosing 2x2 reflows the current window into four cells',
+  m1.layout === '2x2' && m1.cells === 4 && m1.unset === 2 && m1.zone0 === 'Asia/Tokyo',
+  JSON.stringify(m1));
+ok('reformatting opens no new tab', page.context().pages().length === 1);
+
+await page.locator('.cell').nth(2).locator('.cell-add').click();
+await page.locator('#tzSearch').fill('calcutta');
+await page.locator('.tz-row[data-zone="Asia/Calcutta"]').click();
+await page.locator('.cell').nth(3).locator('.cell-add').click();
+await page.locator('#tzSearch').fill('new york');
+await page.locator('.tz-row[data-zone="America/New_York"]').click();
+await page.waitForTimeout(400);
+const m2 = await page.evaluate(() => ({
+  zones: [...document.querySelectorAll('.cell .cap-zone')].map((e) => e.textContent),
+  url: location.search,
+}));
+ok('every cell runs its own zone',
+  m2.zones.join() === 'Asia/Tokyo,Asia/Jakarta,Asia/Calcutta,America/New_York', m2.zones.join());
+ok('the layout and zones live in the URL',
+  m2.url.includes('layout=2x2') && m2.url.includes('Asia%2FCalcutta'), m2.url);
+await page.screenshot({ path: 'shot-2x2.png' });
+
+await page.locator('#btnWindow').click();
+await page.locator('#winList .tz-row[data-layout="2"]').click();
+await page.waitForTimeout(300);
+const m3 = await page.evaluate(() => ({
+  layout: document.getElementById('grid').dataset.layout,
+  cells: document.querySelectorAll('.cell').length,
+  url: location.search,
+}));
+ok('side by side keeps the first two zones',
+  m3.layout === '2' && m3.cells === 2 && m3.url.includes('layout=2'), JSON.stringify(m3));
+await page.screenshot({ path: 'shot-side.png' });
+
+/* --- the format survives a reload --- */
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(400);
+const m4 = await page.evaluate(() => ({
+  layout: document.getElementById('grid').dataset.layout,
+  zones: [...document.querySelectorAll('.cell .cap-zone')].map((e) => e.textContent),
+}));
+ok('the window format survives a reload',
+  m4.layout === '2' && m4.zones.join() === 'Asia/Tokyo,Asia/Jakarta', JSON.stringify(m4));
+
+/* --- single restores the classic header line --- */
+await page.locator('#btnWindow').click();
+await page.locator('#winList .tz-row[data-layout="1"]').click();
+await page.waitForTimeout(300);
+const m5 = await page.evaluate(() => ({
+  layout: document.getElementById('grid').dataset.layout,
+  meta: getComputedStyle(document.querySelector('.meta-row')).display,
+  cap: getComputedStyle(document.querySelector('.cell-cap')).display,
+}));
+ok('single restores the date line above the clock',
+  m5.layout === '1' && m5.meta !== 'none' && m5.cap === 'none', JSON.stringify(m5));
+
+/* --- ?zen=1 still serves a chrome-less window when asked by URL --- */
+const zen = await context.newPage();
+await zen.goto(URL + '?tz=Asia/Jakarta&zen=1', { waitUntil: 'load' });
+await zen.waitForTimeout(500);
+const z1 = await zen.evaluate(() => ({
+  zen: document.documentElement.classList.contains('zen'),
+  zone: document.getElementById('zenZone').textContent,
+  flag: document.getElementById('zenFlag').src.startsWith('data:image/svg'),
+  clock: document.getElementById('clock').textContent,
+  meta: getComputedStyle(document.querySelector('.meta-row')).display,
+  layBtns: document.querySelectorAll('.lay-btn').length,
+  fits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+}));
+ok('?zen=1 still gives a chrome-less window by URL',
+  z1.zen && z1.zone === 'Asia/Jakarta' && z1.flag && z1.meta === 'none' && z1.layBtns === 3 && z1.fits,
+  JSON.stringify(z1));
+ok('the zen window clocks HH:MM:SS:mmm', /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(z1.clock), z1.clock);
+await zen.screenshot({ path: 'shot-window.png' });
+await zen.close();
+
+/* --- the choice persists across reloads --- */
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(400);
+const keptLabel = (await page.locator('#tzLabel').textContent()).trim();
+ok('the zone choice survives a reload', keptLabel === 'Tokyo', keptLabel);
+
+// back to the system zone for the screenshots
+const sysZone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+await page.locator('#tzBtn').click();
+await page.locator(`.tz-row[data-zone="${sysZone}"]`).click();
+await page.waitForTimeout(200);
+
+/* --- languages: ten options with flags, live translation, RTL --- */
+await page.locator('#langBtn').click();
+await page.waitForTimeout(150);
+const langRows = await page.locator('#langList .tz-row').count();
+ok('language toggle lists 10 languages', langRows === 10, `${langRows} rows`);
+ok('every language row carries an SVG flag', await page.evaluate(
+  () => [...document.querySelectorAll('#langList img')].every((i) => i.src.startsWith('data:image/svg'))));
+
+await page.locator('#langList .tz-row[data-lang="zh-Hant"]').click();
+await page.waitForTimeout(250);
+const zh = await page.evaluate(() => ({
+  date: document.getElementById('dateLabel').textContent,
+  time: document.getElementById('timeLabel').textContent,
+  resync: document.getElementById('resyncText').textContent,
+  dateLong: document.getElementById('dateLong').textContent,
+  lang: document.documentElement.lang,
+  search: document.getElementById('tzSearch').placeholder,
+}));
+ok('UI translates to Traditional Chinese',
+  zh.date === '日期' && zh.time === '時間' && zh.resync === '重新同步' && zh.search.startsWith('搜尋'),
+  JSON.stringify(zh));
+ok('date line renders in zh-Hant', zh.lang.startsWith('zh') && /星期|週/.test(zh.dateLong), zh.dateLong);
+await page.screenshot({ path: 'shot-zh.png' });
+
+await page.locator('#langBtn').click();
+await page.locator('#langList .tz-row[data-lang="ar"]').click();
+await page.waitForTimeout(250);
+const ar = await page.evaluate(() => ({
+  dir: document.documentElement.dir,
+  time: document.getElementById('timeLabel').textContent,
+}));
+ok('Arabic flips the document to RTL', ar.dir === 'rtl' && ar.time === 'الوقت', JSON.stringify(ar));
+ok('the clock itself still reads left-to-right', await page.evaluate(
+  () => getComputedStyle(document.getElementById('clock')).direction === 'ltr'));
+await page.screenshot({ path: 'shot-ar.png' });
+
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(400);
+ok('language choice survives a reload',
+  await page.evaluate(() => document.documentElement.lang.startsWith('ar')));
+
+// back to English for the remaining checks
+await page.locator('#langBtn').click();
+await page.locator('#langList .tz-row[data-lang="en"]').click();
+await page.waitForTimeout(200);
+
+await page.screenshot({ path: 'shot-night.png' });
+
+/* --- narrow viewports --- */
+for (const vp of [{ width: 420, height: 780 }, { width: 360, height: 640 }]) {
+  await page.setViewportSize(vp);
+  await page.waitForTimeout(300);
+  const fits = await page.evaluate(() => ({
+    sw: document.documentElement.scrollWidth,
+    iw: window.innerWidth,
+    sh: document.documentElement.scrollHeight,
+    ih: window.innerHeight,
+    size: getComputedStyle(document.getElementById('clock')).fontSize,
+    clock: document.getElementById('clock').textContent,
+  }));
+  ok(`fits ${vp.width}×${vp.height} without scrolling`,
+    fits.sw <= fits.iw + 1 && fits.sh <= fits.ih + 1,
+    `${fits.sw}×${fits.sh} vs ${fits.iw}×${fits.ih}, font ${fits.size}`);
+  await page.screenshot({ path: `shot-${vp.width}.png` });
+}
+
+/* --- analog mode: a dial with hour, minute, second and milli hands --- */
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.waitForTimeout(300);
+await page.locator('#btnMode').click();
+await page.waitForTimeout(250);
+const an1 = await page.evaluate(() => ({
+  analog: document.documentElement.classList.contains('analog'),
+  clockHidden: getComputedStyle(document.getElementById('clock')).display === 'none',
+  dial: getComputedStyle(document.querySelector('.cell .dial')).display,
+  hands: [...document.querySelectorAll('.cell .dial [data-hand]')].map((h) => h.dataset.hand),
+  saved: localStorage.getItem('klock:mode'),
+  label: document.getElementById('btnMode').textContent.trim(),
+}));
+ok('analog toggle swaps digits for a four-hand dial',
+  an1.analog && an1.clockHidden && an1.dial !== 'none'
+  && an1.hands.join() === 'hour,minute,second,milli' && an1.saved === 'analog'
+  && an1.label === 'Digital',
+  JSON.stringify(an1));
+const hA = await page.evaluate(() =>
+  [...document.querySelectorAll('.cell .dial [data-hand]')].map((h) => h.getAttribute('transform')));
+await page.waitForTimeout(300);
+const hB = await page.evaluate(() =>
+  [...document.querySelectorAll('.cell .dial [data-hand]')].map((h) => h.getAttribute('transform')));
+ok('hour, minute, second and milli hands all sweep', hA.every((tr, i) => tr !== hB[i]),
+  `${hA[3]} → ${hB[3]}`);
+await page.screenshot({ path: 'shot-analog.png' });
+
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(400);
+ok('analog choice survives a reload',
+  await page.evaluate(() => document.documentElement.classList.contains('analog')));
+
+await page.locator('#btnWindow').click();
+await page.locator('#winList .tz-row[data-layout="4"]').click();
+await page.waitForTimeout(400);
+const an2 = await page.evaluate(() => ({
+  dials: document.querySelectorAll('.cell .dial svg').length,
+  visible: [...document.querySelectorAll('.cell:not(.unset) .dial')]
+    .map((d) => getComputedStyle(d).display),
+}));
+ok('every cell gets its own analog dial', an2.dials === 4 && an2.visible.every((d) => d !== 'none'),
+  JSON.stringify(an2));
+await page.screenshot({ path: 'shot-analog-2x2.png' });
+
+await browser.close();
+
+console.log(`\n${errors.length ? 'CONSOLE/NETWORK ISSUES:\n' + errors.join('\n') : 'no console or network errors'}`);
+const failed = results.filter((r) => !r.pass);
+console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);
+process.exit(failed.length || errors.length ? 1 : 0);
