@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import '../src/mapdata.js';
 import { pathToFileURL } from 'node:url';
 
 // flags.js is a classic script: importing it plants globalThis.__KLOCK_FLAGS
@@ -114,6 +115,14 @@ test('every language has a flag in the embedded set', () => {
   for (const L of LANGS) {
     assert.ok(ccFlag(L.flag).startsWith('data:image/svg+xml;base64'), `${L.id} -> ${L.flag}`);
   }
+});
+
+test('world map data is detailed and covers the catalogue', () => {
+  const M = globalThis.__KLOCK_MAP;
+  const n = Object.keys(M.cc).length;
+  assert.ok(n >= 230, `${n} countries`);
+  assert.ok(M.cc.US.startsWith('M') && M.cc.JP && M.cc.AU && M.cc.RU);
+  assert.ok(M.grat.startsWith('M') && M.w === 960 && M.h === 500);
 });
 
 test('stopwatchElapsed accumulates while running, freezes when paused', () => {

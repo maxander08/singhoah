@@ -240,6 +240,7 @@ export const STRINGS = {
     analog: 'Analog', digital: 'Digital',
     timer: 'Timer', start: 'Start', pause: 'Pause', resume: 'Resume', done: 'Done', running: 'running', paused: 'paused', minutes: 'Minutes', clear: 'Clear',
     stopwatch: 'Stopwatch', reset: 'Reset', ipTitle: 'IP locator', ipAddr: 'IP address', mac: 'MAC', location: 'Location', coords: 'Coordinates', useTz: 'Use this time zone', macNA: 'hidden by the browser', locating: 'locating…',
+    map: 'Map',
     synced: 'Synced · {src}', corrected: 'Corrected · {src}',
     drift: 'device drift {mag} — corrected{res}',
     offLabel: 'System clock — reference unavailable', offDetail: 'no drift correction applied',
@@ -253,6 +254,7 @@ export const STRINGS = {
     analog: '類比', digital: '數位',
     timer: '計時器', start: '開始', pause: '暫停', resume: '繼續', done: '完成', running: '運行中', paused: '已暫停', minutes: '分鐘', clear: '清除',
     stopwatch: '碼表', reset: '重置', ipTitle: 'IP 定位', ipAddr: 'IP 位址', mac: 'MAC', location: '位置', coords: '座標', useTz: '使用此時區', macNA: '瀏覽器不公開', locating: '定位中…',
+    map: '地圖',
     synced: '已同步 · {src}', corrected: '已校正 · {src}',
     drift: '裝置漂移 {mag} — 已校正{res}',
     offLabel: '系統時鐘 — 無可用時間來源', offDetail: '未套用漂移校正',
@@ -266,6 +268,7 @@ export const STRINGS = {
     analog: 'एनालॉग', digital: 'डिजिटल',
     timer: 'टाइमर', start: 'शुरू', pause: 'रोकें', resume: 'जारी', done: 'हो गया', running: 'चल रहा', paused: 'रुका', minutes: 'मिनट', clear: 'हटाएँ',
     stopwatch: 'स्टॉपवॉच', reset: 'रीसेट', ipTitle: 'IP लोकेटर', ipAddr: 'IP पता', mac: 'MAC', location: 'स्थान', coords: 'निर्देशांक', useTz: 'यह समयक्षेत्र उपयोग करें', macNA: 'ब्राउज़र नहीं बताता', locating: 'पता लगा रहे हैं…',
+    map: 'नक्शा',
     synced: 'सिंक हुआ · {src}', corrected: 'समायोजित · {src}',
     drift: 'डिवाइस ड्रिफ्ट {mag} — समायोजित{res}',
     offLabel: 'सिस्टम घड़ी — संदर्भ अनुपलब्ध', offDetail: 'कोई ड्रिफ्ट सुधार लागू नहीं',
@@ -279,6 +282,7 @@ export const STRINGS = {
     analog: 'Analógico', digital: 'Digital',
     timer: 'Temporizador', start: 'Iniciar', pause: 'Pausa', resume: 'Seguir', done: 'Listo', running: 'en marcha', paused: 'en pausa', minutes: 'Minutos', clear: 'Quitar',
     stopwatch: 'Cronómetro', reset: 'Reiniciar', ipTitle: 'Localizador IP', ipAddr: 'Dirección IP', mac: 'MAC', location: 'Ubicación', coords: 'Coordenadas', useTz: 'Usar esta zona', macNA: 'oculta por el navegador', locating: 'localizando…',
+    map: 'Mapa',
     synced: 'Sincronizado · {src}', corrected: 'Corregido · {src}',
     drift: 'deriva del dispositivo {mag} — corregida{res}',
     offLabel: 'Reloj del sistema — referencia no disponible', offDetail: 'sin corrección de deriva',
@@ -292,6 +296,7 @@ export const STRINGS = {
     analog: 'Analogique', digital: 'Numérique',
     timer: 'Minuteur', start: 'Démarrer', pause: 'Pause', resume: 'Reprendre', done: 'Terminé', running: 'en cours', paused: 'en pause', minutes: 'Minutes', clear: 'Retirer',
     stopwatch: 'Chrono', reset: 'Réinitialiser', ipTitle: 'Localisation IP', ipAddr: 'Adresse IP', mac: 'MAC', location: 'Position', coords: 'Coordonnées', useTz: 'Utiliser ce fuseau', macNA: 'masquée par le navigateur', locating: 'localisation…',
+    map: 'Carte',
     synced: 'Synchronisé · {src}', corrected: 'Corrigé · {src}',
     drift: 'dérive de l’appareil {mag} — corrigée{res}',
     offLabel: 'Horloge système — référence indisponible', offDetail: 'aucune correction de dérive',
@@ -305,6 +310,7 @@ export const STRINGS = {
     analog: 'تناظري', digital: 'رقمي',
     timer: 'مؤقت', start: 'ابدأ', pause: 'إيقاف مؤقت', resume: 'استئناف', done: 'انتهى', running: 'جارٍ', paused: 'متوقف مؤقتاً', minutes: 'دقائق', clear: 'إزالة',
     stopwatch: 'ساعة إيقاف', reset: 'تصفير', ipTitle: 'محدد IP', ipAddr: 'عنوان IP', mac: 'MAC', location: 'الموقع', coords: 'الإحداثيات', useTz: 'استخدم هذه المنطقة', macNA: 'يخفيها المتصفح', locating: 'جارٍ التحديد…',
+    map: 'خريطة',
     synced: 'متزامن · {src}', corrected: 'مصَحَّح · {src}',
     drift: 'انحراف الجهاز {mag} — مصحَّح{res}',
     offLabel: 'ساعة النظام — لا مرجع متاح', offDetail: 'دون تصحيح للانحراف',
@@ -318,6 +324,7 @@ export const STRINGS = {
     analog: 'অ্যানালগ', digital: 'ডিজিটল',
     timer: 'টাইমার', start: 'শুরু', pause: 'বিরতি', resume: 'চালু', done: 'হয়ে গেছে', running: 'চলছে', paused: 'বিরাম', minutes: 'মিনিট', clear: 'সরান',
     stopwatch: 'স্টপওয়াচ', reset: 'রিসেট', ipTitle: 'IP লোকেটর', ipAddr: 'IP ঠিকানা', mac: 'MAC', location: 'অবস্থান', coords: 'স্থানাঙ্ক', useTz: 'এই টাইমজোন ব্যবহার করুন', macNA: 'ব্রাউজার লুকিয়ে রাখে', locating: 'খোঁজা হচ্ছে…',
+    map: 'মানচিত্র',
     synced: 'সিঙ্ক হয়েছে · {src}', corrected: 'সংশোধিত · {src}',
     drift: 'ডিভাইস ড্রিফ্ট {mag} — সংশোধিত{res}',
     offLabel: 'সিস্টেম ঘড়ি — রেফারেন্স নেই', offDetail: 'ড্রিফ্ট সংশোধন প্রযোজ্য নয়',
@@ -331,6 +338,7 @@ export const STRINGS = {
     analog: 'Аналоговый', digital: 'Цифровой',
     timer: 'Таймер', start: 'Старт', pause: 'Пауза', resume: 'Продолжить', done: 'Готово', running: 'идёт', paused: 'пауза', minutes: 'Минуты', clear: 'Убрать',
     stopwatch: 'Секундомер', reset: 'Сброс', ipTitle: 'IP-локатор', ipAddr: 'IP-адрес', mac: 'MAC', location: 'Местоположение', coords: 'Координаты', useTz: 'Этот часовой пояс', macNA: 'скрыт браузером', locating: 'определение…',
+    map: 'Карта',
     synced: 'Синхронизировано · {src}', corrected: 'Скорректировано · {src}',
     drift: 'дрейф устройства {mag} — скорректировано{res}',
     offLabel: 'Системные часы — эталон недоступен', offDetail: 'коррекция дрейфа не применяется',
@@ -344,6 +352,7 @@ export const STRINGS = {
     analog: 'Analógico', digital: 'Digital',
     timer: 'Timer', start: 'Iniciar', pause: 'Pausa', resume: 'Retomar', done: 'Pronto', running: 'correndo', paused: 'pausado', minutes: 'Minutos', clear: 'Remover',
     stopwatch: 'Cronômetro', reset: 'Reiniciar', ipTitle: 'Localizador IP', ipAddr: 'Endereço IP', mac: 'MAC', location: 'Localização', coords: 'Coordenadas', useTz: 'Usar este fuso', macNA: 'oculto pelo navegador', locating: 'localizando…',
+    map: 'Mapa',
     synced: 'Sincronizado · {src}', corrected: 'Corrigido · {src}',
     drift: 'deriva do dispositivo {mag} — corrigida{res}',
     offLabel: 'Relógio do sistema — referência indisponível', offDetail: 'sem correção de deriva',
@@ -357,6 +366,7 @@ export const STRINGS = {
     analog: 'انالاگ', digital: 'ڈیجیٹل',
     timer: 'ٹائمر', start: 'شروع', pause: 'روکیں', resume: 'جاری', done: 'ہو گیا', running: 'جاری ہے', paused: 'موقوف', minutes: 'منٹ', clear: 'ہٹائیں',
     stopwatch: 'اسٹاپ واچ', reset: 'ری سیٹ', ipTitle: 'IP لوکیٹر', ipAddr: 'IP پتہ', mac: 'MAC', location: 'مقام', coords: 'کوآرڈینیٹس', useTz: 'یہ ٹائم زون استعمال کریں', macNA: 'براؤزر چھپاتا ہے', locating: 'تلاش جاری…',
+    map: 'نقشہ',
     synced: 'ہم آہنگ · {src}', corrected: 'درست · {src}',
     drift: 'ڈیوائس ڈرفٹ {mag} — درست{res}',
     offLabel: 'سسٹم گھڑی — ماخذ دستیاب نہیں', offDetail: 'کوئی ڈرفٹ اصلاح لاگو نہیں',
@@ -705,6 +715,7 @@ function grabElements() {
     'btnTimer', 'timerPop', 'timerPresets', 'timerMin', 'timerMinLabel', 'timerStart', 'timerText',
     'btnStop', 'stopText', 'btnIp', 'ipText', 'ipPop', 'ipFlag', 'ipIp', 'ipMac', 'ipLoc', 'ipCoord',
     'ipUse', 'lblMac', 'lblLoc', 'lblCoord',
+    'btnMap', 'mapText', 'mapWrap', 'mapSvg',
   ]) els[id] = document.getElementById(id);
 }
 
@@ -944,6 +955,7 @@ function refreshURL() {
 
 function setTimeZone(tz, persist = true) {
   timeZone = tz || null;
+  markMapSel();
   if (zenMode) cellZones[0] = timeZone;
   lastMetaKey = null;
   prev = null;
@@ -1106,6 +1118,8 @@ function applyLang(id, persist = true) {
   els.lblCoord.textContent = t(lang, 'coords');
   els.ipUse.textContent = t(lang, 'useTz');
   if (!els.ipPop.hidden) { els.ipMac.textContent = t(lang, 'macNA'); renderIpPop(); }
+  els.mapText.textContent = t(lang, 'map');
+  els.btnMap.title = t(lang, 'map');
   els.timerMinLabel.textContent = t(lang, 'minutes');
   els.timerStart.textContent = t(lang, 'start');
   document.querySelectorAll('.cap-x').forEach((b) => {
@@ -1247,8 +1261,9 @@ function applyFilter(q) {
   for (const g of pickerGroups) {
     let visible = 0;
     for (const r of g.rows) {
-      const show = !query || r.dataset.search.includes(query)
+      const match = !query || r.dataset.search.includes(query)
         || r.dataset.search.includes(underscored);
+      const show = match && (!zoneWhitelist || zoneWhitelist.includes(r.dataset.zone));
       r.hidden = !show;
       if (show) visible++;
     }
@@ -1281,6 +1296,7 @@ function closePop() {
   if (els.tzPop.hidden) return;
   els.tzPop.hidden = true;
   els.tzBtn.setAttribute('aria-expanded', 'false');
+  zoneWhitelist = null;
 }
 
 /* ---------------- extra windows (splitscreen & co.) ---------------- */
@@ -1342,6 +1358,69 @@ async function runSync() {
 }
 
 /* ---------------- boot ---------------- */
+
+let mapPaths = new Map();   // cc -> svg path
+let zoneWhitelist = null;   // map-driven picker filter
+
+/* one hue per UTC offset: the map reads as a timezone chart, no labels */
+const offsetHue = (minutes) => Math.round(((minutes + 720) / 1560) * 300);
+
+function buildMap() {
+  const M = globalThis.__KLOCK_MAP;
+  if (!M || !els.mapSvg) return;
+  els.mapSvg.setAttribute('viewBox', `0 0 ${M.w} ${M.h}`);
+  const NS = 'http://www.w3.org/2000/svg';
+  const grat = document.createElementNS(NS, 'path');
+  grat.setAttribute('d', M.grat);
+  grat.setAttribute('class', 'map-grat');
+  els.mapSvg.appendChild(grat);
+  const now = new Date();
+  const ccZones = new Map();
+  for (const z of allTimeZones()) {
+    const cc = zoneCountry(z);
+    if (!cc) continue;
+    if (!ccZones.has(cc)) ccZones.set(cc, []);
+    ccZones.get(cc).push(z);
+  }
+  globalThis.__KLOCK_CCZONES = ccZones;
+  for (const [cc, d] of Object.entries(M.cc)) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('class', 'map-cc');
+    p.dataset.cc = cc;
+    const zs = ccZones.get(cc);
+    if (!zs || !zs.length) p.classList.add('nozone');
+    else p.setAttribute('fill', `hsl(${offsetHue(zoneInfo(now, zs[0]).minutes)} 42% 44%)`);
+    p.addEventListener('click', () => mapCountryClick(cc));
+    els.mapSvg.appendChild(p);
+    mapPaths.set(cc, p);
+  }
+}
+
+function mapCountryClick(cc) {
+  const zs = (globalThis.__KLOCK_CCZONES && globalThis.__KLOCK_CCZONES.get(cc)) || [];
+  if (!zs.length) return;
+  closeMap();
+  if (zs.length === 1) setTimeZone(zs[0]);
+  else { zoneWhitelist = zs; openPop(); }
+}
+
+function markMapSel() {
+  if (!mapPaths.size) return;
+  const cc = zoneCountry(timeZone);
+  mapPaths.forEach((p, k) => p.classList.toggle('sel', k === cc));
+}
+
+function openMap() {
+  els.mapWrap.hidden = false;
+  els.btnMap.setAttribute('aria-pressed', 'true');
+  markMapSel();
+}
+function closeMap() {
+  if (els.mapWrap.hidden) return;
+  els.mapWrap.hidden = true;
+  els.btnMap.setAttribute('aria-pressed', 'false');
+}
 
 let ipInfo = null;
 
@@ -1447,6 +1526,7 @@ function initUI() {
   buildLangPicker();
   buildWindowMenu();
   buildTimerPop();
+  buildMap();
 
   const zones = allTimeZones();
   const system = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -1513,6 +1593,8 @@ function initUI() {
     if (els.ipPop.hidden) openIpPop();
     else els.ipPop.hidden = true;
   });
+  els.btnMap.addEventListener('click', () => (els.mapWrap.hidden ? openMap() : closeMap()));
+  els.mapWrap.addEventListener('click', (e) => { if (e.target === els.mapWrap) closeMap(); });
   els.ipUse.addEventListener('click', () => {
     if (els.ipUse.dataset.tz) setTimeZone(els.ipUse.dataset.tz);
     els.ipPop.hidden = true;
@@ -1528,7 +1610,7 @@ function initUI() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; els.timerPop.hidden = true; els.ipPop.hidden = true; return; }
+    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; els.timerPop.hidden = true; els.ipPop.hidden = true; closeMap(); return; }
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,textarea,select')) return;
     if (e.key === 'n' || e.key === 'N') els.btnNight.click();
     if (e.key === 'a' || e.key === 'A') els.btnMode.click();

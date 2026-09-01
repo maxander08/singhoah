@@ -29,6 +29,7 @@ for family, fname, extra in FACES:
 shutil.copy(SRC / "styles.css", OUT / "styles.css")
 shutil.copy(SRC / "app.js", OUT / "app.js")
 shutil.copy(SRC / "flags.js", OUT / "flags.js")
+shutil.copy(SRC / "mapdata.js", OUT / "mapdata.js")
 shutil.copy(SRC / "index.html", OUT / "index.html")
 
 # self-contained single file (works in sandboxed previews, offline, anywhere)
@@ -37,12 +38,14 @@ html = html.replace('<link rel="stylesheet" href="fonts.css">',
                     '<style>\n' + "\n".join(css) + '\n</style>')
 html = html.replace('<link rel="stylesheet" href="styles.css">',
                     '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
+html = html.replace('<script src="mapdata.js"></script>',
+                    '<script>\n' + (SRC / "mapdata.js").read_text(encoding="utf-8") + '\n</script>')
 html = html.replace('<script src="flags.js"></script>',
                     '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
 html = html.replace('<script type="module" src="app.js"></script>',
                     '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
 (OUT / "standalone.html").write_text(html, encoding="utf-8")
 
-SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "standalone.html"]
+SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js", "standalone.html"]
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))

@@ -84,6 +84,10 @@
         <button type="button" class="btn" id="ipUse" hidden>Use this time zone</button>
       </div>
     </div>
+    <button type="button" class="btn" id="btnMap" aria-pressed="false" title="Map">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="currentColor" stroke-width="1.4"/></svg>
+      <span id="mapText">Map</span>
+    </button>
     <div class="layouts" id="layouts" role="group" aria-label="Window layout">
       <button type="button" class="btn lay-btn" data-layout="1" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/></svg></button>
       <button type="button" class="btn lay-btn" data-layout="2" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="5" width="8" height="14" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg></button>
@@ -136,6 +140,11 @@
   </div>
 </footer>
 
+<div class="map-wrap" id="mapWrap" hidden>
+  <svg id="mapSvg" role="listbox" aria-label="World time zone map"></svg>
+</div>
+
+<script src="mapdata.js"></script>
 <script src="flags.js"></script>
 <script type="module" src="app.js"></script>
 </body>

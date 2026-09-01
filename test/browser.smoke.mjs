@@ -588,6 +588,50 @@ if (!ipd.useHidden) {
   ok('one tap adopts the located time zone', true, 'located tz not in catalog — skipped');
 }
 
+/* --- the world map: detailed SVG, click a country to pick its zone --- */
+await page.locator('#btnMap').click();
+await page.waitForTimeout(300);
+const mp1 = await page.evaluate(() => {
+  const tz = document.getElementById('zoneText').textContent.split(' ·')[0];
+  return {
+    paths: document.querySelectorAll('#mapSvg .map-cc').length,
+    grat: !!document.querySelector('#mapSvg .map-grat'),
+    sel: document.querySelector('#mapSvg .map-cc.sel')?.dataset.cc || null,
+    cc: window.__KLOCK_FLAGS.zoneCc[tz] || null,
+  };
+});
+ok('the map renders 230+ detailed countries plus the 15° graticule',
+  mp1.paths >= 230 && mp1.grat, `${mp1.paths} paths`);
+ok('the current zone country is highlighted', mp1.sel === mp1.cc, `${mp1.sel} vs ${mp1.cc}`);
+await page.screenshot({ path: 'shot-map.png' });
+await page.locator('#mapSvg .map-cc[data-cc="JP"]').click();
+await page.waitForTimeout(300);
+ok('clicking a single-zone country selects it and closes the map',
+  await page.evaluate(() => document.getElementById('mapWrap').hidden
+    && document.getElementById('zoneText').textContent.startsWith('Asia/Tokyo')));
+await page.locator('#btnMap').click();
+// bbox-center clicks land on France (Aleutians cross the antimeridian),
+// so dispatch the click on the path itself
+await page.evaluate(() => document.querySelector('#mapSvg .map-cc[data-cc="US"]')
+  .dispatchEvent(new MouseEvent('click', { bubbles: true })));
+await page.waitForTimeout(200);
+const usCheck = await page.evaluate(() => {
+  const vis = [...document.querySelectorAll('#tzList .tz-row:not([hidden])')]
+    .map((r) => r.dataset.zone);
+  return { vis, all: vis.every((z) => window.__KLOCK_CCZONES.get('US').includes(z)) };
+});
+ok('multi-zone countries open the picker filtered to that country',
+  usCheck.vis.length > 3 && usCheck.vis.length < 30 && usCheck.all, `${usCheck.vis.length} zones`);
+await page.locator(`#tzList .tz-row[data-zone="${usCheck.vis[0]}"]`).click();
+await page.waitForTimeout(200);
+ok('picking from the filtered list applies the zone',
+  await page.evaluate((z) => document.getElementById('zoneText').textContent.startsWith(z), usCheck.vis[0]));
+await page.locator('#tzBtn').click();
+await page.waitForTimeout(150);
+ok('the filter clears once the picker closes',
+  await page.locator('#tzList .tz-row:not([hidden])').count() > 400);
+await page.keyboard.press('Escape');
+
 /* --- phones: dropdowns anchor below their buttons, taps work --- */
 const mob = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const m = await mob.newPage();
@@ -627,6 +671,16 @@ const tmb = await m.locator('#btnTimer').boundingBox();
 ok('timer dropdown hangs right below its button too',
   tb && tmb && tb.y >= tmb.y + tmb.height && tb.y <= tmb.y + tmb.height + 12
   && tb.x >= 0 && tb.x + tb.width <= 391, JSON.stringify(tb));
+await m.locator('#btnMap').tap();
+await m.waitForTimeout(300);
+const mb = await m.locator('#mapSvg').boundingBox();
+ok('the map fits the phone viewport',
+  mb && mb.x >= 0 && mb.x + mb.width <= 391 && mb.y >= 0 && mb.y + mb.height <= 845, JSON.stringify(mb));
+await m.evaluate(() => document.querySelector('#mapSvg .map-cc[data-cc="JP"]')
+  .dispatchEvent(new MouseEvent('click', { bubbles: true })));
+await m.waitForTimeout(300);
+ok('tapping a country selects its zone on touch',
+  await m.evaluate(() => document.getElementById('zoneText').textContent.startsWith('Asia/Tokyo')));
 await m.locator('#btnIp').tap();
 await m.waitForTimeout(300);
 const ib = await m.locator('#ipPop').boundingBox();
