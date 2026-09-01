@@ -427,17 +427,34 @@ button { font: inherit; color: inherit; }
 .wal-bar { fill: var(--pigeon); opacity: .55; }
 .wal-bar.now { fill: var(--notification); opacity: 1; }
 .wal-chart text { fill: var(--pigeon); font-size: 10px; text-anchor: middle; }
-.wal-amt-wrap { position: relative; display: flex; min-width: 0; }
+.wal-amt-wrap {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.wal-amt-wrap:focus-within { border-color: var(--pigeon); }
+.wal-amt-wrap:has(#walAmt.bad) { border-color: var(--notification); }
 .wal-amt-sym {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  padding-inline-start: 10px;
   color: var(--pigeon);
   font-size: 13px;
   pointer-events: none;
+  flex: none;
 }
-#walAmt { padding-left: 28px; }
+#walAmt {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 10px;
+  padding-inline-start: 6px;
+}
 .wal-date-btn {
   min-height: 38px;
   border: 1px solid var(--border);

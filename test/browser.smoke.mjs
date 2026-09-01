@@ -666,6 +666,19 @@ const cur2 = await page.evaluate(() => ({
 }));
 ok('picking a currency updates the symbol prefix and button',
   cur2.sym === '€' && cur2.btn.includes('EUR'), JSON.stringify(cur2));
+await page.locator('#walCurBtn').click();
+await page.waitForTimeout(120);
+await page.locator('#curSearch').fill('CFA');
+await page.waitForTimeout(120);
+await page.locator('#curList .cur-row[data-code="XOF"]').click();
+await page.waitForTimeout(150);
+const geo = await page.evaluate(() => {
+  const sym = document.getElementById('walAmtSym').getBoundingClientRect();
+  const amt = document.getElementById('walAmt').getBoundingClientRect();
+  return { symRight: Math.round(sym.right), amtLeft: Math.round(amt.left), symW: Math.round(sym.width) };
+});
+ok('the Amount text sits clear of even a wide currency symbol',
+  geo.symW > 18 && geo.amtLeft >= geo.symRight, JSON.stringify(geo));
 await page.locator('#walDateBtn').click();
 await page.waitForTimeout(120);
 const cal1 = await page.evaluate(() => ({
