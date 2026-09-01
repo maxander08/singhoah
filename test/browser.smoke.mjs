@@ -374,9 +374,10 @@ const zh = await page.evaluate(() => ({
   dateLong: document.getElementById('dateLong').textContent,
   lang: document.documentElement.lang,
   search: document.getElementById('tzSearch').placeholder,
+  walAmt: document.getElementById('walAmtLabel').textContent,
 }));
 ok('UI translates to Traditional Chinese',
-  zh.date === '日期' && zh.time === '時間' && zh.resync === '重新同步' && zh.search.startsWith('搜尋'),
+  zh.date === '日期' && zh.time === '時間' && zh.resync === '重新同步' && zh.search.startsWith('搜尋') && zh.walAmt === '金額',
   JSON.stringify(zh));
 ok('date line renders in zh-Hant', zh.lang.startsWith('zh') && /星期|週/.test(zh.dateLong), zh.dateLong);
 ok('wallet translates to Traditional Chinese',
@@ -642,6 +643,12 @@ await page.locator('#btnWallet').click();
 await page.waitForTimeout(150);
 ok('amount field is a plain text input — no spinner arrows',
   await page.evaluate(() => document.getElementById('walAmt').type === 'text'));
+ok('Amount is real label text — no placeholder watermark, no image',
+  await page.evaluate(() => {
+    const l = document.getElementById('walAmtLabel');
+    const i = document.getElementById('walAmt');
+    return !!l && l.textContent === 'Amount' && i.placeholder === '' && !l.querySelector('img');
+  }));
 await page.locator('#walCurBtn').click();
 await page.waitForTimeout(150);
 const cur1 = await page.evaluate(() => ({

@@ -430,6 +430,10 @@ button { font: inherit; color: inherit; }
   padding: 6px 10px;
   padding-inline-start: 6px;
 }
+.wal-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wal-field .wal-lbl { margin: 0; }
+.wal-field-add { justify-content: flex-end; }
+.wal-field-add .wal-add { width: 100%; }
 .wal-date-btn {
   min-height: 38px;
   border: 1px solid var(--border);

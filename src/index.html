@@ -102,13 +102,24 @@
             <button type="button" id="walTypeOut" aria-pressed="true">Expense</button>
             <button type="button" id="walTypeIn" aria-pressed="false">Income</button>
           </div>
-          <div class="wal-amt-wrap">
-            <span class="wal-amt-sym" id="walAmtSym" aria-hidden="true">$</span>
-            <input id="walAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="Amount" aria-label="Amount" required>
+          <div class="wal-field">
+            <label class="wal-lbl" for="walAmt" id="walAmtLabel">Amount</label>
+            <div class="wal-amt-wrap">
+              <span class="wal-amt-sym" id="walAmtSym" aria-hidden="true">$</span>
+              <input id="walAmt" type="text" inputmode="decimal" autocomplete="off" required>
+            </div>
           </div>
-          <button type="button" class="wal-date-btn" id="walDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Date"></button>
-          <input id="walNote" type="text" maxlength="40" placeholder="Note" aria-label="Note">
-          <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
+          <div class="wal-field">
+            <label class="wal-lbl" for="walDateBtn" id="walDateLabel">Date</label>
+            <button type="button" class="wal-date-btn" id="walDateBtn" aria-haspopup="dialog" aria-expanded="false"></button>
+          </div>
+          <div class="wal-field">
+            <label class="wal-lbl" for="walNote" id="walNoteLabel">Note</label>
+            <input id="walNote" type="text" maxlength="40">
+          </div>
+          <div class="wal-field wal-field-add">
+            <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
+          </div>
           <div class="wal-cal" id="walCal" hidden></div>
         </form>
         <div class="wal-tabs">

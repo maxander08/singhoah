@@ -887,6 +887,7 @@ function grabElements() {
     'btnMap', 'mapText', 'mapWrap', 'mapSvg',
     'btnWallet', 'walletText', 'walletPop', 'walForm', 'walBal', 'walBalLabel', 'walCurBtn', 'walAmtSym',
     'walTypeOut', 'walTypeIn', 'walAmt', 'walNote', 'walDateBtn', 'walCal', 'walAddBtn', 'walTabD', 'walTabR',
+    'walAmtLabel', 'walNoteLabel', 'walDateLabel',
     'walDaysBox', 'walRepBox', 'walCurBox',
   ]) els[id] = document.getElementById(id);
 }
@@ -1297,9 +1298,9 @@ function applyLang(id, persist = true) {
   els.walBalLabel.textContent = t(lang, 'walBalance');
   els.walTypeOut.textContent = t(lang, 'walExpense');
   els.walTypeIn.textContent = t(lang, 'walIncome');
-  els.walAmt.placeholder = t(lang, 'walAmount');
-  els.walNote.placeholder = t(lang, 'walNote');
-  els.walDateBtn.setAttribute('aria-label', t(lang, 'date'));
+  els.walAmtLabel.textContent = t(lang, 'walAmount');
+  els.walNoteLabel.textContent = t(lang, 'walNote');
+  els.walDateLabel.textContent = t(lang, 'date');
   els.walAddBtn.textContent = t(lang, 'walAdd');
   els.walTabD.textContent = t(lang, 'walDays');
   els.walTabR.textContent = t(lang, 'walReports');

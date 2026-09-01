@@ -455,6 +455,10 @@ button { font: inherit; color: inherit; }
   padding: 6px 10px;
   padding-inline-start: 6px;
 }
+.wal-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wal-field .wal-lbl { margin: 0; }
+.wal-field-add { justify-content: flex-end; }
+.wal-field-add .wal-add { width: 100%; }
 .wal-date-btn {
   min-height: 38px;
   border: 1px solid var(--border);
@@ -978,13 +982,24 @@ button { font: inherit; color: inherit; }
             <button type="button" id="walTypeOut" aria-pressed="true">Expense</button>
             <button type="button" id="walTypeIn" aria-pressed="false">Income</button>
           </div>
-          <div class="wal-amt-wrap">
-            <span class="wal-amt-sym" id="walAmtSym" aria-hidden="true">$</span>
-            <input id="walAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="Amount" aria-label="Amount" required>
+          <div class="wal-field">
+            <label class="wal-lbl" for="walAmt" id="walAmtLabel">Amount</label>
+            <div class="wal-amt-wrap">
+              <span class="wal-amt-sym" id="walAmtSym" aria-hidden="true">$</span>
+              <input id="walAmt" type="text" inputmode="decimal" autocomplete="off" required>
+            </div>
           </div>
-          <button type="button" class="wal-date-btn" id="walDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Date"></button>
-          <input id="walNote" type="text" maxlength="40" placeholder="Note" aria-label="Note">
-          <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
+          <div class="wal-field">
+            <label class="wal-lbl" for="walDateBtn" id="walDateLabel">Date</label>
+            <button type="button" class="wal-date-btn" id="walDateBtn" aria-haspopup="dialog" aria-expanded="false"></button>
+          </div>
+          <div class="wal-field">
+            <label class="wal-lbl" for="walNote" id="walNoteLabel">Note</label>
+            <input id="walNote" type="text" maxlength="40">
+          </div>
+          <div class="wal-field wal-field-add">
+            <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
+          </div>
           <div class="wal-cal" id="walCal" hidden></div>
         </form>
         <div class="wal-tabs">
@@ -2209,6 +2224,7 @@ function grabElements() {
     'btnMap', 'mapText', 'mapWrap', 'mapSvg',
     'btnWallet', 'walletText', 'walletPop', 'walForm', 'walBal', 'walBalLabel', 'walCurBtn', 'walAmtSym',
     'walTypeOut', 'walTypeIn', 'walAmt', 'walNote', 'walDateBtn', 'walCal', 'walAddBtn', 'walTabD', 'walTabR',
+    'walAmtLabel', 'walNoteLabel', 'walDateLabel',
     'walDaysBox', 'walRepBox', 'walCurBox',
   ]) els[id] = document.getElementById(id);
 }
@@ -2619,9 +2635,9 @@ function applyLang(id, persist = true) {
   els.walBalLabel.textContent = t(lang, 'walBalance');
   els.walTypeOut.textContent = t(lang, 'walExpense');
   els.walTypeIn.textContent = t(lang, 'walIncome');
-  els.walAmt.placeholder = t(lang, 'walAmount');
-  els.walNote.placeholder = t(lang, 'walNote');
-  els.walDateBtn.setAttribute('aria-label', t(lang, 'date'));
+  els.walAmtLabel.textContent = t(lang, 'walAmount');
+  els.walNoteLabel.textContent = t(lang, 'walNote');
+  els.walDateLabel.textContent = t(lang, 'date');
   els.walAddBtn.textContent = t(lang, 'walAdd');
   els.walTabD.textContent = t(lang, 'walDays');
   els.walTabR.textContent = t(lang, 'walReports');
