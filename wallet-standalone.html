@@ -62,6 +62,11 @@ html, body {
   margin: 0;
 }
 
+/* Scrollbars are the browser's automatic overflow UI; hide them site-wide.
+   Wheel, touch and keyboard scrolling keep working. */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
 body {
   background: var(--paper);
   color: var(--black);
@@ -150,9 +155,11 @@ button { font: inherit; color: inherit; }
 .tz-pop[hidden] { display: none; }
 
 .tz-search {
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
   border: 0;
   border-bottom: 1px solid var(--border);
-  background: transparent;
   color: inherit;
   padding: 10px 12px;
   font: inherit;
@@ -2791,6 +2798,17 @@ function openPop() {
   els.tzBtn.setAttribute('aria-expanded', 'true');
   els.tzSearch.value = '';
   applyFilter('');
+  /* land on the active city instead of a stale scroll position */
+  const sel = timeZone
+    ? els.tzList.querySelector(`.tz-row[data-zone="${timeZone}"]`)
+    : null;
+  if (sel && !sel.hidden) {
+    const lr = els.tzList.getBoundingClientRect();
+    const rr = sel.getBoundingClientRect();
+    els.tzList.scrollTop += (rr.top + rr.height / 2) - (lr.top + lr.height / 2);
+  } else {
+    els.tzList.scrollTop = 0;
+  }
   els.tzSearch.focus();
 }
 

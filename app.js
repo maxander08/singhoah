@@ -1461,6 +1461,17 @@ function openPop() {
   els.tzBtn.setAttribute('aria-expanded', 'true');
   els.tzSearch.value = '';
   applyFilter('');
+  /* land on the active city instead of a stale scroll position */
+  const sel = timeZone
+    ? els.tzList.querySelector(`.tz-row[data-zone="${timeZone}"]`)
+    : null;
+  if (sel && !sel.hidden) {
+    const lr = els.tzList.getBoundingClientRect();
+    const rr = sel.getBoundingClientRect();
+    els.tzList.scrollTop += (rr.top + rr.height / 2) - (lr.top + lr.height / 2);
+  } else {
+    els.tzList.scrollTop = 0;
+  }
   els.tzSearch.focus();
 }
 

@@ -218,6 +218,19 @@ ok('the date/time line follows too', tokyo.dateTime.startsWith(tokyo.exp.slice(0
 ok('the readout shows the selected zone', tokyo.zone.startsWith('Asia/Tokyo'), tokyo.zone);
 ok('picker button shows flag + city and closes', tokyo.label.trim() === 'Tokyo' && tokyo.popHidden,
   `${tokyo.label} · pop ${tokyo.popHidden ? 'closed' : 'STILL OPEN'}`);
+await page.locator('#tzBtn').click();
+await page.waitForTimeout(150);
+ok('reopening the picker centers the active city', await page.evaluate(() => {
+  const list = document.getElementById('tzList');
+  const row = document.querySelector('.tz-row[data-zone="Asia/Tokyo"]');
+  const lr = list.getBoundingClientRect();
+  const rr = row.getBoundingClientRect();
+  const centered = !!row && !row.hidden && rr.top >= lr.top && rr.bottom <= lr.bottom;
+  document.getElementById('tzBtn').click();
+  return centered;
+}));
+ok('page scrollbars are disabled site-wide',
+  await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth === 'none'));
 
 /* --- extra zones join the CURRENT window — never a new tab --- */
 await page.locator('#tzBtn').click();
