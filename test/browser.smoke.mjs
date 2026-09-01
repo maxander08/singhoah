@@ -14,7 +14,18 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 900 
 const page = await context.newPage();
 
 const errors = [];
-page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+const warnings = [];
+page.on('console', (m) => {
+  if (m.type() !== 'error') return;
+  // shared-CI egress IPs get rate-limited by the optional geolocation APIs;
+  // the app falls back gracefully, so log but don't fail the suite on those
+  const u = (m.location() && m.location().url) || '';
+  if (/429/.test(m.text()) && /ipwho\.is|ipapi\.co/.test(u)) {
+    warnings.push(`geolocation rate-limited (429): ${u}`);
+    return;
+  }
+  errors.push(`console: ${m.text()}`);
+});
 page.on('pageerror', (e) => errors.push(`pageerror: ${e}`));
 page.on('requestfailed', (r) => errors.push(`request failed: ${r.url()} ${r.failure()?.errorText}`));
 
@@ -636,6 +647,7 @@ await mob.close();
 
 await browser.close();
 
+if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);
 console.log(`\n${errors.length ? 'CONSOLE/NETWORK ISSUES:\n' + errors.join('\n') : 'no console or network errors'}`);
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);
