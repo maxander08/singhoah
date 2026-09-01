@@ -221,6 +221,8 @@ button { font: inherit; color: inherit; }
 
 .btn {
   display: inline-flex;
+  color: inherit;
+  text-decoration: none;
   align-items: center;
   gap: 6px;
   min-height: 34px;
@@ -542,6 +544,58 @@ button { font: inherit; color: inherit; }
 .wal-cur-search::placeholder { color: var(--pigeon); }
 .wal-cur-list { max-height: 240px; overflow: auto; padding: 2px; }
 .cur-row.sel-cur { background: var(--paper-2); }
+
+/* ---------- wallet as a full-page app ---------- */
+.wallet-app {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 20px 14px 48px;
+}
+.wal-panel {
+  width: min(720px, 100%);
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.wal-body-page { max-height: none; }
+
+/* ---------- SinghoLaunch launchpad ---------- */
+.launch {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px 16px;
+}
+.lp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  width: min(720px, 100%);
+}
+.lp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  color: inherit;
+  text-decoration: none;
+}
+.lp-card:hover { background: var(--notification); border-color: var(--notification); color: var(--on-notification); }
+.lp-card strong { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.lp-sub { color: var(--pigeon); font-size: 13px; }
+.lp-card:hover .lp-sub { color: inherit; }
+.lp-offrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 @media (max-width: 560px) {
   .wal-form input, .wal-cur-search { font-size: 16px; }  /* prevents iOS focus zoom */
   .wal-seg button, .wal-tab { min-height: 40px; }
@@ -964,53 +1018,10 @@ button { font: inherit; color: inherit; }
         <button type="button" class="btn" id="ipUse" hidden>Use this time zone</button>
       </div>
     </div>
-    <div class="walletmenu">
-      <button type="button" class="btn" id="btnWallet" aria-haspopup="dialog" aria-expanded="false" title="Wallet">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3 9.5h18M16 14.2h2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <span id="walletText">Wallet</span>
-      </button>
-      <div class="tz-pop wallet-pop" id="walletPop" hidden>
-        <div class="wal-head">
-          <div>
-            <p class="meta-label" id="walBalLabel">Balance</p>
-            <p class="wal-bal" id="walBal">—</p>
-          </div>
-          <button type="button" class="wal-cur-btn" id="walCurBtn" aria-haspopup="listbox" aria-expanded="false" title="Currency symbol"></button>
-        </div>
-        <form class="wal-form" id="walForm">
-          <div class="wal-seg" role="group" aria-label="Type">
-            <button type="button" id="walTypeOut" aria-pressed="true">Expense</button>
-            <button type="button" id="walTypeIn" aria-pressed="false">Income</button>
-          </div>
-          <div class="wal-field">
-            <label class="wal-lbl" for="walAmt" id="walAmtLabel">Amount</label>
-            <div class="wal-amt-wrap">
-              <span class="wal-amt-sym" id="walAmtSym" aria-hidden="true">$</span>
-              <input id="walAmt" type="text" inputmode="decimal" autocomplete="off" required>
-            </div>
-          </div>
-          <div class="wal-field">
-            <label class="wal-lbl" for="walDateBtn" id="walDateLabel">Date</label>
-            <button type="button" class="wal-date-btn" id="walDateBtn" aria-haspopup="dialog" aria-expanded="false"></button>
-          </div>
-          <div class="wal-field">
-            <label class="wal-lbl" for="walNote" id="walNoteLabel">Note</label>
-            <input id="walNote" type="text" maxlength="40">
-          </div>
-          <div class="wal-field wal-field-add">
-            <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
-          </div>
-          <div class="wal-cal" id="walCal" hidden></div>
-        </form>
-        <div class="wal-tabs">
-          <button type="button" class="btn wal-tab" id="walTabD" aria-pressed="true">Days</button>
-          <button type="button" class="btn wal-tab" id="walTabR" aria-pressed="false">Reports</button>
-        </div>
-        <div class="wal-body" id="walDaysBox"></div>
-        <div class="wal-body" id="walRepBox" hidden></div>
-        <div class="wal-body" id="walCurBox" hidden></div>
-      </div>
-    </div>
+    <a class="btn" id="btnLaunch" href="launch.html" title="Launchpad">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
+      <span id="launchText">Launchpad</span>
+    </a>
     <button type="button" class="btn" id="btnMap" aria-pressed="false" title="Map">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="currentColor" stroke-width="1.4"/></svg>
       <span id="mapText">Map</span>
@@ -1573,7 +1584,7 @@ export const STRINGS = {
     wallet: 'Wallet', walBalance: 'Balance', walExpense: 'Expense', walIncome: 'Income',
     walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', walDays: 'Days', walReports: 'Reports',
     walSpent: 'Spent', walMonth: 'This month', walAvg: 'Daily average', walWeek: 'Last 7 days',
-    walTop: 'Largest expense', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…',
+    walTop: 'Largest expense', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…', launchpad: 'Launchpad', lpClock: 'Clock', lpClockSub: 'Drift-corrected world clock', lpWalletSub: 'Balance, daily spending & reports', lpOffline: 'Offline single-file',
     date: 'Date', time: 'Time', window: 'Window', light: 'Light', night: 'Night Shift',
     resync: 'Re-sync', search: 'Search city or country…', language: 'Language',
     addZone: 'Add zone', single: 'Single', side: 'Side by side', quad: '2 × 2',
@@ -1591,7 +1602,7 @@ export const STRINGS = {
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
     walAmount: '金額', walNote: '備註', walAdd: '新增', walDays: '每日', walReports: '報表',
     walSpent: '已花費', walMonth: '本月', walAvg: '日均', walWeek: '最近 7 天',
-    walTop: '最大支出', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…',
+    walTop: '最大支出', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…', launchpad: '啟動台', lpClock: '時鐘', lpClockSub: '漂移校正世界時鐘', lpWalletSub: '餘額、每日花費與報表', lpOffline: '離線單一檔案',
     date: '日期', time: '時間', window: '視窗', light: '淺色', night: '夜間模式',
     resync: '重新同步', search: '搜尋城市或國家…', language: '語言',
     addZone: '新增時區', single: '單一', side: '並排', quad: '2 × 2',
@@ -1609,7 +1620,7 @@ export const STRINGS = {
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
     walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', walDays: 'दिन', walReports: 'रिपोर्ट',
     walSpent: 'ख़र्च हुआ', walMonth: 'इस माह', walAvg: 'दैनिक औसत', walWeek: 'पिछले 7 दिन',
-    walTop: 'सबसे बड़ा ख़र्च', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…',
+    walTop: 'सबसे बड़ा ख़र्च', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…', launchpad: 'लॉन्चपैड', lpClock: 'घड़ी', lpClockSub: 'ड्रिफ्ट-सुधारी विश्व घड़ी', lpWalletSub: 'बैलेंस, दैनिक ख़र्च और रिपोर्ट', lpOffline: 'ऑफ़लाइन एकल फ़ाइल',
     date: 'तिथि', time: 'समय', window: 'विंडो', light: 'लाइट', night: 'नाइट शिफ्ट',
     resync: 'री-सिंक', search: 'शहर या देश खोजें…', language: 'भाषा',
     addZone: 'ज़ोन जोड़ें', single: 'एकल', side: 'साथ-साथ', quad: '2 × 2',
@@ -1627,7 +1638,7 @@ export const STRINGS = {
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
     walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', walDays: 'Días', walReports: 'Informes',
     walSpent: 'Gastado', walMonth: 'Este mes', walAvg: 'Media diaria', walWeek: 'Últimos 7 días',
-    walTop: 'Mayor gasto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…',
+    walTop: 'Mayor gasto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…', launchpad: 'Launchpad', lpClock: 'Reloj', lpClockSub: 'Reloj mundial con deriva corregida', lpWalletSub: 'Saldo, gasto diario e informes', lpOffline: 'Un solo archivo sin conexión',
     date: 'Fecha', time: 'Hora', window: 'Ventana', light: 'Claro', night: 'Turno de noche',
     resync: 'Resincronizar', search: 'Buscar ciudad o país…', language: 'Idioma',
     addZone: 'Añadir zona', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
@@ -1645,7 +1656,7 @@ export const STRINGS = {
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
     walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', walDays: 'Jours', walReports: 'Rapports',
     walSpent: 'Dépensé', walMonth: 'Ce mois-ci', walAvg: 'Moyenne quotidienne', walWeek: '7 derniers jours',
-    walTop: 'Plus grosse dépense', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…',
+    walTop: 'Plus grosse dépense', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…', launchpad: 'Launchpad', lpClock: 'Horloge', lpClockSub: 'Horloge mondiale corrigée de la dérive', lpWalletSub: 'Solde, dépenses du jour et rapports', lpOffline: 'Fichier unique hors ligne',
     date: 'Date', time: 'Heure', window: 'Fenêtre', light: 'Clair', night: 'Mode nuit',
     resync: 'Resynchroniser', search: 'Rechercher une ville ou un pays…', language: 'Langue',
     addZone: 'Ajouter un fuseau', single: 'Seul', side: 'Côte à côte', quad: '2 × 2',
@@ -1663,7 +1674,7 @@ export const STRINGS = {
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
     walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', walDays: 'الأيام', walReports: 'التقارير',
     walSpent: 'أُنفق', walMonth: 'هذا الشهر', walAvg: 'المتوسط اليومي', walWeek: 'آخر 7 أيام',
-    walTop: 'أكبر مصروف', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…',
+    walTop: 'أكبر مصروف', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…', launchpad: 'منصة الإطلاق', lpClock: 'الساعة', lpClockSub: 'ساعة عالمية مصحَّحة الانحراف', lpWalletSub: 'الرصيد والمصروفات اليومية والتقارير', lpOffline: 'ملف واحد دون اتصال',
     date: 'التاريخ', time: 'الوقت', window: 'نافذة', light: 'فاتح', night: 'الوضع الليلي',
     resync: 'إعادة المزامنة', search: 'ابحث عن مدينة أو دولة…', language: 'اللغة',
     addZone: 'أضف منطقة', single: 'واحدة', side: 'جنباً إلى جنب', quad: '2 × 2',
@@ -1681,7 +1692,7 @@ export const STRINGS = {
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
     walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', walDays: 'দিন', walReports: 'রিপোর্ট',
     walSpent: 'খরচ হয়েছে', walMonth: 'এই মাস', walAvg: 'দৈনিক গড়', walWeek: 'শেষ ৭ দিন',
-    walTop: 'সবচেয়ে বড় খরচ', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…',
+    walTop: 'সবচেয়ে বড় খরচ', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…', launchpad: 'লঞ্চপ্যাড', lpClock: 'ঘড়ি', lpClockSub: 'ড্রিফট-সংশোধিত বিশ্বঘড়ি', lpWalletSub: 'ব্যালেন্স, দৈনিক খরচ ও রিপোর্ট', lpOffline: 'অফলাইন একক ফাইল',
     date: 'তারিখ', time: 'সময়', window: 'উইন্ডো', light: 'লাইট', night: 'নাইট শিফ্ট',
     resync: 'রি-সিঙ্ক', search: 'শহর বা দেশ খুঁজুন…', language: 'ভাষা',
     addZone: 'অঞ্চল যোগ করুন', single: 'একক', side: 'পাশাপাশি', quad: '2 × 2',
@@ -1699,7 +1710,7 @@ export const STRINGS = {
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
     walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', walDays: 'Дни', walReports: 'Отчёты',
     walSpent: 'Потрачено', walMonth: 'В этом месяце', walAvg: 'Среднее в день', walWeek: 'Последние 7 дней',
-    walTop: 'Крупнейшая трата', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…',
+    walTop: 'Крупнейшая трата', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…', launchpad: 'Лаунчпад', lpClock: 'Часы', lpClockSub: 'Всемирные часы с коррекцией дрейфа', lpWalletSub: 'Баланс, расходы по дням и отчёты', lpOffline: 'Офлайн одним файлом',
     date: 'Дата', time: 'Время', window: 'Окно', light: 'Светлая', night: 'Ночной режим',
     resync: 'Синхронизировать', search: 'Поиск города или страны…', language: 'Язык',
     addZone: 'Добавить пояс', single: 'Один', side: 'Рядом', quad: '2 × 2',
@@ -1717,7 +1728,7 @@ export const STRINGS = {
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
     walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', walDays: 'Dias', walReports: 'Relatórios',
     walSpent: 'Gasto', walMonth: 'Este mês', walAvg: 'Média diária', walWeek: 'Últimos 7 dias',
-    walTop: 'Maior gasto', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…',
+    walTop: 'Maior gasto', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…', launchpad: 'Launchpad', lpClock: 'Relógio', lpClockSub: 'Relógio mundial com deriva corrigida', lpWalletSub: 'Saldo, gastos diários e relatórios', lpOffline: 'Arquivo único off-line',
     date: 'Data', time: 'Hora', window: 'Janela', light: 'Claro', night: 'Modo noturno',
     resync: 'Ressincronizar', search: 'Buscar cidade ou país…', language: 'Idioma',
     addZone: 'Adicionar fuso', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
@@ -1735,7 +1746,7 @@ export const STRINGS = {
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
     walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', walDays: 'دن', walReports: 'رپورٹس',
     walSpent: 'خرچ ہوا', walMonth: 'اس مہینے', walAvg: 'یومیہ اوسط', walWeek: 'پچھلے 7 دن',
-    walTop: 'سب سے بڑا خرچ', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…',
+    walTop: 'سب سے بڑا خرچ', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…', launchpad: 'لائنچ پیڈ', lpClock: 'گھڑی', lpClockSub: 'ڈرفٹ درست شدہ عالمی گھڑی', lpWalletSub: 'بیلنس، یومیہ خرچ اور رپورٹس', lpOffline: 'آف لائن سنگل فائل',
     date: 'تاریخ', time: 'وقت', window: 'ونڈو', light: 'ہلکا', night: 'نائٹ موڈ',
     resync: 'دوبارہ سنک', search: 'شہر یا ملک تلاش کریں…', language: 'زبان',
     addZone: 'زون شامل کریں', single: 'واحد', side: 'بہ پہلو', quad: '2 × 2',
@@ -2222,10 +2233,7 @@ function grabElements() {
     'btnStop', 'stopText', 'btnIp', 'ipText', 'ipPop', 'ipFlag', 'ipIp', 'ipMac', 'ipLoc', 'ipCoord',
     'ipUse', 'lblMac', 'lblLoc', 'lblCoord',
     'btnMap', 'mapText', 'mapWrap', 'mapSvg',
-    'btnWallet', 'walletText', 'walletPop', 'walForm', 'walBal', 'walBalLabel', 'walCurBtn', 'walAmtSym',
-    'walTypeOut', 'walTypeIn', 'walAmt', 'walNote', 'walDateBtn', 'walCal', 'walAddBtn', 'walTabD', 'walTabR',
-    'walAmtLabel', 'walNoteLabel', 'walDateLabel',
-    'walDaysBox', 'walRepBox', 'walCurBox',
+    'btnLaunch', 'launchText',
   ]) els[id] = document.getElementById(id);
 }
 
@@ -2630,20 +2638,8 @@ function applyLang(id, persist = true) {
   if (!els.ipPop.hidden) { els.ipMac.textContent = t(lang, 'macNA'); renderIpPop(); }
   els.mapText.textContent = t(lang, 'map');
   els.btnMap.title = t(lang, 'map');
-  els.walletText.textContent = t(lang, 'wallet');
-  els.btnWallet.title = t(lang, 'wallet');
-  els.walBalLabel.textContent = t(lang, 'walBalance');
-  els.walTypeOut.textContent = t(lang, 'walExpense');
-  els.walTypeIn.textContent = t(lang, 'walIncome');
-  els.walAmtLabel.textContent = t(lang, 'walAmount');
-  els.walNoteLabel.textContent = t(lang, 'walNote');
-  els.walDateLabel.textContent = t(lang, 'date');
-  els.walAddBtn.textContent = t(lang, 'walAdd');
-  els.walTabD.textContent = t(lang, 'walDays');
-  els.walTabR.textContent = t(lang, 'walReports');
-  els.walCurBtn.title = t(lang, 'walCurrency');
-  els.walCurBtn.setAttribute('aria-label', t(lang, 'walCurrency'));
-  if (!els.walletPop.hidden) { renderWallet(); if (!els.walCal.hidden) renderCal(); }
+  els.launchText.textContent = t(lang, 'launchpad');
+  els.btnLaunch.title = t(lang, 'launchpad');
   els.timerMinLabel.textContent = t(lang, 'minutes');
   els.timerStart.textContent = t(lang, 'start');
   document.querySelectorAll('.cap-x').forEach((b) => {
@@ -2937,7 +2933,6 @@ function openMap() {
   els.winPop.hidden = true;
   els.timerPop.hidden = true;
   els.ipPop.hidden = true;
-  closeWalletPop();
   els.mapWrap.hidden = false;
   els.btnMap.setAttribute('aria-pressed', 'true');
   markMapSel();
@@ -2993,180 +2988,6 @@ function openIpPop() {
     els.ipLoc.textContent = t(lang, 'locating');
     locateIp().then((d) => { ipInfo = d; if (!els.ipPop.hidden) renderIpPop(); });
   }
-}
-
-/* ---------------- wallet: balance, daily spending, reports ---------------- */
-
-let wallet = { cur: '$', tx: [] };
-let walType = 'out';
-let walTab = 'days';
-let walPrevTab = 'days';
-let walCurQuery = '';
-let walDateVal = null;
-let calView = null;
-let walSeq = 0;
-
-function loadWallet() {
-  try {
-    const w = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
-    if (w && Array.isArray(w.tx)) {
-      return {
-        cur: typeof w.cur === 'string' && w.cur.trim() ? w.cur.trim() : '$',
-        tx: w.tx.filter((x) => x && (x.type === 'in' || x.type === 'out') && Number.isFinite(x.amt)),
-      };
-    }
-  } catch { /* ignore */ }
-  return { cur: '$', tx: [] };
-}
-function saveWallet() { try { localStorage.setItem('singhoah:wallet', JSON.stringify(wallet)); } catch { /* ignore */ } }
-
-const walToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-const walEsc = (v) => String(v ?? '').replace(/[&<>"']/g,
-  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-function fmtMoney(v) {
-  const n = new Intl.NumberFormat(langOf(lang).locale, { maximumFractionDigits: 2 }).format(Math.abs(v));
-  return `${v < 0 ? '−' : ''}${curSymbol(wallet.cur, langOf(lang).locale)}${n}`;
-}
-
-function walDateLabel(ymd) {
-  try {
-    return new Intl.DateTimeFormat(langOf(lang).locale,
-      { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${ymd}T00:00:00`));
-  } catch { return ymd; }
-}
-
-function weekChartSVG(series) {
-  const max = Math.max(...series.map((x) => x.spent), 1);
-  const bw = 320 / 7;
-  const fmt = new Intl.DateTimeFormat(langOf(lang).locale, { weekday: 'narrow' });
-  let inner = '';
-  series.forEach((x, i) => {
-    const h = x.spent > 0 ? Math.max(3, Math.round((x.spent / max) * 78)) : 1;
-    inner += `<rect class="wal-bar${i === 6 ? ' now' : ''}" x="${(i * bw + bw * 0.22).toFixed(1)}" y="${92 - h}" width="${(bw * 0.56).toFixed(1)}" height="${h}" rx="1.5"/>`;
-    inner += `<text x="${(i * bw + bw / 2).toFixed(1)}" y="106">${fmt.format(new Date(`${x.date}T00:00:00`))}</text>`;
-  });
-  return `<svg class="wal-chart" viewBox="0 0 320 110" aria-hidden="true">${inner}</svg>`;
-}
-
-function renderCurList() {
-  if (!document.getElementById('curSearch')) {
-    els.walCurBox.innerHTML = `
-      <input id="curSearch" class="wal-cur-search" type="search" autocomplete="off"
-        placeholder="${walEsc(t(lang, 'walCurSearch'))}" aria-label="${walEsc(t(lang, 'walCurSearch'))}">
-      <div class="tz-list wal-cur-list" id="curList" role="listbox"></div>`;
-  }
-  document.getElementById('curSearch').placeholder = t(lang, 'walCurSearch');
-  const q = walCurQuery.trim().toLowerCase();
-  const rows = CURRENCIES
-    .filter(([code]) => !q
-      || code.toLowerCase().includes(q)
-      || curSymbol(code, langOf(lang).locale).toLowerCase().includes(q)
-      || curName(code, lang).toLowerCase().includes(q))
-    .map(([code]) => `
-      <div class="tz-row cur-row${code === wallet.cur ? ' sel-cur' : ''}" role="option" data-code="${code}">
-        <img class="flag" alt="" src="${curFlag(code)}">
-        <span class="tz-city">${walEsc(curName(code, lang))}</span>
-        <span class="tz-off">${walEsc(curSymbol(code, langOf(lang).locale))} · ${code}</span>
-      </div>`)
-    .join('');
-  document.getElementById('curList').innerHTML = rows || `<p class="wal-empty">${t(lang, 'walEmpty')}</p>`;
-}
-
-function renderCal() {
-  const L = langOf(lang).locale;
-  const { y, m } = calView;
-  const first = new Date(y, m, 1);
-  const lead = first.getDay();
-  const dim = new Date(y, m + 1, 0).getDate();
-  const dimPrev = new Date(y, m, 0).getDate();
-  const monthLbl = new Intl.DateTimeFormat(L, { month: 'long', year: 'numeric' }).format(first);
-  const dows = [...Array(7)].map((_, i) =>
-    new Intl.DateTimeFormat(L, { weekday: 'narrow' }).format(new Date(2023, 0, 1 + i)));
-  const today = walToday();
-  const sel = walDateVal;
-  let cells = dows.map((d) => `<span class="dow">${d}</span>`).join('');
-  for (let i = 0; i < lead; i++) {
-    cells += `<button type="button" class="wal-cal-day dim" tabindex="-1">${dimPrev - lead + 1 + i}</button>`;
-  }
-  for (let d = 1; d <= dim; d++) {
-    const ymd = `${y}-${pad(m + 1)}-${pad(d)}`;
-    const cls = `wal-cal-day${ymd === sel ? ' sel' : ''}${ymd === today ? ' today' : ''}`;
-    cells += `<button type="button" class="${cls}" data-date="${ymd}">${d}</button>`;
-  }
-  els.walCal.innerHTML = `
-    <div class="wal-cal-head">
-      <button type="button" class="wal-cal-nav" data-d="-1" aria-label="‹">‹</button>
-      <strong>${monthLbl}</strong>
-      <button type="button" class="wal-cal-nav" data-d="1" aria-label="›">›</button>
-    </div>
-    <div class="wal-cal-grid">${cells}</div>`;
-}
-
-function renderWallet() {
-  els.walBal.textContent = fmtMoney(walBalance(wallet.tx));
-  els.walCurBtn.innerHTML = `<img class="flag" alt="" src="${curFlag(wallet.cur)}"><span>${wallet.cur}</span><span class="tz-off">${walEsc(curSymbol(wallet.cur, langOf(lang).locale))}</span>`;
-  els.walAmtSym.textContent = curSymbol(wallet.cur, langOf(lang).locale);
-  els.walDateBtn.textContent = walDateLabel(walDateVal || walToday());
-  els.walDaysBox.hidden = walTab !== 'days';
-  els.walRepBox.hidden = walTab !== 'reports';
-  els.walCurBox.hidden = walTab !== 'cur';
-  if (walTab === 'cur') { renderCurList(); return; }
-  const box = walTab === 'days' ? els.walDaysBox : els.walRepBox;
-  if (!wallet.tx.length) { box.innerHTML = `<p class="wal-empty">${t(lang, 'walEmpty')}</p>`; return; }
-  if (walTab === 'days') {
-    const days = [...walByDay(wallet.tx).entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
-    box.innerHTML = days.map(([ymd, d]) => {
-      const items = [...d.items].sort((a, b) => (a.ts || 0) < (b.ts || 0) ? 1 : -1).map((x) => `
-        <div class="wal-item">
-          <span class="wal-note">${walEsc(x.note) || t(lang, x.type === 'in' ? 'walIncome' : 'walExpense')}</span>
-          <span class="wal-amt ${x.type}">${x.type === 'in' ? '+' : '−'}${fmtMoney(x.amt)}</span>
-          <button type="button" class="wal-x" data-id="${x.id}" title="${walEsc(t(lang, 'walDelete'))}" aria-label="${walEsc(t(lang, 'walDelete'))}">×</button>
-        </div>`).join('');
-      const right = d.spent > 0 ? `${t(lang, 'walSpent')} ${fmtMoney(d.spent)}` : `+${fmtMoney(d.income)}`;
-      return `<div class="wal-day"><div class="wal-day-h"><span>${walDateLabel(ymd)}</span><span>${right}</span></div>${items}</div>`;
-    }).join('');
-  } else {
-    const st = walMonthStats(wallet.tx, walToday());
-    box.innerHTML = `
-      <div class="wal-cards">
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walSpent')} · ${t(lang, 'walMonth')}</p><strong>${fmtMoney(st.spent)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walIncome')} · ${t(lang, 'walMonth')}</p><strong>${fmtMoney(st.income)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walAvg')}</p><strong>${fmtMoney(st.avg)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walTop')}</p><strong>${st.top ? walEsc(`${st.top.note ? `${st.top.note} · ` : ''}${fmtMoney(st.top.amt)}`) : '—'}</strong></div>
-      </div>
-      <p class="wal-lbl wal-week-lbl">${t(lang, 'walWeek')}</p>
-      ${weekChartSVG(walWeekSeries(wallet.tx, walToday()))}`;
-  }
-}
-
-function openWalletPop() {
-  els.walletPop.hidden = false;
-  els.btnWallet.setAttribute('aria-expanded', 'true');
-  clampPop(els.walletPop);
-  if (!walDateVal) walDateVal = walToday();
-  renderWallet();
-}
-function closeWalletPop() {
-  els.walletPop.hidden = true;
-  els.btnWallet.setAttribute('aria-expanded', 'false');
-}
-function setWalType(v) {
-  walType = v;
-  els.walTypeOut.setAttribute('aria-pressed', String(v === 'out'));
-  els.walTypeIn.setAttribute('aria-pressed', String(v === 'in'));
-}
-function setWalTab(v) {
-  if (walTab === 'cur' && v !== 'cur') walCurQuery = '';
-  els.walCal.hidden = true;
-  walTab = v;
-  els.walTabD.setAttribute('aria-pressed', String(v === 'days'));
-  els.walTabR.setAttribute('aria-pressed', String(v === 'reports'));
-  renderWallet();
 }
 
 function buildTimerPop() {
@@ -3247,7 +3068,6 @@ function initUI() {
 
   let savedLang = '';
   try { savedLang = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
-  wallet = loadWallet();
   applyLang(LANGS.some((l) => l.id === savedLang) ? savedLang : 'en', false);
 
   els.tzBtn.addEventListener('click', () => {
@@ -3268,7 +3088,6 @@ function initUI() {
     if (!els.winPop.hidden && !e.target.closest('.winmenu')) els.winPop.hidden = true;
     if (!els.timerPop.hidden && !e.target.closest('.timermenu')) els.timerPop.hidden = true;
     if (!els.ipPop.hidden && !e.target.closest('.ipmenu')) els.ipPop.hidden = true;
-    if (!els.walletPop.hidden && !e.target.closest('.walletmenu')) closeWalletPop();
   });
 
   fitClock();
@@ -3295,74 +3114,6 @@ function initUI() {
     if (els.ipPop.hidden) openIpPop();
     else els.ipPop.hidden = true;
   });
-  els.btnWallet.addEventListener('click', () => (els.walletPop.hidden ? openWalletPop() : closeWalletPop()));
-  els.walForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const amt = Math.round(parseFloat(String(els.walAmt.value).replace(',', '.')) * 100) / 100;
-    if (!Number.isFinite(amt) || amt <= 0) {
-      els.walAmt.classList.add('bad');
-      setTimeout(() => els.walAmt.classList.remove('bad'), 600);
-      return;
-    }
-    const date = walDateVal || walToday();
-    wallet.tx.push({
-      id: `t${Date.now()}-${walSeq++}`, type: walType, amt,
-      note: els.walNote.value.trim().slice(0, 40), date, ts: Date.now(),
-    });
-    saveWallet();
-    els.walAmt.value = '';
-    els.walNote.value = '';
-    renderWallet();
-  });
-  els.walTypeOut.addEventListener('click', () => setWalType('out'));
-  els.walTypeIn.addEventListener('click', () => setWalType('in'));
-  els.walTabD.addEventListener('click', () => setWalTab('days'));
-  els.walTabR.addEventListener('click', () => setWalTab('reports'));
-  els.walCurBtn.addEventListener('click', () => {
-    if (walTab === 'cur') setWalTab(walPrevTab || 'days');
-    else { walPrevTab = walTab; setWalTab('cur'); }
-  });
-  els.walCurBox.addEventListener('input', (e) => {
-    if (e.target.id === 'curSearch') { walCurQuery = e.target.value; renderCurList(); }
-  });
-  els.walDateBtn.addEventListener('click', () => {
-    if (els.walCal.hidden) {
-      const [y, m] = (walDateVal || walToday()).split('-').map(Number);
-      calView = { y, m: m - 1 };
-      els.walCal.hidden = false;
-      renderCal();
-    } else els.walCal.hidden = true;
-  });
-  els.walCal.addEventListener('click', (e) => {
-    const nav = e.target.closest('.wal-cal-nav');
-    if (nav) {
-      calView.m += Number(nav.dataset.d);
-      if (calView.m < 0) { calView.m = 11; calView.y--; }
-      if (calView.m > 11) { calView.m = 0; calView.y++; }
-      renderCal();
-      return;
-    }
-    const day = e.target.closest('.wal-cal-day');
-    if (day && day.dataset.date) {
-      walDateVal = day.dataset.date;
-      els.walCal.hidden = true;
-      els.walDateBtn.textContent = walDateLabel(walDateVal);
-    }
-  });
-  els.walletPop.addEventListener('click', (e) => {
-    const row = e.target.closest('.cur-row');
-    if (row) {
-      wallet.cur = row.dataset.code;
-      saveWallet();
-      setWalTab(walPrevTab || 'days');
-      return;
-    }
-    const x = e.target.closest('.wal-x');
-    if (!x) return;
-    wallet.tx = wallet.tx.filter((w) => w.id !== x.dataset.id);
-    saveWallet();
-    renderWallet();
-  });
   els.btnMap.addEventListener('click', () => (els.mapWrap.hidden ? openMap() : closeMap()));
   els.mapWrap.addEventListener('click', (e) => { if (e.target === els.mapWrap) closeMap(); });
   els.ipUse.addEventListener('click', () => {
@@ -3380,7 +3131,7 @@ function initUI() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; els.timerPop.hidden = true; els.ipPop.hidden = true; closeWalletPop(); closeMap(); return; }
+    if (e.key === 'Escape') { closePop(); closeLangPop(); els.winPop.hidden = true; els.timerPop.hidden = true; els.ipPop.hidden = true; closeMap(); return; }
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,textarea,select')) return;
     if (e.key === 'n' || e.key === 'N') els.btnNight.click();
     if (e.key === 'a' || e.key === 'A') els.btnMode.click();
@@ -3396,9 +3147,43 @@ function initUI() {
   setInterval(runSync, 5 * 60 * 1000);
 }
 
+/** Reusable anchored language picker (wallet & launchpad pages). */
+export function makeLangPicker(btn, pop, list, onPick, wrapSel = '.langwrap') {
+  for (const L of LANGS) {
+    const row = document.createElement('div');
+    row.className = 'tz-row';
+    row.setAttribute('role', 'option');
+    row.dataset.lang = L.id;
+    const img = document.createElement('img');
+    img.className = 'flag';
+    img.alt = '';
+    img.width = 20; img.height = 15;
+    img.src = ccFlag(L.flag);
+    const name = document.createElement('span');
+    name.className = 'tz-city';
+    name.textContent = L.name;
+    row.append(img, name);
+    row.addEventListener('click', () => { onPick(L.id); pop.hidden = true; });
+    list.appendChild(row);
+  }
+  btn.addEventListener('click', () => { pop.hidden = !pop.hidden; if (!pop.hidden) clampPop(pop); });
+  document.addEventListener('pointerdown', (e) => {
+    if (!pop.hidden && !e.target.closest(wrapSel)) pop.hidden = true;
+  });
+}
+
+/* shared library for the sibling apps (SinghoWallet, SinghoLaunch) */
+globalThis.__SING_LIB = {
+  LANGS, STRINGS, t, langOf, pad, ccFlag,
+  curSymbol, curName, curFlag, CURRENCIES,
+  walBalance, walByDay, walMonthStats, walWeekSeries,
+  makeLangPicker, clampPop,
+};
+
 if (typeof document !== 'undefined') {
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initUI);
-  else initUI();
+  const boot = () => { if (document.getElementById('grid')) initUI(); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 }
 
 </script>

@@ -1,6 +1,7 @@
 # Singhoah
 
-Live: <https://maxander08.github.io/singhoah/> (GitHub Pages)
+Live: <https://maxander08.github.io/singhoah/> (GitHub Pages) — plus the app family:
+wallet <…/wallet.html>, launchpad <…/launch.html>.
 
 A millisecond clock in the visual language of [displaay.net](https://displaay.net) — the
 Prague type foundry: warm paper `#f2f0e6`, hairline rules, pigeon-grey uppercase labels,
@@ -71,15 +72,19 @@ Tuesday, 25 August 2026                       05:51 UTC
 - **IP locator** — the *IP* button shows your public IP with its country
   flag, the city/region/country and coordinates it geolocates to (ipapi.co
   with an ipwho.is fallback), and a one-tap *Use this time zone* action.
-- **Wallet** — the *Wallet* button opens a small ledger: current balance,
-  an expense/income entry form, spending grouped per day, and a reports
-  dashboard (month spent/income, daily average, largest expense and a
-  7-day spending chart). A currency dropdown lists every ISO-4217 currency
-  plus BTC and ETH with flag, localized name and symbol; the amount field
-  is a clean text input with the symbol as prefix (no spinner arrows) and
-  the date uses a built-in localized calendar picker. Entries persist
-  locally; every label is translated in all ten languages and the popup is
-  touch-friendly on phones. The wordmark flies 生活 beside *Singhoah*.
+- **SinghoWallet** (`wallet.html`) — the wallet as its own app: current
+  balance, an expense/income entry form, spending grouped per day, and a
+  reports dashboard (month spent/income, daily average, largest expense and
+  a 7-day spending chart). A currency dropdown lists every ISO-4217 currency
+  plus BTC and ETH with flag, localized name and symbol; the amount field is
+  a clean text input with the symbol as prefix and a real *Amount* label (no
+  spinner arrows), and the date uses a built-in localized calendar picker.
+  Entries persist locally; every label is translated in all ten languages
+  and the app is touch-friendly on phones.
+- **SinghoLaunch** (`launch.html`) — the launchpad: cards for the Singhoah
+  clock and SinghoWallet plus the offline single-file builds, translated in
+  all ten languages; the clock's top bar links to it via *Launchpad*. The
+  wordmark flies 生活 beside *Singhoah*.
   The MAC row states plainly that browsers do not expose MAC addresses to
   web pages.
 - **Phone-friendly** — dropdowns open right below their button exactly as on
@@ -108,7 +113,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 114 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 115 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,

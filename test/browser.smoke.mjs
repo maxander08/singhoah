@@ -374,14 +374,11 @@ const zh = await page.evaluate(() => ({
   dateLong: document.getElementById('dateLong').textContent,
   lang: document.documentElement.lang,
   search: document.getElementById('tzSearch').placeholder,
-  walAmt: document.getElementById('walAmtLabel').textContent,
 }));
 ok('UI translates to Traditional Chinese',
-  zh.date === '日期' && zh.time === '時間' && zh.resync === '重新同步' && zh.search.startsWith('搜尋') && zh.walAmt === '金額',
+  zh.date === '日期' && zh.time === '時間' && zh.resync === '重新同步' && zh.search.startsWith('搜尋'),
   JSON.stringify(zh));
 ok('date line renders in zh-Hant', zh.lang.startsWith('zh') && /星期|週/.test(zh.dateLong), zh.dateLong);
-ok('wallet translates to Traditional Chinese',
-  await page.evaluate(() => document.getElementById('walletText').textContent) === '錢包');
 await page.screenshot({ path: 'shot-zh.png' });
 
 await page.locator('#langBtn').click();
@@ -591,125 +588,11 @@ if (!ipd.useHidden) {
   ok('one tap adopts the located time zone', true, 'located tz not in catalog — skipped');
 }
 
-/* --- wallet: balance, per-day spending, reports dashboard --- */
-await page.locator('#btnWallet').click();
-await page.waitForTimeout(200);
-const wbb = await page.locator('#btnWallet').boundingBox();
-const wpb = await page.locator('#walletPop').boundingBox();
-ok('wallet popup opens anchored under its button',
-  wpb && wbb && wpb.y >= wbb.y + wbb.height && wpb.y <= wbb.y + wbb.height + 12,
-  JSON.stringify({ pop: wpb, btn: wbb }));
-await page.locator('#walTypeIn').click();
-await page.locator('#walAmt').fill('100');
-await page.locator('#walAddBtn').click();
-await page.waitForTimeout(150);
-await page.locator('#walTypeOut').click();
-await page.locator('#walAmt').fill('30');
-await page.locator('#walNote').fill('Coffee');
-await page.locator('#walAddBtn').click();
-await page.waitForTimeout(150);
-const wd1 = await page.evaluate(() => ({
-  bal: document.getElementById('walBal').textContent,
-  days: document.getElementById('walDaysBox').textContent,
-}));
-ok('balance is income minus spending', wd1.bal.replace(/[^0-9.-]/g, '').includes('70'), wd1.bal);
-ok('the days view lists today’s spending with its note',
-  /Coffee/.test(wd1.days) && /30/.test(wd1.days), wd1.days.slice(0, 90));
-await page.locator('#walTabR').click();
-await page.waitForTimeout(150);
-const wd2 = await page.evaluate(() => ({
-  rep: document.getElementById('walRepBox').textContent,
-  bars: document.querySelectorAll('#walRepBox .wal-bar').length,
-}));
-ok('reports dashboard shows this month and a 7-day chart',
-  /30/.test(wd2.rep) && wd2.bars === 7, wd2.rep.slice(0, 90));
-await page.screenshot({ path: 'shot-wallet.png' });
-await page.locator('#walTabD').click();
-await page.waitForTimeout(100);
-while (await page.locator('.wal-x').count()) {
-  await page.locator('.wal-x').first().click();
-  await page.waitForTimeout(80);
-}
-ok('deleting every entry empties the wallet',
-  await page.evaluate(() => document.getElementById('walDaysBox').textContent.trim().length > 3));
-await page.keyboard.press('Escape');
-ok('escape closes the wallet popup',
-  await page.evaluate(() => document.getElementById('walletPop').hidden));
-
-/* --- wallet: currency dropdown + custom date picker --- */
+/* --- the wallet moved out: SinghoWallet is its own app --- */
+ok('the clock ships no wallet — SinghoWallet is its own app',
+  await page.evaluate(() => !document.getElementById('btnWallet') && !!document.getElementById('btnLaunch')));
 ok('生活 sits beside the Singhoah wordmark',
   (await page.locator('.wordmark-zh').textContent()) === '生活');
-await page.locator('#btnWallet').click();
-await page.waitForTimeout(150);
-ok('amount field is a plain text input — no spinner arrows',
-  await page.evaluate(() => document.getElementById('walAmt').type === 'text'));
-ok('Amount is real label text — no placeholder watermark, no image',
-  await page.evaluate(() => {
-    const l = document.getElementById('walAmtLabel');
-    const i = document.getElementById('walAmt');
-    return !!l && l.textContent === 'Amount' && i.placeholder === '' && !l.querySelector('img');
-  }));
-await page.locator('#walCurBtn').click();
-await page.waitForTimeout(150);
-const cur1 = await page.evaluate(() => ({
-  rows: document.querySelectorAll('#curList .cur-row').length,
-  btc: (document.querySelector('#curList .cur-row[data-code="BTC"]') || {}).textContent || '',
-  eth: (document.querySelector('#curList .cur-row[data-code="ETH"]') || {}).textContent || '',
-  usd: (document.querySelector('#curList .cur-row[data-code="USD"]') || {}).textContent || '',
-  euFlag: (document.querySelector('#curList .cur-row[data-code="EUR"] img') || {}).src || '',
-}));
-ok('currency dropdown lists 140+ currencies with flags',
-  cur1.rows >= 140 && cur1.euFlag.startsWith('data:image/svg'), `${cur1.rows} rows`);
-ok('BTC and ETH are listed with their symbols',
-  cur1.btc.includes('₿') && cur1.eth.includes('Ξ'), `${cur1.btc.trim()} · ${cur1.eth.trim()}`);
-ok('currency rows carry localized names', /Dollar/.test(cur1.usd), cur1.usd.trim().slice(0, 60));
-await page.locator('#curSearch').fill('euro');
-await page.waitForTimeout(120);
-await page.locator('#curList .cur-row[data-code="EUR"]').click();
-await page.waitForTimeout(150);
-const cur2 = await page.evaluate(() => ({
-  sym: document.getElementById('walAmtSym').textContent,
-  btn: document.getElementById('walCurBtn').textContent,
-}));
-ok('picking a currency updates the symbol prefix and button',
-  cur2.sym === '€' && cur2.btn.includes('EUR'), JSON.stringify(cur2));
-await page.locator('#walCurBtn').click();
-await page.waitForTimeout(120);
-await page.locator('#curSearch').fill('CFA');
-await page.waitForTimeout(120);
-await page.locator('#curList .cur-row[data-code="XOF"]').click();
-await page.waitForTimeout(150);
-const geo = await page.evaluate(() => {
-  const sym = document.getElementById('walAmtSym').getBoundingClientRect();
-  const amt = document.getElementById('walAmt').getBoundingClientRect();
-  return { symRight: Math.round(sym.right), amtLeft: Math.round(amt.left), symW: Math.round(sym.width) };
-});
-ok('the Amount text sits clear of even a wide currency symbol',
-  geo.symW > 18 && geo.amtLeft >= geo.symRight, JSON.stringify(geo));
-await page.locator('#walDateBtn').click();
-await page.waitForTimeout(120);
-const cal1 = await page.evaluate(() => ({
-  days: document.querySelectorAll('#walCal .wal-cal-day:not(.dim)').length,
-  head: (document.querySelector('#walCal .wal-cal-head strong') || {}).textContent || '',
-}));
-ok('the date picker shows a full localized month',
-  cal1.days >= 28 && cal1.days <= 31 && cal1.head.length > 3, JSON.stringify(cal1));
-await page.locator('#walCal .wal-cal-nav[data-d="1"]').click();
-await page.waitForTimeout(120);
-await page.locator('#walCal .wal-cal-day[data-date$="-15"]').first().click();
-await page.waitForTimeout(120);
-ok('picking a day closes the calendar and labels the button',
-  await page.evaluate(() => document.getElementById('walCal').hidden
-    && /15/.test(document.getElementById('walDateBtn').textContent)));
-await page.locator('#walAmt').fill('9');
-await page.locator('#walNote').fill('Metro');
-await page.locator('#walAddBtn').click();
-await page.waitForTimeout(150);
-ok('the entry lands on the picked day',
-  await page.evaluate(() => /Metro/.test(document.getElementById('walDaysBox').textContent)
-    && /15/.test(document.getElementById('walDaysBox').textContent)));
-await page.screenshot({ path: 'shot-wallet2.png' });
-await page.keyboard.press('Escape');
 
 /* --- the world map: detailed SVG, click a country to pick its zone --- */
 await page.locator('#btnMap').click();
@@ -813,36 +696,6 @@ ok('IP dropdown hangs right below its button too',
   ib && ibb && ib.y >= ibb.y + ibb.height && ib.y <= ibb.y + ibb.height + 12
   && ib.x >= 0 && ib.x + ib.width <= 391, JSON.stringify(ib));
 await m.keyboard.press('Escape');
-await m.locator('#btnWallet').tap();
-await m.waitForTimeout(250);
-const wb = await m.locator('#walletPop').boundingBox();
-const wbtn = await m.locator('#btnWallet').boundingBox();
-ok('wallet dropdown hangs right below its button on mobile',
-  wb && wbtn && wb.y >= wbtn.y + wbtn.height && wb.y <= wbtn.y + wbtn.height + 12
-  && wb.x >= 0 && wb.x + wb.width <= 391, JSON.stringify(wb));
-await m.screenshot({ path: 'shot-wallet-mobile.png' });
-await m.locator('#walCurBtn').tap();
-await m.waitForTimeout(150);
-const cb = await m.locator('#walletPop').boundingBox();
-ok('currency list fits the phone viewport',
-  cb && cb.x >= 0 && cb.x + cb.width <= 391, JSON.stringify(cb));
-await m.locator('#curSearch').fill('yen');
-await m.waitForTimeout(120);
-await m.locator('#curList .cur-row[data-code="JPY"]').tap();
-await m.waitForTimeout(150);
-ok('tapping a currency selects it on touch',
-  await m.evaluate(() => document.getElementById('walCurBtn').textContent.includes('JPY')));
-await m.locator('#walDateBtn').tap();
-await m.waitForTimeout(150);
-const db = await m.locator('#walCal').boundingBox();
-ok('the date picker fits the phone viewport',
-  db && db.x >= 0 && db.x + db.width <= 391, JSON.stringify(db));
-await m.screenshot({ path: 'shot-wallet-mobile2.png' });
-await m.locator('#walCal .wal-cal-day:not(.dim)').nth(9).tap();
-await m.waitForTimeout(120);
-ok('tapping a day selects it on touch',
-  await m.evaluate(() => document.getElementById('walCal').hidden));
-await m.keyboard.press('Escape');
 await m.locator('#btnTimer').tap();
 await m.waitForTimeout(200);
 await m.locator('#timerPresets .btn').nth(0).tap();
@@ -852,6 +705,135 @@ ok('a timer pane works on the stacked phone layout', await m.evaluate(() =>
 await m.screenshot({ path: 'shot-mobile.png' });
 ok('no page errors on mobile', merrors.length === 0, merrors.join('; '));
 await mob.close();
+
+/* --- SinghoWallet: the wallet as its own app --- */
+const wpage = await context.newPage();
+const werrors = [];
+wpage.on('pageerror', (e) => werrors.push(String(e)));
+await wpage.goto(URL + 'wallet.html', { waitUntil: 'load' });
+await wpage.waitForTimeout(400);
+ok('SinghoWallet loads as its own app',
+  (await wpage.locator('.wordmark').textContent()).includes('Wallet'));
+await wpage.locator('#walTypeIn').click();
+await wpage.locator('#walAmt').fill('100');
+await wpage.locator('#walAddBtn').click();
+await wpage.waitForTimeout(120);
+await wpage.locator('#walTypeOut').click();
+await wpage.locator('#walAmt').fill('30');
+await wpage.locator('#walNote').fill('Coffee');
+await wpage.locator('#walAddBtn').click();
+await wpage.waitForTimeout(120);
+const wd = await wpage.evaluate(() => ({
+  bal: document.getElementById('walBal').textContent,
+  days: document.getElementById('walDaysBox').textContent,
+}));
+ok('wallet balance is income minus spending', wd.bal.replace(/[^0-9.-]/g, '').includes('70'), wd.bal);
+ok('the days view lists today’s spending with its note',
+  /Coffee/.test(wd.days) && /30/.test(wd.days), wd.days.slice(0, 80));
+await wpage.locator('#walTabR').click();
+await wpage.waitForTimeout(120);
+ok('reports dashboard shows this month and a 7-day chart',
+  await wpage.evaluate(() => /30/.test(document.getElementById('walRepBox').textContent)
+    && document.querySelectorAll('#walRepBox .wal-bar').length === 7));
+await wpage.locator('#walCurBtn').click();
+await wpage.waitForTimeout(150);
+const wc = await wpage.evaluate(() => ({
+  rows: document.querySelectorAll('#curList .cur-row').length,
+  btc: (document.querySelector('#curList .cur-row[data-code="BTC"]') || {}).textContent || '',
+  eth: (document.querySelector('#curList .cur-row[data-code="ETH"]') || {}).textContent || '',
+  usd: (document.querySelector('#curList .cur-row[data-code="USD"]') || {}).textContent || '',
+}));
+ok('currency dropdown lists 140+ currencies with flags', wc.rows >= 140, `${wc.rows} rows`);
+ok('BTC and ETH are listed with their symbols',
+  wc.btc.includes('₿') && wc.eth.includes('Ξ'), `${wc.btc.trim()} · ${wc.eth.trim()}`);
+ok('currency rows carry localized names', /Dollar/.test(wc.usd), wc.usd.trim().slice(0, 60));
+await wpage.locator('#curSearch').fill('CFA');
+await wpage.waitForTimeout(120);
+await wpage.locator('#curList .cur-row[data-code="XOF"]').click();
+await wpage.waitForTimeout(150);
+const wg = await wpage.evaluate(() => {
+  const sym = document.getElementById('walAmtSym').getBoundingClientRect();
+  const amt = document.getElementById('walAmt').getBoundingClientRect();
+  return { symRight: Math.round(sym.right), amtLeft: Math.round(amt.left), symW: Math.round(sym.width) };
+});
+ok('the Amount text sits clear of even a wide currency symbol',
+  wg.symW > 18 && wg.amtLeft >= wg.symRight, JSON.stringify(wg));
+ok('Amount is real label text in the wallet app',
+  await wpage.evaluate(() => document.getElementById('walAmtLabel').textContent === 'Amount'
+    && document.getElementById('walAmt').placeholder === ''));
+await wpage.locator('#walDateBtn').click();
+await wpage.waitForTimeout(120);
+ok('the date picker shows a full localized month',
+  await wpage.evaluate(() => {
+    const n = document.querySelectorAll('#walCal .wal-cal-day:not(.dim)').length;
+    return n >= 28 && n <= 31;
+  }));
+await wpage.screenshot({ path: 'shot-wallet-app.png' });
+await wpage.locator('#langBtn').click();
+await wpage.locator('#langList .tz-row[data-lang="zh-Hant"]').click();
+await wpage.waitForTimeout(200);
+ok('the wallet app translates to Traditional Chinese',
+  await wpage.evaluate(() => document.getElementById('walAmtLabel').textContent === '金額'
+    && document.getElementById('walAddBtn').textContent === '新增'));
+await wpage.locator('#langBtn').click();
+await wpage.locator('#langList .tz-row[data-lang="en"]').click();
+await wpage.waitForTimeout(150);
+await wpage.locator('#walTabD').click();
+await wpage.waitForTimeout(120);
+while (await wpage.locator('.wal-x').count()) {
+  await wpage.locator('.wal-x').first().click();
+  await wpage.waitForTimeout(60);
+}
+ok('deleting every entry empties the wallet',
+  await wpage.evaluate(() => document.getElementById('walDaysBox').textContent.trim().length > 3));
+ok('no page errors in the wallet app', werrors.length === 0, werrors.join('; '));
+
+/* --- SinghoWallet on a phone --- */
+const mob2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+const wm = await mob2.newPage();
+await wm.goto(URL + 'wallet.html', { waitUntil: 'load' });
+await wm.waitForTimeout(400);
+ok('wallet app fits the phone without horizontal scroll',
+  await wm.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+await wm.locator('#walCurBtn').tap();
+await wm.waitForTimeout(150);
+const mb2 = await wm.locator('.wal-panel').boundingBox();
+ok('currency list fits the phone viewport', mb2 && mb2.x >= 0 && mb2.x + mb2.width <= 391, JSON.stringify(mb2));
+await wm.locator('#curSearch').fill('yen');
+await wm.waitForTimeout(120);
+await wm.locator('#curList .cur-row[data-code="JPY"]').tap();
+await wm.waitForTimeout(150);
+ok('tapping a currency selects it on touch',
+  await wm.evaluate(() => document.getElementById('walCurBtn').textContent.includes('JPY')));
+await wm.locator('#walDateBtn').tap();
+await wm.waitForTimeout(150);
+const mb3 = await wm.locator('#walCal').boundingBox();
+ok('the date picker fits the phone viewport', mb3 && mb3.x >= 0 && mb3.x + mb3.width <= 391, JSON.stringify(mb3));
+await wm.screenshot({ path: 'shot-wallet-app-mobile.png' });
+await wm.locator('#walCal .wal-cal-day:not(.dim)').nth(9).tap();
+await wm.waitForTimeout(120);
+ok('tapping a day selects it on touch', await wm.evaluate(() => document.getElementById('walCal').hidden));
+await mob2.close();
+
+/* --- SinghoLaunch: the launchpad --- */
+const lp = await context.newPage();
+await lp.goto(URL + 'launch.html', { waitUntil: 'load' });
+await lp.waitForTimeout(300);
+ok('launchpad wordmark reads SinghoLaunch',
+  (await lp.locator('.wordmark').textContent()).includes('Launch'));
+ok('launchpad lists the clock and wallet apps', await lp.evaluate(() =>
+  document.getElementById('cardClock').getAttribute('href') === 'index.html'
+  && document.getElementById('cardWallet').getAttribute('href') === 'wallet.html'));
+await lp.locator('#langBtn').click();
+await lp.locator('#langList .tz-row[data-lang="zh-Hant"]').click();
+await lp.waitForTimeout(200);
+ok('launchpad translates to Traditional Chinese',
+  await lp.evaluate(() => document.getElementById('lpClockT').textContent === '時鐘'
+    && document.getElementById('lpWalletT').textContent === '錢包'));
+await lp.screenshot({ path: 'shot-launch.png' });
+await lp.locator('#cardWallet').click();
+await lp.waitForTimeout(300);
+ok('launchpad opens the wallet app', lp.url().includes('wallet.html'));
 
 await browser.close();
 

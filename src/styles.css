@@ -196,6 +196,8 @@ button { font: inherit; color: inherit; }
 
 .btn {
   display: inline-flex;
+  color: inherit;
+  text-decoration: none;
   align-items: center;
   gap: 6px;
   min-height: 34px;
@@ -517,6 +519,58 @@ button { font: inherit; color: inherit; }
 .wal-cur-search::placeholder { color: var(--pigeon); }
 .wal-cur-list { max-height: 240px; overflow: auto; padding: 2px; }
 .cur-row.sel-cur { background: var(--paper-2); }
+
+/* ---------- wallet as a full-page app ---------- */
+.wallet-app {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 20px 14px 48px;
+}
+.wal-panel {
+  width: min(720px, 100%);
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.wal-body-page { max-height: none; }
+
+/* ---------- SinghoLaunch launchpad ---------- */
+.launch {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px 16px;
+}
+.lp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  width: min(720px, 100%);
+}
+.lp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  color: inherit;
+  text-decoration: none;
+}
+.lp-card:hover { background: var(--notification); border-color: var(--notification); color: var(--on-notification); }
+.lp-card strong { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.lp-sub { color: var(--pigeon); font-size: 13px; }
+.lp-card:hover .lp-sub { color: inherit; }
+.lp-offrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 @media (max-width: 560px) {
   .wal-form input, .wal-cur-search { font-size: 16px; }  /* prevents iOS focus zoom */
   .wal-seg button, .wal-tab { min-height: 40px; }
