@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Klock — HH:MM:SS:mmm</title>
+<title>Singhoah — HH:MM:SS:mmm</title>
 <meta name="description" content="A drift-corrected millisecond clock in the style of displaay.net.">
 <meta name="color-scheme" content="dark light">
 <script>
   /* dark is the default scheme; a stored preference wins, pre-paint */
-  try { if ((localStorage.getItem('klock:night') || '1') === '1') document.documentElement.classList.add('dark'); }
+  try { if ((localStorage.getItem('singhoah:night') || '1') === '1') document.documentElement.classList.add('dark'); }
   catch (e) { document.documentElement.classList.add('dark'); }
-  try { if (localStorage.getItem('klock:mode') === 'analog') document.documentElement.classList.add('analog'); }
+  try { if (localStorage.getItem('singhoah:mode') === 'analog') document.documentElement.classList.add('analog'); }
   catch (e) { /* digital */ }
 </script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2f0e6'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%23000dff' stroke-width='2'/%3E%3Cpath d='M16 9v7l5 3' stroke='%23000' stroke-width='2' fill='none'/%3E%3C/svg%3E">
@@ -20,7 +20,7 @@
 <body>
 
 <header class="topbar">
-  <p class="wordmark">K<em>lock</em></p>
+  <p class="wordmark">S<em>inghoah</em></p>
   <div class="controls">
     <div class="lang">
       <button type="button" class="btn tz-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language · 語言">
@@ -82,6 +82,37 @@
         <div class="ip-row"><span id="lblLoc">Location</span><span id="ipLoc">—</span></div>
         <div class="ip-row"><span id="lblCoord">Coordinates</span><span id="ipCoord">—</span></div>
         <button type="button" class="btn" id="ipUse" hidden>Use this time zone</button>
+      </div>
+    </div>
+    <div class="walletmenu">
+      <button type="button" class="btn" id="btnWallet" aria-haspopup="dialog" aria-expanded="false" title="Wallet">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3 9.5h18M16 14.2h2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span id="walletText">Wallet</span>
+      </button>
+      <div class="tz-pop wallet-pop" id="walletPop" hidden>
+        <div class="wal-head">
+          <div>
+            <p class="meta-label" id="walBalLabel">Balance</p>
+            <p class="wal-bal" id="walBal">—</p>
+          </div>
+          <input id="walCur" class="wal-cur" value="$" maxlength="3" title="Currency symbol" aria-label="Currency symbol">
+        </div>
+        <form class="wal-form" id="walForm">
+          <div class="wal-seg" role="group" aria-label="Type">
+            <button type="button" id="walTypeOut" aria-pressed="true">Expense</button>
+            <button type="button" id="walTypeIn" aria-pressed="false">Income</button>
+          </div>
+          <input id="walAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Amount" aria-label="Amount" required>
+          <input id="walDate" type="date" aria-label="Date">
+          <input id="walNote" type="text" maxlength="40" placeholder="Note" aria-label="Note">
+          <button type="submit" class="btn wal-add" id="walAddBtn">Add</button>
+        </form>
+        <div class="wal-tabs">
+          <button type="button" class="btn wal-tab" id="walTabD" aria-pressed="true">Days</button>
+          <button type="button" class="btn wal-tab" id="walTabR" aria-pressed="false">Reports</button>
+        </div>
+        <div class="wal-body" id="walDaysBox"></div>
+        <div class="wal-body" id="walRepBox" hidden></div>
       </div>
     </div>
     <button type="button" class="btn" id="btnMap" aria-pressed="false" title="Map">

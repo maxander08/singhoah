@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import '../src/mapdata.js';
 import { pathToFileURL } from 'node:url';
 
-// flags.js is a classic script: importing it plants globalThis.__KLOCK_FLAGS
+// flags.js is a classic script: importing it plants globalThis.__SINGHOAH_FLAGS
 await import(pathToFileURL(new URL('../flags.js', import.meta.url).pathname).href);
 const app = await import(pathToFileURL(new URL('../app.js', import.meta.url).pathname).href);
 const {
@@ -14,6 +14,7 @@ const {
   allTimeZones, zoneCountry, flagSrc, ccFlag, GLOBE_SVG, LANGS, t,
   parseLayout, layoutShape, zoneWindowUrl, handAngles,
   timerSegments, anglesFromSegments, stopwatchElapsed,
+  walBalance, walByDay, walMonthStats, walWeekSeries,
 } = app;
 
 const at = (iso) => new Date(iso);
@@ -118,7 +119,7 @@ test('every language has a flag in the embedded set', () => {
 });
 
 test('world map data is detailed and covers the catalogue', () => {
-  const M = globalThis.__KLOCK_MAP;
+  const M = globalThis.__SINGHOAH_MAP;
   const n = Object.keys(M.cc).length;
   assert.ok(n >= 230, `${n} countries`);
   assert.ok(M.cc.US.startsWith('M') && M.cc.JP && M.cc.AU && M.cc.RU);
@@ -294,4 +295,53 @@ test('syncStatus reports the three states', () => {
   assert.equal(syncStatus({ ok: true, source: 'timeapi.io', offset: 12 }).level, 'ok');
   assert.equal(syncStatus({ ok: true, source: 'timeapi.io', offset: -400 }).level, 'warn');
   assert.match(syncStatus({ ok: true, source: 'timeapi.io', offset: -400 }).detail, /−400 ms/);
+});
+
+test('wallet balance is income minus spending', () => {
+  const tx = [
+    { id: 'a', type: 'in', amt: 100, date: '2026-09-01' },
+    { id: 'b', type: 'out', amt: 30.5, date: '2026-09-01' },
+    { id: 'c', type: 'out', amt: 9.5, date: '2026-08-31' },
+  ];
+  assert.equal(walBalance(tx), 60);
+  assert.equal(walBalance([]), 0);
+});
+
+test('wallet groups spending and income per day', () => {
+  const tx = [
+    { id: 'a', type: 'in', amt: 100, date: '2026-09-01' },
+    { id: 'b', type: 'out', amt: 30.5, date: '2026-09-01' },
+    { id: 'c', type: 'out', amt: 9.5, date: '2026-09-01' },
+    { id: 'd', type: 'out', amt: 4, date: '2026-08-31' },
+  ];
+  const m = walByDay(tx);
+  assert.equal(m.get('2026-09-01').spent, 40);
+  assert.equal(m.get('2026-09-01').income, 100);
+  assert.equal(m.get('2026-09-01').items.length, 3);
+  assert.equal(m.get('2026-08-31').spent, 4);
+  assert.equal(m.get('2026-08-31').income, 0);
+});
+
+test('month stats: spent, income, daily average, largest expense', () => {
+  const tx = [
+    { id: 'a', type: 'in', amt: 500, date: '2026-09-01' },
+    { id: 'b', type: 'out', amt: 30, note: 'Dinner', date: '2026-09-01' },
+    { id: 'c', type: 'out', amt: 10, date: '2026-09-02' },
+    { id: 'd', type: 'out', amt: 99, date: '2026-08-15' }, // previous month: ignored
+  ];
+  const st = walMonthStats(tx, '2026-09-02');
+  assert.equal(st.spent, 40);
+  assert.equal(st.income, 500);
+  assert.equal(st.avg, 20); // 40 over 2 elapsed days
+  assert.equal(st.top.amt, 30);
+});
+
+test('week series returns 7 days ending at today', () => {
+  const s7 = walWeekSeries([{ type: 'out', amt: 5, date: '2026-09-01' }], '2026-09-03');
+  assert.equal(s7.length, 7);
+  assert.equal(s7[6].date, '2026-09-03');
+  assert.equal(s7[4].date, '2026-09-01');
+  assert.equal(s7[4].spent, 5);
+  assert.equal(s7[5].spent, 0);
+  assert.equal(walWeekSeries([], '2026-01-01')[6].spent, 0);
 });

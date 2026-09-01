@@ -37,7 +37,7 @@ await page.waitForTimeout(400);
 const clockOf = () => page.locator('#clock').textContent();
 
 /* --- the name --- */
-ok('wordmark reads Klock', (await page.locator('.wordmark').textContent()).trim() === 'Klock',
+ok('wordmark reads Singhoah', (await page.locator('.wordmark').textContent()).trim() === 'Singhoah',
   (await page.locator('.wordmark').textContent()).trim());
 
 /* --- the clock itself --- */
@@ -137,7 +137,7 @@ const lightNow = await page.evaluate(() => ({
   dark: document.documentElement.classList.contains('dark'),
   bg: getComputedStyle(document.body).backgroundColor,
   fg: getComputedStyle(document.body).color,
-  saved: localStorage.getItem('klock:night'),
+  saved: localStorage.getItem('singhoah:night'),
   label: document.getElementById('btnNight').textContent.trim(),
 }));
 ok('toggle switches to the paper scheme',
@@ -379,6 +379,8 @@ ok('UI translates to Traditional Chinese',
   zh.date === '日期' && zh.time === '時間' && zh.resync === '重新同步' && zh.search.startsWith('搜尋'),
   JSON.stringify(zh));
 ok('date line renders in zh-Hant', zh.lang.startsWith('zh') && /星期|週/.test(zh.dateLong), zh.dateLong);
+ok('wallet translates to Traditional Chinese',
+  await page.evaluate(() => document.getElementById('walletText').textContent) === '錢包');
 await page.screenshot({ path: 'shot-zh.png' });
 
 await page.locator('#langBtn').click();
@@ -433,7 +435,7 @@ const an1 = await page.evaluate(() => ({
   clockHidden: getComputedStyle(document.getElementById('clock')).display === 'none',
   dial: getComputedStyle(document.querySelector('.cell .dial')).display,
   hands: [...document.querySelectorAll('.cell .dial [data-hand]')].map((h) => h.dataset.hand),
-  saved: localStorage.getItem('klock:mode'),
+  saved: localStorage.getItem('singhoah:mode'),
   label: document.getElementById('btnMode').textContent.trim(),
 }));
 ok('analog toggle swaps digits for a four-hand dial',
@@ -588,6 +590,51 @@ if (!ipd.useHidden) {
   ok('one tap adopts the located time zone', true, 'located tz not in catalog — skipped');
 }
 
+/* --- wallet: balance, per-day spending, reports dashboard --- */
+await page.locator('#btnWallet').click();
+await page.waitForTimeout(200);
+const wbb = await page.locator('#btnWallet').boundingBox();
+const wpb = await page.locator('#walletPop').boundingBox();
+ok('wallet popup opens anchored under its button',
+  wpb && wbb && wpb.y >= wbb.y + wbb.height && wpb.y <= wbb.y + wbb.height + 12,
+  JSON.stringify({ pop: wpb, btn: wbb }));
+await page.locator('#walTypeIn').click();
+await page.locator('#walAmt').fill('100');
+await page.locator('#walAddBtn').click();
+await page.waitForTimeout(150);
+await page.locator('#walTypeOut').click();
+await page.locator('#walAmt').fill('30');
+await page.locator('#walNote').fill('Coffee');
+await page.locator('#walAddBtn').click();
+await page.waitForTimeout(150);
+const wd1 = await page.evaluate(() => ({
+  bal: document.getElementById('walBal').textContent,
+  days: document.getElementById('walDaysBox').textContent,
+}));
+ok('balance is income minus spending', wd1.bal.replace(/[^0-9.-]/g, '').includes('70'), wd1.bal);
+ok('the days view lists today’s spending with its note',
+  /Coffee/.test(wd1.days) && /30/.test(wd1.days), wd1.days.slice(0, 90));
+await page.locator('#walTabR').click();
+await page.waitForTimeout(150);
+const wd2 = await page.evaluate(() => ({
+  rep: document.getElementById('walRepBox').textContent,
+  bars: document.querySelectorAll('#walRepBox .wal-bar').length,
+}));
+ok('reports dashboard shows this month and a 7-day chart',
+  /30/.test(wd2.rep) && wd2.bars === 7, wd2.rep.slice(0, 90));
+await page.screenshot({ path: 'shot-wallet.png' });
+await page.locator('#walTabD').click();
+await page.waitForTimeout(100);
+while (await page.locator('.wal-x').count()) {
+  await page.locator('.wal-x').first().click();
+  await page.waitForTimeout(80);
+}
+ok('deleting every entry empties the wallet',
+  await page.evaluate(() => document.getElementById('walDaysBox').textContent.trim().length > 3));
+await page.keyboard.press('Escape');
+ok('escape closes the wallet popup',
+  await page.evaluate(() => document.getElementById('walletPop').hidden));
+
 /* --- the world map: detailed SVG, click a country to pick its zone --- */
 await page.locator('#btnMap').click();
 await page.waitForTimeout(300);
@@ -597,7 +644,7 @@ const mp1 = await page.evaluate(() => {
     paths: document.querySelectorAll('#mapSvg .map-cc').length,
     grat: !!document.querySelector('#mapSvg .map-grat'),
     sel: document.querySelector('#mapSvg .map-cc.sel')?.dataset.cc || null,
-    cc: window.__KLOCK_FLAGS.zoneCc[tz] || null,
+    cc: window.__SINGHOAH_FLAGS.zoneCc[tz] || null,
   };
 });
 ok('the map renders 230+ detailed countries plus the 15° graticule',
@@ -618,7 +665,7 @@ await page.waitForTimeout(200);
 const usCheck = await page.evaluate(() => {
   const vis = [...document.querySelectorAll('#tzList .tz-row:not([hidden])')]
     .map((r) => r.dataset.zone);
-  return { vis, all: vis.every((z) => window.__KLOCK_CCZONES.get('US').includes(z)) };
+  return { vis, all: vis.every((z) => window.__SINGHOAH_CCZONES.get('US').includes(z)) };
 });
 ok('multi-zone countries open the picker filtered to that country',
   usCheck.vis.length > 3 && usCheck.vis.length < 30 && usCheck.all, `${usCheck.vis.length} zones`);
@@ -671,6 +718,7 @@ const tmb = await m.locator('#btnTimer').boundingBox();
 ok('timer dropdown hangs right below its button too',
   tb && tmb && tb.y >= tmb.y + tmb.height && tb.y <= tmb.y + tmb.height + 12
   && tb.x >= 0 && tb.x + tb.width <= 391, JSON.stringify(tb));
+await m.keyboard.press('Escape');
 await m.locator('#btnMap').tap();
 await m.waitForTimeout(300);
 const mb = await m.locator('#mapSvg').boundingBox();
@@ -688,6 +736,15 @@ const ibb = await m.locator('#btnIp').boundingBox();
 ok('IP dropdown hangs right below its button too',
   ib && ibb && ib.y >= ibb.y + ibb.height && ib.y <= ibb.y + ibb.height + 12
   && ib.x >= 0 && ib.x + ib.width <= 391, JSON.stringify(ib));
+await m.keyboard.press('Escape');
+await m.locator('#btnWallet').tap();
+await m.waitForTimeout(250);
+const wb = await m.locator('#walletPop').boundingBox();
+const wbtn = await m.locator('#btnWallet').boundingBox();
+ok('wallet dropdown hangs right below its button on mobile',
+  wb && wbtn && wb.y >= wbtn.y + wbtn.height && wb.y <= wbtn.y + wbtn.height + 12
+  && wb.x >= 0 && wb.x + wb.width <= 391, JSON.stringify(wb));
+await m.screenshot({ path: 'shot-wallet-mobile.png' });
 await m.keyboard.press('Escape');
 await m.locator('#btnTimer').tap();
 await m.waitForTimeout(200);

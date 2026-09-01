@@ -1,6 +1,6 @@
-# Klock
+# Singhoah
 
-Live: <https://maxander08.github.io/klock/> (GitHub Pages)
+Live: <https://maxander08.github.io/singhoah/> (GitHub Pages)
 
 A millisecond clock in the visual language of [displaay.net](https://displaay.net) — the
 Prague type foundry: warm paper `#f2f0e6`, hairline rules, pigeon-grey uppercase labels,
@@ -71,6 +71,12 @@ Tuesday, 25 August 2026                       05:51 UTC
 - **IP locator** — the *IP* button shows your public IP with its country
   flag, the city/region/country and coordinates it geolocates to (ipapi.co
   with an ipwho.is fallback), and a one-tap *Use this time zone* action.
+- **Wallet** — the *Wallet* button opens a small ledger: current balance,
+  an expense/income entry form (amount, note, date), spending grouped per
+  day, and a reports dashboard (month spent/income, daily average, largest
+  expense and a 7-day spending chart). Entries persist locally; every
+  label is translated in all ten languages and the popup is touch-friendly
+  on phones.
   The MAC row states plainly that browsers do not expose MAC addresses to
   web pages.
 - **Phone-friendly** — dropdowns open right below their button exactly as on
@@ -98,8 +104,8 @@ The committed files in this folder are already built — just serve the folder.
 ## Test
 
 ```sh
-npm test          # 24 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map
-npm run test:browser   # 91 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm test          # 28 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
+npm run test:browser   # 99 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
