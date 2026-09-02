@@ -237,6 +237,23 @@ ok('reopening the picker centers the active city with a clean top edge', await p
   document.getElementById('tzBtn').click();
   return centered && clean;
 }));
+await page.locator('#tzBtn').click();
+await page.waitForTimeout(150);
+const tzListBox = await page.locator('#tzList').boundingBox();
+await page.mouse.move(tzListBox.x + tzListBox.width / 2, tzListBox.y + tzListBox.height / 2);
+await page.mouse.wheel(0, 555);
+await page.waitForTimeout(700);
+ok('scrolling the picker settles on clean row boundaries', await page.evaluate(() => {
+  const list = document.getElementById('tzList');
+  const top = list.getBoundingClientRect().top;
+  return [...list.children].every((el) => {
+    if (el.hidden) return true;
+    const r = el.getBoundingClientRect();
+    return !(r.top < top - 0.5 && r.bottom > top + 0.5);
+  });
+}));
+await page.locator('#tzBtn').click();
+await page.waitForTimeout(120);
 ok('page scrollbars are disabled site-wide',
   await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth === 'none'));
 

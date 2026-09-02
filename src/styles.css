@@ -151,7 +151,9 @@ button { font: inherit; color: inherit; }
   padding: 4px;
   scrollbar-width: none;      /* scroll via wheel/touch; no visible bar */
   -ms-overflow-style: none;
+  scroll-snap-type: y mandatory;   /* always settle on a clean row boundary */
 }
+.tz-list > * { scroll-snap-align: start; }
 .tz-list::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 .tz-group {
@@ -537,7 +539,8 @@ button { font: inherit; color: inherit; }
   margin-bottom: 6px;
 }
 .wal-cur-search::placeholder { color: var(--pigeon); }
-.wal-cur-list { max-height: 240px; overflow: auto; padding: 2px; }
+.wal-cur-list { max-height: 240px; overflow: auto; padding: 2px; scroll-snap-type: y mandatory; }
+.wal-cur-list > * { scroll-snap-align: start; }
 .cur-row.sel-cur { background: var(--paper-2); }
 
 /* ---------- wallet as a full-page app ---------- */
