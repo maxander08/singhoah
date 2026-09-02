@@ -755,6 +755,8 @@ ok('a timer pane works on the stacked phone layout', await m.evaluate(() =>
   document.querySelectorAll('.cell').length === 2 && document.querySelectorAll('.cell.timer').length === 1));
 await m.screenshot({ path: 'shot-mobile.png' });
 ok('no page errors on mobile', merrors.length === 0, merrors.join('; '));
+ok('phones keep the page scrollable', await m.evaluate(() =>
+  getComputedStyle(document.body).overflowY === 'auto'));
 await mob.close();
 
 /* --- SinghoWallet: the wallet as its own app --- */
