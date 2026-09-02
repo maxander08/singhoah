@@ -223,12 +223,12 @@ ok('picker button shows flag + city and closes', tokyo.label.trim() === 'Tokyo' 
   `${tokyo.label} · pop ${tokyo.popHidden ? 'closed' : 'STILL OPEN'}`);
 await page.locator('#tzBtn').click();
 await page.waitForTimeout(150);
-ok('reopening the picker centers the active city with a clean top edge', await page.evaluate(() => {
+ok('reopening the picker snaps the active city to the top', await page.evaluate(() => {
   const list = document.getElementById('tzList');
   const row = document.querySelector('.tz-row[data-zone="Asia/Tokyo"]');
   const lr = list.getBoundingClientRect();
   const rr = row.getBoundingClientRect();
-  const centered = !!row && !row.hidden && rr.top >= lr.top && rr.bottom <= lr.bottom;
+  const centered = !!row && !row.hidden && Math.abs(rr.top - lr.top) < 2;
   const clean = [...list.children].every((el) => {
     if (el.hidden) return true;
     const r = el.getBoundingClientRect();

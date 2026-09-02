@@ -1461,24 +1461,13 @@ function openPop() {
   els.tzBtn.setAttribute('aria-expanded', 'true');
   els.tzSearch.value = '';
   applyFilter('');
-  /* land on the active city instead of a stale scroll position */
+  /* snap the active city to the top of the list */
   const sel = timeZone
     ? els.tzList.querySelector(`.tz-row[data-zone="${timeZone}"]`)
     : null;
   if (sel && !sel.hidden) {
     const lr = els.tzList.getBoundingClientRect();
-    const rr = sel.getBoundingClientRect();
-    els.tzList.scrollTop += (rr.top + rr.height / 2) - (lr.top + lr.height / 2);
-    /* snap to an element boundary: never leave a half-clipped row at the top */
-    const top = els.tzList.getBoundingClientRect().top;
-    for (const el of els.tzList.children) {
-      if (el.hidden) continue;
-      const r = el.getBoundingClientRect();
-      if (r.top < top - 0.5 && r.bottom > top + 0.5) {
-        els.tzList.scrollTop += r.bottom - top;
-        break;
-      }
-    }
+    els.tzList.scrollTop += sel.getBoundingClientRect().top - lr.top;
   } else {
     els.tzList.scrollTop = 0;
   }
