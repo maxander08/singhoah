@@ -1,25 +1,18 @@
 /* Optional "Sign in with Google" via Firebase Auth.
-   Silent unless firebase-config.js holds real keys; degrades to
-   nothing when offline. Preferences (language, theme, zone, wallet)
-   are kept per account on this device, restored on sign-in. */
+   Silent unless firebase-config.js holds real keys. The Firebase
+   SDK is fetched lazily — only when the visitor clicks Sign in, or
+   returns having been signed in before — so pages stay fast and
+   offline visitors never see an error. Preferences (language,
+   theme, zone, wallet) are kept per account on this device and
+   restored on sign-in. */
 
-const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.2-.1-2.3-.4-3.5z"/></svg>';
+const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19.2 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.2-.1-2.3-.4-3.5z"/></svg>';
 
-(async () => {
+(() => {
   const wrap = document.getElementById('authWrap');
   if (!wrap) return;
   const CFG = globalThis.SINGHOAH_FIREBASE;
   if (!CFG || /PASTE|YOUR_/.test(`${CFG.apiKey}|${CFG.projectId}|${CFG.appId}`)) return;
-
-  let auth, G;
-  try {
-    const [appM, authM] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js'),
-    ]);
-    G = authM;
-    auth = authM.getAuth(appM.initializeApp(CFG));
-  } catch { return; }   /* offline / blocked CDN: no portal */
 
   const PREF_KEYS = ['singhoah:lang', 'singhoah:night', 'singhoah:tz', 'singhoah:wallet'];
   const profileKey = (uid) => 'singhoah:profile:' + uid;
@@ -39,6 +32,18 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
   };
 
   let user = null;
+  let fb = null;               /* { G, auth } once the SDK is loaded */
+
+  function loadFB() {
+    if (fb) return Promise.resolve(fb);
+    return Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js'),
+    ]).then(([appM, authM]) => {
+      fb = { G: authM, auth: authM.getAuth(appM.initializeApp(CFG)) };
+      return fb;
+    });
+  }
 
   function render() {
     const t = tOf();
@@ -46,12 +51,15 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
     if (!user) {
       const b = document.createElement('button');
       b.type = 'button';
+      b.id = 'signinBtn';
       b.className = 'btn auth-btn';
       b.title = 'Google';
       b.innerHTML = `${G_SVG}<span></span>`;
       b.querySelector('span').textContent = t('signin');
       b.addEventListener('click', () => {
-        G.signInWithPopup(auth, new G.GoogleAuthProvider()).catch(() => { /* dismissed */ });
+        loadFB()
+          .then(({ G, auth }) => G.signInWithPopup(auth, new G.GoogleAuthProvider()))
+          .catch(() => { /* dismissed / offline: stay signed out */ });
       });
       wrap.appendChild(b);
       return;
@@ -96,7 +104,10 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
     out.textContent = t('signout');
     out.addEventListener('click', () => {
       try { sessionStorage.removeItem('singhoah:authrestored'); } catch { /* ignore */ }
-      G.signOut(auth);
+      try { localStorage.removeItem('singhoah:authseen'); } catch { /* ignore */ }
+      if (fb) fb.G.signOut(fb.auth);
+      user = null;
+      render();
     });
     pop.append(head, out);
     wrap.append(chip, pop);
@@ -109,30 +120,41 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
   });
   document.addEventListener('singhoah:lang', render);
 
-  G.onAuthStateChanged(auth, (u) => {
-    const was = user;
-    user = u;
-    if (u && !was) {
-      let saved = null;
-      try { saved = JSON.parse(localStorage.getItem(profileKey(u.uid)) || 'null'); } catch { /* ignore */ }
-      let restored = false;
-      try { restored = sessionStorage.getItem('singhoah:authrestored') === '1'; } catch { /* ignore */ }
-      if (saved && typeof saved === 'object' && !restored) {
-        for (const k of PREF_KEYS) if (typeof saved[k] === 'string') localStorage.setItem(k, saved[k]);
-        try { sessionStorage.setItem('singhoah:authrestored', '1'); } catch { /* ignore */ }
-        location.reload();   /* let every app pick up the restored prefs */
-        return;
-      }
-      if (!saved) {
-        try { localStorage.setItem(profileKey(u.uid), JSON.stringify(readPrefs())); } catch { /* ignore */ }
-      }
-    }
-    render();
-  });
+  function attach() {
+    loadFB().then(({ G, auth }) => {
+      G.onAuthStateChanged(auth, (u) => {
+        const was = user;
+        user = u;
+        if (u) {
+          try { localStorage.setItem('singhoah:authseen', '1'); } catch { /* ignore */ }
+        }
+        if (u && !was) {
+          let saved = null;
+          try { saved = JSON.parse(localStorage.getItem(profileKey(u.uid)) || 'null'); } catch { /* ignore */ }
+          let restored = false;
+          try { restored = sessionStorage.getItem('singhoah:authrestored') === '1'; } catch { /* ignore */ }
+          if (saved && typeof saved === 'object' && !restored) {
+            for (const k of PREF_KEYS) if (typeof saved[k] === 'string') localStorage.setItem(k, saved[k]);
+            try { sessionStorage.setItem('singhoah:authrestored', '1'); } catch { /* ignore */ }
+            location.reload();   /* let every app pick up the restored prefs */
+            return;
+          }
+          if (!saved) {
+            try { localStorage.setItem(profileKey(u.uid), JSON.stringify(readPrefs())); } catch { /* ignore */ }
+          }
+        }
+        render();
+      });
+      addEventListener('beforeunload', () => {
+        if (user) {
+          try { localStorage.setItem(profileKey(user.uid), JSON.stringify(readPrefs())); } catch { /* ignore */ }
+        }
+      });
+    }).catch(() => { /* offline / blocked CDN: button stays, no session */ });
+  }
 
-  addEventListener('beforeunload', () => {
-    if (user) {
-      try { localStorage.setItem(profileKey(user.uid), JSON.stringify(readPrefs())); } catch { /* ignore */ }
-    }
-  });
+  render();                                   /* Sign-in button, zero network */
+  let seen = false;
+  try { seen = localStorage.getItem('singhoah:authseen') === '1'; } catch { /* ignore */ }
+  if (seen) attach();                         /* restore a previous session */
 })();

@@ -134,7 +134,9 @@ Clock / wallet / launchpad each carry a small **optional** sign-in portal in the
 preferences (language, theme, city, wallet currency) sync per account across devices and
 browsers. Everything stays public without it — no sign-in wall.
 
-It ships **dormant** with a placeholder config. To light it up (free tier is plenty):
+This repo ships configured for the live `maxander08.github.io` deployment
+(Firebase project `singhoah1`, free Spark tier). For your own fork, point it at your own
+project:
 
 1. Go to <https://console.firebase.google.com> → *Add project* (any name, e.g. `singhoah`).
 2. In the project: *Build → Authentication → Get started → Sign-in method* → enable
@@ -145,8 +147,10 @@ It ships **dormant** with a placeholder config. To light it up (free tier is ple
 5. *Authentication → Settings → Authorized domains*: add the domain you serve the site
    from (Pages adds `*.github.io` automatically).
 
-Nothing else changes: the portal detects a real config and activates on its own. The
-standalone single-file builds never include the portal (they are meant to run offline).
+Nothing else changes: the portal detects a real config and activates on its own, and
+the Firebase SDK is only downloaded when someone actually clicks Sign in. Put the
+`PASTE_`/`YOUR_` placeholders back and it goes fully dormant again. The standalone
+single-file builds never include the portal (they are meant to run offline).
 
 ## Layout
 
