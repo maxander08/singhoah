@@ -33,6 +33,7 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
 
   let user = null;
   let fb = null;               /* { G, auth } once the SDK is loaded */
+  let attached = false;
 
   function loadFB() {
     if (fb) return Promise.resolve(fb);
@@ -58,7 +59,8 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       b.querySelector('span').textContent = t('signin');
       b.addEventListener('click', () => {
         loadFB()
-          .then(({ G, auth }) => G.signInWithPopup(auth, new G.GoogleAuthProvider()))
+          .then(({ G, auth }) =>
+            G.signInWithPopup(auth, new G.GoogleAuthProvider()).then((c) => { attach(); return c; }))
           .catch(() => { /* dismissed / offline: stay signed out */ });
       });
       wrap.appendChild(b);
@@ -121,6 +123,8 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
   document.addEventListener('singhoah:lang', render);
 
   function attach() {
+    if (attached) return;
+    attached = true;
     loadFB().then(({ G, auth }) => {
       G.onAuthStateChanged(auth, (u) => {
         const was = user;
