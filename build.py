@@ -31,9 +31,12 @@ shutil.copy(SRC / "app.js", OUT / "app.js")
 shutil.copy(SRC / "flags.js", OUT / "flags.js")
 shutil.copy(SRC / "mapdata.js", OUT / "mapdata.js")
 shutil.copy(SRC / "index.html", OUT / "index.html")
+shutil.copy(SRC / "firebase-config.js", OUT / "firebase-config.js")
+shutil.copy(SRC / "auth.js", OUT / "auth.js")
 
 # self-contained single file (works in sandboxed previews, offline, anywhere)
 html = (SRC / "index.html").read_text(encoding="utf-8")
+html = html.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
 html = html.replace('<link rel="stylesheet" href="fonts.css">',
                     '<style>\n' + "\n".join(css) + '\n</style>')
 html = html.replace('<link rel="stylesheet" href="styles.css">',
@@ -51,6 +54,7 @@ for n in ["wallet.html", "wallet.js", "launch.html"]:
     shutil.copy(SRC / n, OUT / n)
 
 whtml = (SRC / "wallet.html").read_text(encoding="utf-8")
+whtml = whtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
 whtml = whtml.replace('<link rel="stylesheet" href="fonts.css">',
                       '<style>\n' + "\n".join(css) + '\n</style>')
 whtml = whtml.replace('<link rel="stylesheet" href="styles.css">',
@@ -64,6 +68,7 @@ whtml = whtml.replace('<script type="module" src="wallet.js"></script>',
 (OUT / "wallet-standalone.html").write_text(whtml, encoding="utf-8")
 
 lhtml = (SRC / "launch.html").read_text(encoding="utf-8")
+lhtml = lhtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
 lhtml = lhtml.replace('<link rel="stylesheet" href="fonts.css">',
                       '<style>\n' + "\n".join(css) + '\n</style>')
 lhtml = lhtml.replace('<link rel="stylesheet" href="styles.css">',
@@ -75,6 +80,7 @@ lhtml = lhtml.replace('<script type="module" src="app.js"></script>',
 (OUT / "launch-standalone.html").write_text(lhtml, encoding="utf-8")
 
 SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js", "standalone.html",
-           "wallet.html", "wallet.js", "launch.html", "wallet-standalone.html", "launch-standalone.html"]
+           "wallet.html", "wallet.js", "launch.html", "wallet-standalone.html", "launch-standalone.html",
+           "firebase-config.js", "auth.js"]
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))

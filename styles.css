@@ -1000,3 +1000,24 @@ button { font: inherit; color: inherit; }
   .wallet-app, .launch { overflow: visible; }
   .wal-body { overflow: visible; }
 }
+
+/* ---------- optional Google sign-in portal ---------- */
+.authwrap { position: relative; display: flex; }
+.auth-ava { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+.auth-pop {
+  right: 0;
+  width: min(260px, calc(100vw - 28px));
+  padding: 12px;
+  gap: 10px;
+}
+.auth-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.auth-head .auth-ava { width: 28px; height: 28px; }
+.auth-head strong { font-size: 14px; font-weight: 600; display: block; }
+.auth-mail { margin: 0; color: var(--pigeon); font-size: 12px; }
+.auth-out { width: 100%; justify-content: center; }

@@ -218,6 +218,7 @@ function applyLang(id, persist = true) {
   renderWallet();
   if (!els.walCal.hidden) renderCal();
   if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
+  document.dispatchEvent(new CustomEvent('singhoah:lang'));
 }
 
 function updateThemeBtn() {

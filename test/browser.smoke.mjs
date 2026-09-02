@@ -757,6 +757,10 @@ await m.screenshot({ path: 'shot-mobile.png' });
 ok('no page errors on mobile', merrors.length === 0, merrors.join('; '));
 ok('phones keep the page scrollable', await m.evaluate(() =>
   getComputedStyle(document.body).overflowY === 'auto'));
+ok('sign-in portal is wired but dormant until configured', await m.evaluate(() =>
+  !!document.querySelector('#authWrap') &&
+  document.querySelector('#authWrap').children.length === 0 &&
+  document.querySelector('#signinBtn') === null));
 await mob.close();
 
 /* --- SinghoWallet: the wallet as its own app --- */
@@ -850,6 +854,8 @@ while (await wpage.locator('.wal-x').count()) {
 ok('deleting every entry empties the wallet',
   await wpage.evaluate(() => document.getElementById('walDaysBox').textContent.trim().length > 3));
 ok('no page errors in the wallet app', werrors.length === 0, werrors.join('; '));
+ok('wallet has its own dormant sign-in slot', await wpage.evaluate(() =>
+  !!document.querySelector('#authWrap')));
 
 /* --- SinghoWallet on a phone --- */
 const mob2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });

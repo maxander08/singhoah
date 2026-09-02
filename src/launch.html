@@ -33,6 +33,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C19.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/></svg>
       <span id="nightText">Light</span>
     </button>
+  <div class="authwrap" id="authWrap"></div>
   </div>
 </header>
 
@@ -71,6 +72,8 @@
 
 <script src="flags.js"></script>
 <script type="module" src="app.js"></script>
+<script src="firebase-config.js"></script>
+<script type="module" src="auth.js"></script>
 <script type="module">
   const { LANGS, t, langOf, ccFlag, makeLangPicker, toSegments, anglesFromSegments,
           makeDial, allTimeZones, cityOf, flagSrc, zoneInfo, clampPop } = globalThis.__SING_LIB;
@@ -192,6 +195,7 @@
     lpTzSearch.setAttribute('aria-label', t(lang, 'search'));
     refreshLocalLabel();
     if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
+    document.dispatchEvent(new CustomEvent('singhoah:lang'));
   }
 
   let saved = '';

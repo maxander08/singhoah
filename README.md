@@ -118,7 +118,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 130 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 132 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
@@ -126,6 +126,27 @@ that glyph slots are pixel-identical in width, night shift, NTP sync and that ev
 viewport from 360 px up fits without scrolling, and that the window
 formats reflow the current window — never a new tab — with one
 independently-running zone per cell.
+
+## Optional Google sign-in (portal)
+
+Clock / wallet / launchpad each carry a small **optional** sign-in portal in the header
+(`src/auth.js` + `src/firebase-config.js`). Signed in, you get a profile chip, and your
+preferences (language, theme, city, wallet currency) sync per account across devices and
+browsers. Everything stays public without it — no sign-in wall.
+
+It ships **dormant** with a placeholder config. To light it up (free tier is plenty):
+
+1. Go to <https://console.firebase.google.com> → *Add project* (any name, e.g. `singhoah`).
+2. In the project: *Build → Authentication → Get started → Sign-in method* → enable
+   **Google**.
+3. *Project settings → General*: register a **Web app** (`</>` icon) — no hosting needed.
+4. Copy the `firebaseConfig` object it shows and paste it into
+   **`src/firebase-config.js`** (replace the placeholder values), then `python3 build.py`.
+5. *Authentication → Settings → Authorized domains*: add the domain you serve the site
+   from (Pages adds `*.github.io` automatically).
+
+Nothing else changes: the portal detects a real config and activates on its own. The
+standalone single-file builds never include the portal (they are meant to run offline).
 
 ## Layout
 
