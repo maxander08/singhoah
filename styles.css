@@ -100,7 +100,7 @@ button { font: inherit; color: inherit; }
 .tz, .lang { position: relative; }
 
 .lang-pop { width: 210px; }
-.lang-pop .tz-list { overflow: auto; max-height: 60vh; }
+.lang-pop .tz-list { overflow: auto; max-height: 60vh; scroll-padding-top: 0; }
 
 .tz-btn { gap: 8px; }
 .tz-btn .flag { margin-right: 0; }
@@ -148,17 +148,24 @@ button { font: inherit; color: inherit; }
 
 .tz-list {
   overflow: auto;
-  padding: 4px;
+  padding: 0 4px;
   scrollbar-width: none;      /* scroll via wheel/touch; no visible bar */
   -ms-overflow-style: none;
   scroll-snap-type: y mandatory;   /* always settle on a clean row boundary */
+  scroll-padding-top: 24px;        /* rows rest below the pinned region title */
 }
-.tz-list > * { scroll-snap-align: start; }
+.tz-list .tz-row { scroll-snap-align: start; }
 .tz-list::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 .tz-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 24px;
+  display: flex;
+  align-items: center;
   background: var(--paper);
-  padding: 8px 8px 3px;
+  padding: 0 8px;
   font-size: 10px;
   letter-spacing: .12em;
   text-transform: uppercase;

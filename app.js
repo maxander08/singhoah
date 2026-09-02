@@ -1373,11 +1373,15 @@ function buildPicker() {
   }
   const frag = document.createDocumentFragment();
   for (const [region, list] of byRegion) {
+    /* each group lives in its own wrapper so the sticky title is released
+       when the group scrolls past (flat siblings would stack forever) */
+    const wrap = document.createElement('div');
+    wrap.className = 'tz-groupwrap';
     const head = document.createElement('div');
     head.className = 'tz-group';
     head.textContent = region;
-    frag.appendChild(head);
-    const entry = { el: head, rows: [] };
+    wrap.appendChild(head);
+    const entry = { el: wrap, rows: [] };
     for (const z of list) {
       const row = document.createElement('div');
       row.className = 'tz-row';
@@ -1418,10 +1422,11 @@ function buildPicker() {
         els.tzBtn.focus();
       });
 
-      frag.appendChild(row);
+      wrap.appendChild(row);
       entry.rows.push(row);
       pickerRows.push(row);
     }
+    frag.appendChild(wrap);
     pickerGroups.push(entry);
   }
   els.tzList.appendChild(frag);
@@ -1461,13 +1466,24 @@ function openPop() {
   els.tzBtn.setAttribute('aria-expanded', 'true');
   els.tzSearch.value = '';
   applyFilter('');
-  /* snap the active city to the top of the list */
+  /* pin the region title at the top, active city flush just below it */
   const sel = timeZone
     ? els.tzList.querySelector(`.tz-row[data-zone="${timeZone}"]`)
     : null;
+  const headEl = els.tzList.querySelector('.tz-group');
+  const headH = headEl ? headEl.getBoundingClientRect().height : 0;
   if (sel && !sel.hidden) {
     const lr = els.tzList.getBoundingClientRect();
-    els.tzList.scrollTop += sel.getBoundingClientRect().top - lr.top;
+    els.tzList.scrollTop += sel.getBoundingClientRect().top - (lr.top + headH);
+    /* snap to the boundary below the pinned title: no half-clipped rows */
+    const line = els.tzList.getBoundingClientRect().top + headH;
+    for (const el of els.tzList.querySelectorAll('.tz-row, .tz-group')) {
+      const r = el.getBoundingClientRect();
+      if (r.top < line - 0.5 && r.bottom > line + 0.5) {
+        els.tzList.scrollTop += r.bottom - line;
+        break;
+      }
+    }
   } else {
     els.tzList.scrollTop = 0;
   }

@@ -222,35 +222,47 @@ ok('the readout shows the selected zone', tokyo.zone.startsWith('Asia/Tokyo'), t
 ok('picker button shows flag + city and closes', tokyo.label.trim() === 'Tokyo' && tokyo.popHidden,
   `${tokyo.label} · pop ${tokyo.popHidden ? 'closed' : 'STILL OPEN'}`);
 await page.locator('#tzBtn').click();
-await page.waitForTimeout(150);
-ok('reopening the picker snaps the active city to the top', await page.evaluate(() => {
+await page.waitForTimeout(450);
+const pinDbg = await page.evaluate(() => {
   const list = document.getElementById('tzList');
+  const top = list.getBoundingClientRect().top;
   const row = document.querySelector('.tz-row[data-zone="Asia/Tokyo"]');
-  const lr = list.getBoundingClientRect();
+  const head = row ? row.parentElement.querySelector('.tz-group') : null;
+  const hh = head ? head.getBoundingClientRect().height : 0;
+  const hr = head ? head.getBoundingClientRect() : { top: -99 };
   const rr = row.getBoundingClientRect();
-  const centered = !!row && !row.hidden && Math.abs(rr.top - lr.top) < 2;
-  const clean = [...list.children].every((el) => {
-    if (el.hidden) return true;
+  const centered = !!row && !row.hidden && !head.hidden
+    && Math.abs(hr.top - top) < 2 && Math.abs(rr.top - (top + hh)) < 2;
+  const line = top + hh;   /* rows may clip at the scrollport top; the header band covers 0..hh */
+  const clean = [...list.querySelectorAll('.tz-row, .tz-group')].every((el) => {
+    if (el.hidden || el.parentElement.hidden) return true;
     const r = el.getBoundingClientRect();
-    return !(r.top < lr.top - 0.5 && r.bottom > lr.top + 0.5);
+    return !(r.top < line - 0.5 && r.bottom > line + 0.5);
   });
-  document.getElementById('tzBtn').click();
-  return centered && clean;
-}));
+  return { centered, clean, hrTop: hr.top, top, rrTop: rr.top, hh };
+});
+ok('reopening the picker pins the region title above the active city',
+  pinDbg.centered && pinDbg.clean, JSON.stringify(pinDbg));
+await page.evaluate(() => document.getElementById('tzBtn').click());
+await page.waitForTimeout(120);
 await page.locator('#tzBtn').click();
 await page.waitForTimeout(150);
 const tzListBox = await page.locator('#tzList').boundingBox();
 await page.mouse.move(tzListBox.x + tzListBox.width / 2, tzListBox.y + tzListBox.height / 2);
 await page.mouse.wheel(0, 555);
 await page.waitForTimeout(700);
-ok('scrolling the picker settles on clean row boundaries', await page.evaluate(() => {
+ok('scrolling the picker pins the region title and rests on clean rows', await page.evaluate(() => {
   const list = document.getElementById('tzList');
   const top = list.getBoundingClientRect().top;
-  return [...list.children].every((el) => {
-    if (el.hidden) return true;
+  const heads = [...list.querySelectorAll('.tz-group')].filter((el) => !el.hidden && !el.parentElement.hidden);
+  const pinned = heads.some((h) => Math.abs(h.getBoundingClientRect().top - top) < 1.5);
+  const line = top + (heads[0] ? heads[0].getBoundingClientRect().height : 0);
+  const clean = [...list.querySelectorAll('.tz-row, .tz-group')].every((el) => {
+    if (el.hidden || el.parentElement.hidden) return true;
     const r = el.getBoundingClientRect();
-    return !(r.top < top - 0.5 && r.bottom > top + 0.5);
+    return !(r.top < line - 0.5 && r.bottom > line + 0.5);
   });
+  return pinned && clean;
 }));
 await page.locator('#tzBtn').click();
 await page.waitForTimeout(120);
