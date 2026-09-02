@@ -2807,6 +2807,16 @@ function openPop() {
     const lr = els.tzList.getBoundingClientRect();
     const rr = sel.getBoundingClientRect();
     els.tzList.scrollTop += (rr.top + rr.height / 2) - (lr.top + lr.height / 2);
+    /* snap to an element boundary: never leave a half-clipped row at the top */
+    const top = els.tzList.getBoundingClientRect().top;
+    for (const el of els.tzList.children) {
+      if (el.hidden) continue;
+      const r = el.getBoundingClientRect();
+      if (r.top < top - 0.5 && r.bottom > top + 0.5) {
+        els.tzList.scrollTop += r.bottom - top;
+        break;
+      }
+    }
   } else {
     els.tzList.scrollTop = 0;
   }

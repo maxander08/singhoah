@@ -223,14 +223,19 @@ ok('picker button shows flag + city and closes', tokyo.label.trim() === 'Tokyo' 
   `${tokyo.label} · pop ${tokyo.popHidden ? 'closed' : 'STILL OPEN'}`);
 await page.locator('#tzBtn').click();
 await page.waitForTimeout(150);
-ok('reopening the picker centers the active city', await page.evaluate(() => {
+ok('reopening the picker centers the active city with a clean top edge', await page.evaluate(() => {
   const list = document.getElementById('tzList');
   const row = document.querySelector('.tz-row[data-zone="Asia/Tokyo"]');
   const lr = list.getBoundingClientRect();
   const rr = row.getBoundingClientRect();
   const centered = !!row && !row.hidden && rr.top >= lr.top && rr.bottom <= lr.bottom;
+  const clean = [...list.children].every((el) => {
+    if (el.hidden) return true;
+    const r = el.getBoundingClientRect();
+    return !(r.top < lr.top - 0.5 && r.bottom > lr.top + 0.5);
+  });
   document.getElementById('tzBtn').click();
-  return centered;
+  return centered && clean;
 }));
 ok('page scrollbars are disabled site-wide',
   await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth === 'none'));
