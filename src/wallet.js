@@ -6,7 +6,7 @@
 const LIB = globalThis.__SING_LIB;
 const {
   LANGS, t, langOf, pad, ccFlag,
-  curSymbol, curName, curFlag, CURRENCIES,
+  curSymbol, curName, curFlag, CURRENCIES, curAlias,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker,
 } = LIB;
@@ -18,6 +18,7 @@ for (const id of [
   'walBal', 'walBalLabel', 'walCurBtn', 'walForm', 'walTypeOut', 'walTypeIn',
   'walAmt', 'walAmtSym', 'walAmtLabel', 'walDateBtn', 'walDateLabel', 'walNote', 'walNoteLabel',
   'walAddBtn', 'walCal', 'walTabD', 'walTabR', 'walDaysBox', 'walRepBox', 'walCurBox',
+  'btnSettings', 'settingsText',
 ]) els[id] = document.getElementById(id);
 
 let lang = 'en';
@@ -98,7 +99,8 @@ function renderCurList() {
     .filter(([code]) => !q
       || code.toLowerCase().includes(q)
       || curSymbol(code, langOf(lang).locale).toLowerCase().includes(q)
-      || curName(code, lang).toLowerCase().includes(q))
+      || curName(code, lang).toLowerCase().includes(q)
+      || curAlias(code).includes(q))
     .map(([code]) => `
       <div class="tz-row cur-row${code === wallet.cur ? ' sel-cur' : ''}" role="option" data-code="${code}">
         <img class="flag" alt="" src="${curFlag(code)}">
@@ -214,6 +216,8 @@ function applyLang(id, persist = true) {
   els.btnLaunch.title = t(lang, 'launchpad');
   els.clockText.textContent = t(lang, 'lpClock');
   els.btnClock.title = t(lang, 'lpClock');
+  if (els.settingsText) els.settingsText.textContent = t(lang, 'settings');
+  if (els.btnSettings) els.btnSettings.title = t(lang, 'settings');
   updateThemeBtn();
   renderWallet();
   if (!els.walCal.hidden) renderCal();

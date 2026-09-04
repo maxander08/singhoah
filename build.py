@@ -33,6 +33,7 @@ shutil.copy(SRC / "mapdata.js", OUT / "mapdata.js")
 shutil.copy(SRC / "index.html", OUT / "index.html")
 shutil.copy(SRC / "firebase-config.js", OUT / "firebase-config.js")
 shutil.copy(SRC / "auth.js", OUT / "auth.js")
+shutil.copy(SRC / "settings.html", OUT / "settings.html")
 
 # self-contained single file (works in sandboxed previews, offline, anywhere)
 html = (SRC / "index.html").read_text(encoding="utf-8")
@@ -79,8 +80,20 @@ lhtml = lhtml.replace('<script type="module" src="app.js"></script>',
                       '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
 (OUT / "launch-standalone.html").write_text(lhtml, encoding="utf-8")
 
+shtml = (SRC / "settings.html").read_text(encoding="utf-8")
+shtml = shtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
+shtml = shtml.replace('<link rel="stylesheet" href="fonts.css">',
+                      '<style>\n' + "\n".join(css) + '\n</style>')
+shtml = shtml.replace('<link rel="stylesheet" href="styles.css">',
+                      '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
+shtml = shtml.replace('<script src="flags.js"></script>',
+                      '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
+shtml = shtml.replace('<script type="module" src="app.js"></script>',
+                      '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
+(OUT / "settings-standalone.html").write_text(shtml, encoding="utf-8")
+
 SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js", "standalone.html",
            "wallet.html", "wallet.js", "launch.html", "wallet-standalone.html", "launch-standalone.html",
-           "firebase-config.js", "auth.js"]
+           "firebase-config.js", "auth.js", "settings.html", "settings-standalone.html"]
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))

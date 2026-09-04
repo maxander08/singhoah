@@ -1021,3 +1021,36 @@ button { font: inherit; color: inherit; }
 .auth-head strong { font-size: 14px; font-weight: 600; display: block; }
 .auth-mail { margin: 0; color: var(--pigeon); font-size: 12px; }
 .auth-out { width: 100%; justify-content: center; }
+
+/* ---------- SinghoSettings ---------- */
+.settings {
+  height: 100%;
+  overflow-y: auto;
+  padding: calc(var(--gap) * 2) var(--pad-side);
+  scrollbar-width: none;
+}
+.settings::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.set-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: var(--gap);
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.set-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.set-card .langwrap { align-self: flex-start; position: relative; }
+.set-list {
+  max-height: 264px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.set-note { margin: 0; color: var(--pigeon); font-size: 13px; line-height: 1.55; }
+.set-danger { color: #b3261e; justify-content: center; }

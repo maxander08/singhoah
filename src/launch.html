@@ -33,6 +33,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C19.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/></svg>
       <span id="nightText">Light</span>
     </button>
+    <a class="btn" id="btnSettings" href="settings.html" title="Settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span id="settingsText">Settings</span>
+    </a>
   <div class="authwrap" id="authWrap"></div>
   </div>
 </header>
@@ -63,10 +67,16 @@
       <strong>SinghoWallet · <span id="lpWalletT">Wallet</span></strong>
       <span class="lp-sub" id="lpWalletS">Balance, daily spending &amp; reports</span>
     </a>
+    <a class="lp-card" id="cardSettings" href="settings.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.6"/></svg>
+      <strong>SinghoSettings · <span id="lpSettingsT">Settings</span></strong>
+      <span class="lp-sub" id="lpSettingsS">Language, theme, city &amp; currency</span>
+    </a>
   </div>
   <div class="lp-offrow">
     <a class="btn" id="lpOffClock" href="standalone.html">Clock · Offline single-file</a>
     <a class="btn" id="lpOffWallet" href="wallet-standalone.html">Wallet · Offline single-file</a>
+    <a class="btn" id="lpOffSettings" href="settings-standalone.html">Settings · Offline single-file</a>
   </div>
 </main>
 
@@ -190,6 +200,10 @@
     $('lpWalletS').textContent = t(lang, 'lpWalletSub');
     $('lpOffClock').textContent = `${t(lang, 'lpClock')} · ${t(lang, 'lpOffline')}`;
     $('lpOffWallet').textContent = `${t(lang, 'wallet')} · ${t(lang, 'lpOffline')}`;
+    $('lpSettingsT').textContent = t(lang, 'settings');
+    $('lpSettingsS').textContent = t(lang, 'lpSettingsSub');
+    $('lpOffSettings').textContent = `${t(lang, 'settings')} · ${t(lang, 'lpOffline')}`;
+    if ($('settingsText')) $('settingsText').textContent = t(lang, 'settings');
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');
     lpTzSearch.placeholder = t(lang, 'search');
     lpTzSearch.setAttribute('aria-label', t(lang, 'search'));

@@ -954,6 +954,38 @@ await lp.locator('#cardWallet').click();
 await lp.waitForTimeout(300);
 ok('launchpad opens the wallet app', lp.url().includes('wallet.html'));
 
+/* --- SinghoSettings: one place for every preference --- */
+const spage = await context.newPage();
+const serrors = [];
+spage.on('pageerror', (e) => serrors.push(String(e)));
+await spage.goto(URL + 'settings.html', { waitUntil: 'load' });
+await spage.waitForTimeout(400);
+ok('SinghoSettings loads as its own app',
+  (await spage.locator('.wordmark').textContent()).includes('Settings'));
+ok('the clock links to the settings page', await page.evaluate(() =>
+  !!document.querySelector('a[href="settings.html"]')));
+const lp2 = await context.newPage();
+await lp2.goto(URL + 'launch.html', { waitUntil: 'load' });
+await lp2.waitForTimeout(300);
+ok('launchpad lists the settings app', await lp2.evaluate(() =>
+  (document.getElementById('cardSettings') || { getAttribute: () => null }).getAttribute('href') === 'settings.html'));
+await spage.fill('#citySearch', 'Taipei');
+await spage.waitForTimeout(150);
+await spage.click('#cityList .tz-row:not([hidden])');
+ok('settings city picker persists to singhoah:tz', await spage.evaluate(() =>
+  (localStorage.getItem('singhoah:tz') || '').includes('Taipei')));
+await spage.fill('#curSearch', 'NTD');
+await spage.waitForTimeout(150);
+ok('typing NTD finds the Taiwan dollar', await spage.evaluate(() =>
+  (document.querySelector('#curList .cur-row') || { dataset: {} }).dataset.code === 'TWD'));
+await spage.click('#curList .cur-row');
+ok('settings currency picker updates the wallet', await spage.evaluate(() =>
+  ((JSON.parse(localStorage.getItem('singhoah:wallet') || '{}')) || {}).cur === 'TWD'));
+ok('settings offers a local-data reset', await spage.evaluate(() =>
+  !!document.querySelector('#btnReset')));
+ok('no page errors in the settings app', serrors.length === 0, serrors.join('; '));
+
+
 await browser.close();
 
 if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);

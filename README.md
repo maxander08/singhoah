@@ -118,7 +118,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 132 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 140 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
@@ -126,6 +126,15 @@ that glyph slots are pixel-identical in width, night shift, NTP sync and that ev
 viewport from 360 px up fits without scrolling, and that the window
 formats reflow the current window — never a new tab — with one
 independently-running zone per cell.
+
+## SinghoSettings — the settings page
+
+A fourth app (`settings.html`, also as an offline single-file build) gathers every
+preference in one place, in all ten languages: language, appearance (night shift),
+clock city, wallet currency (the search understands aliases — type **NTD** and the
+Taiwan dollar appears), the account note, and a *Reset local data* action that clears
+preferences and per-account snapshots while keeping wallet transactions. Gear buttons
+in the clock / wallet / launchpad headers and a launchpad card link to it.
 
 ## Optional Google sign-in (portal)
 
