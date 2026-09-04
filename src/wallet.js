@@ -153,7 +153,7 @@ function renderWallet() {
   els.walCurBox.hidden = walTab !== 'cur';
   if (walTab === 'cur') { renderCurList(); return; }
   const box = walTab === 'days' ? els.walDaysBox : els.walRepBox;
-  if (!wallet.tx.length) { box.innerHTML = `<p class="wal-empty">${t(lang, 'walEmpty')}</p>`; return; }
+  if (walTab === 'days' && !wallet.tx.length) { box.innerHTML = `<p class="wal-empty">${t(lang, 'walEmpty')}</p>`; return; }
   if (walTab === 'days') {
     const days = [...walByDay(wallet.tx).entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
     box.innerHTML = days.map(([ymd, d]) => {
