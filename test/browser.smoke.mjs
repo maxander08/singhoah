@@ -799,9 +799,25 @@ ok('the days view lists today’s spending with its note',
   /Coffee/.test(wd.days) && /30/.test(wd.days), wd.days.slice(0, 80));
 await wpage.locator('#walTabR').click();
 await wpage.waitForTimeout(120);
-ok('reports dashboard shows this month and a 7-day chart',
-  await wpage.evaluate(() => /30/.test(document.getElementById('walRepBox').textContent)
-    && document.querySelectorAll('#walRepBox .wal-bar').length === 7));
+ok('reports dashboard offers six period ranges', await wpage.evaluate(() =>
+  document.querySelectorAll('#walRepBox [data-rep]').length === 6 &&
+  document.querySelector('#walRepBox [data-rep="week"]').getAttribute('aria-pressed') === 'true'));
+await wpage.locator('#walRepBox [data-rep="year"]').click();
+await wpage.waitForTimeout(120);
+ok('year report renders twelve month buckets', await wpage.evaluate(() => {
+  const n = document.querySelectorAll('#walRepBox .wal-chart rect').length;
+  return n >= 12 && n <= 24;
+}));
+await wpage.locator('#walRepBox [data-rep="decade"]').click();
+await wpage.waitForTimeout(120);
+ok('decade report renders ten year buckets', await wpage.evaluate(() => {
+  const n = document.querySelectorAll('#walRepBox .wal-chart rect').length;
+  return n >= 10 && n <= 20;
+}));
+ok('report range choice persists', await wpage.evaluate(() =>
+  localStorage.getItem('singhoah:walrep') === 'decade'));
+await wpage.locator('#walRepBox [data-rep="week"]').click();
+await wpage.waitForTimeout(120);
 await wpage.locator('#walCurBtn').click();
 await wpage.waitForTimeout(150);
 const wc = await wpage.evaluate(() => ({

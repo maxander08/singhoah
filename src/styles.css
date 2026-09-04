@@ -1054,3 +1054,15 @@ button { font: inherit; color: inherit; }
 }
 .set-note { margin: 0; color: var(--pigeon); font-size: 13px; line-height: 1.55; }
 .set-danger { color: #b3261e; justify-content: center; }
+
+/* ---------- wallet reports: six ranges ---------- */
+.wal-seg6 { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.wal-seg6::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.wal-seg6 button { flex: 0 0 auto; padding: 0 12px; border-left: 0; border-radius: 0; }
+.wal-seg6 button:first-child { border-radius: 6px 0 0 6px; border-left: 1px solid var(--border); }
+.wal-seg6 button:last-child { border-radius: 0 6px 6px 0; }
+.wal-repbar { display: flex; align-items: center; gap: var(--gap); }
+.wal-repbar strong { flex: 1; text-align: center; font-size: 13px; font-weight: 600; }
+.wal-bar.in { fill: var(--notification); opacity: .5; }
+.lg { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--pigeon); margin: 0 6px 0 10px; }
+.lg.in { background: var(--notification); opacity: .5; }

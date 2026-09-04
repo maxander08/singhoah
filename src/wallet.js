@@ -27,6 +27,8 @@ let walType = 'out';
 let walTab = 'days';
 let walPrevTab = 'days';
 let walCurQuery = '';
+let repPeriod = 'week';
+let repOff = 0;
 let walDateVal = null;
 let calView = null;
 let walSeq = 0;
@@ -165,16 +167,29 @@ function renderWallet() {
       return `<div class="wal-day"><div class="wal-day-h"><span>${walDateLabel(ymd)}</span><span>${right}</span></div>${items}</div>`;
     }).join('');
   } else {
-    const st = walMonthStats(wallet.tx, walToday());
+    const r = repCompute();
+    const spent = r.spent.reduce((x, y) => x + y, 0);
+    const income = r.income.reduce((x, y) => x + y, 0);
+    const net = income - spent;
+    const PERIODS = [['day', 'pDay'], ['week', 'pWeek'], ['month', 'pMonth'],
+      ['semester', 'pSem'], ['year', 'pYear'], ['decade', 'pDec']];
     box.innerHTML = `
-      <div class="wal-cards">
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walSpent')} · ${t(lang, 'walMonth')}</p><strong>${fmtMoney(st.spent)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walIncome')} · ${t(lang, 'walMonth')}</p><strong>${fmtMoney(st.income)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walAvg')}</p><strong>${fmtMoney(st.avg)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walTop')}</p><strong>${st.top ? walEsc(`${st.top.note ? `${st.top.note} · ` : ''}${fmtMoney(st.top.amt)}`) : '—'}</strong></div>
+      <div class="wal-seg wal-seg6" role="group" aria-label="${walEsc(t(lang, 'walReports'))}">
+        ${PERIODS.map(([id, k]) => `<button type="button" data-rep="${id}" aria-pressed="${id === repPeriod}">${t(lang, k)}</button>`).join('')}
       </div>
-      <p class="wal-lbl wal-week-lbl">${t(lang, 'walWeek')}</p>
-      ${weekChartSVG(walWeekSeries(wallet.tx, walToday()))}`;
+      <div class="wal-repbar">
+        <button type="button" class="wal-cal-nav" data-repoff="-1" aria-label="‹">‹</button>
+        <strong>${walEsc(r.title)}</strong>
+        <button type="button" class="wal-cal-nav" data-repoff="1" aria-label="›">›</button>
+      </div>
+      <div class="wal-cards">
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walSpent')}</p><strong>${fmtMoney(spent)}</strong></div>
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walIncome')}</p><strong>${fmtMoney(income)}</strong></div>
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walNet')}</p><strong>${net < 0 ? '−' : '+'}${fmtMoney(net).replace('−', '')}</strong></div>
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walTop')}</p><strong>${r.top ? walEsc(`${r.top.note ? `${r.top.note} · ` : ''}${fmtMoney(r.top.amt)}`) : '—'}</strong></div>
+      </div>
+      <p class="wal-lbl wal-week-lbl"><span class="lg"></span>${t(lang, 'walSpent')}<span class="lg in"></span>${t(lang, 'walIncome')}</p>
+      ${repChartSVG(r)}`;
   }
 }
 
@@ -190,6 +205,113 @@ function setWalTab(v) {
   els.walTabD.setAttribute('aria-pressed', String(v === 'days'));
   els.walTabR.setAttribute('aria-pressed', String(v === 'reports'));
   renderWallet();
+}
+
+
+/* ---------------- reports: day / week / month / semester / year / decade ---------------- */
+
+function repCompute() {
+  const L = langOf(lang).locale;
+  const now = new Date();
+  const tx = wallet.tx;
+  const out = { labels: [], spent: [], income: [], title: '', top: null, nowIdx: -1 };
+  const mk = (n) => { out.spent = Array(n).fill(0); out.income = Array(n).fill(0); out.labels = Array(n).fill(''); };
+  const addTx = (i, x) => {
+    if (x.type === 'out') { out.spent[i] += x.amt; if (!out.top || x.amt > out.top.amt) out.top = x; }
+    else out.income[i] += x.amt;
+  };
+  const ymdOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  if (repPeriod === 'day') {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + repOff);
+    mk(24);
+    const hf = new Intl.DateTimeFormat(L, { hour: 'numeric' });
+    for (let h = 0; h < 24; h++) out.labels[h] = hf.format(new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 30));
+    out.title = new Intl.DateTimeFormat(L, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+    const ymd = ymdOf(d);
+    tx.forEach((x) => { if (x.date === ymd) addTx(new Date(x.ts || 0).getHours(), x); });
+    if (repOff === 0) out.nowIdx = now.getHours();
+  } else if (repPeriod === 'week') {
+    mk(7);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + repOff * 7);
+    const wf = new Intl.DateTimeFormat(L, { weekday: 'narrow' });
+    for (let i = 0; i < 7; i++) out.labels[i] = wf.format(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6 + i));
+    out.title = `${walDateLabel(ymdOf(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6)))} – ${walDateLabel(ymdOf(end))}`;
+    tx.forEach((x) => {
+      for (let i = 0; i < 7; i++) {
+        if (x.date === ymdOf(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6 + i))) { addTx(i, x); break; }
+      }
+    });
+    if (repOff === 0) out.nowIdx = 6;
+  } else if (repPeriod === 'month') {
+    const d = new Date(now.getFullYear(), now.getMonth() + repOff, 1);
+    const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    mk(dim);
+    for (let i = 1; i <= dim; i++) out.labels[i - 1] = String(i);
+    out.title = new Intl.DateTimeFormat(L, { month: 'long', year: 'numeric' }).format(d);
+    const pre = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-`;
+    tx.forEach((x) => {
+      if (x.date && x.date.startsWith(pre)) {
+        const dd = Number(x.date.slice(8, 10));
+        if (dd >= 1 && dd <= dim) addTx(dd - 1, x);
+      }
+    });
+    if (repOff === 0) out.nowIdx = now.getDate() - 1;
+  } else if (repPeriod === 'semester') {
+    const sem = Math.floor(now.getMonth() / 6) + repOff;
+    const start = new Date(now.getFullYear(), sem * 6, 1);
+    mk(6);
+    const mf = new Intl.DateTimeFormat(L, { month: 'short' });
+    for (let i = 0; i < 6; i++) out.labels[i] = mf.format(new Date(start.getFullYear(), start.getMonth() + i, 1));
+    out.title = `${mf.format(start)} – ${mf.format(new Date(start.getFullYear(), start.getMonth() + 5, 1))} ${start.getFullYear()}`;
+    tx.forEach((x) => {
+      if (!x.date) return;
+      const [yy, mm] = x.date.split('-').map(Number);
+      const mi = (yy - start.getFullYear()) * 12 + (mm - 1) - start.getMonth();
+      if (mi >= 0 && mi < 6) addTx(mi, x);
+    });
+    if (repOff === 0) out.nowIdx = now.getMonth() - start.getMonth();
+  } else if (repPeriod === 'year') {
+    const y = now.getFullYear() + repOff;
+    mk(12);
+    const mf = new Intl.DateTimeFormat(L, { month: 'narrow' });
+    for (let i = 0; i < 12; i++) out.labels[i] = mf.format(new Date(y, i, 1));
+    out.title = new Intl.DateTimeFormat(L, { year: 'numeric' }).format(new Date(y, 0, 1));
+    tx.forEach((x) => {
+      if (!x.date) return;
+      const [yy, mm] = x.date.split('-').map(Number);
+      if (yy === y) addTx(mm - 1, x);
+    });
+    if (repOff === 0) out.nowIdx = now.getMonth();
+  } else { /* decade */
+    const ds = Math.floor(now.getFullYear() / 10) * 10 + repOff * 10;
+    mk(10);
+    for (let i = 0; i < 10; i++) out.labels[i] = String(ds + i);
+    out.title = `${ds}–${ds + 9}`;
+    tx.forEach((x) => {
+      if (!x.date) return;
+      const yy = Number(x.date.slice(0, 4));
+      if (yy >= ds && yy < ds + 10) addTx(yy - ds, x);
+    });
+    if (repOff === 0) out.nowIdx = now.getFullYear() - ds;
+  }
+  return out;
+}
+
+function repChartSVG(r) {
+  const n = r.spent.length;
+  const max = Math.max(...r.spent, ...r.income, 1);
+  const bw = 320 / n;
+  const step = Math.ceil(n / 12);
+  let inner = '';
+  for (let i = 0; i < n; i++) {
+    const hs = r.spent[i] > 0 ? Math.max(3, Math.round((r.spent[i] / max) * 78)) : 1;
+    const hi = r.income[i] > 0 ? Math.max(3, Math.round((r.income[i] / max) * 78)) : 0;
+    const x = i * bw;
+    if (hi) inner += `<rect class="wal-bar in" x="${(x + bw * 0.10).toFixed(1)}" y="${92 - hi}" width="${(bw * 0.34).toFixed(1)}" height="${hi}" rx="1.5"/>`;
+    inner += `<rect class="wal-bar${i === r.nowIdx ? ' now' : ''}" x="${(x + bw * 0.50).toFixed(1)}" y="${92 - hs}" width="${(bw * 0.34).toFixed(1)}" height="${hs}" rx="1.5"/>`;
+    if (i % step === 0) inner += `<text x="${(x + bw / 2).toFixed(1)}" y="106">${r.labels[i]}</text>`;
+  }
+  return `<svg class="wal-chart" viewBox="0 0 320 110" aria-hidden="true">${inner}</svg>`;
 }
 
 /* ---------------- language + theme ---------------- */
@@ -235,6 +357,10 @@ function updateThemeBtn() {
 
 function init() {
   wallet = loadWallet();
+  try {
+    const rp = localStorage.getItem('singhoah:walrep') || '';
+    if (['day', 'week', 'month', 'semester', 'year', 'decade'].includes(rp)) repPeriod = rp;
+  } catch { /* ignore */ }
 
   let savedLang = '';
   try { savedLang = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
@@ -306,6 +432,16 @@ function init() {
   });
 
   document.querySelector('.wal-panel').addEventListener('click', (e) => {
+    const rbtn = e.target.closest('[data-rep]');
+    if (rbtn) {
+      repPeriod = rbtn.dataset.rep;
+      repOff = 0;
+      try { localStorage.setItem('singhoah:walrep', repPeriod); } catch { /* ignore */ }
+      renderWallet();
+      return;
+    }
+    const rnav = e.target.closest('[data-repoff]');
+    if (rnav) { repOff += Number(rnav.dataset.repoff); renderWallet(); return; }
     const row = e.target.closest('.cur-row');
     if (row) {
       wallet.cur = row.dataset.code;

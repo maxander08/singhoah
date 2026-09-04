@@ -1078,6 +1078,18 @@ button { font: inherit; color: inherit; }
 .set-note { margin: 0; color: var(--pigeon); font-size: 13px; line-height: 1.55; }
 .set-danger { color: #b3261e; justify-content: center; }
 
+/* ---------- wallet reports: six ranges ---------- */
+.wal-seg6 { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.wal-seg6::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.wal-seg6 button { flex: 0 0 auto; padding: 0 12px; border-left: 0; border-radius: 0; }
+.wal-seg6 button:first-child { border-radius: 6px 0 0 6px; border-left: 1px solid var(--border); }
+.wal-seg6 button:last-child { border-radius: 0 6px 6px 0; }
+.wal-repbar { display: flex; align-items: center; gap: var(--gap); }
+.wal-repbar strong { flex: 1; text-align: center; font-size: 13px; font-weight: 600; }
+.wal-bar.in { fill: var(--notification); opacity: .5; }
+.lg { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--pigeon); margin: 0 6px 0 10px; }
+.lg.in { background: var(--notification); opacity: .5; }
+
 </style>
 </head>
 <body data-app="wallet">
@@ -1656,7 +1668,7 @@ export const STRINGS = {
     wallet: 'Wallet', walBalance: 'Balance', walExpense: 'Expense', walIncome: 'Income',
     walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', walDays: 'Days', walReports: 'Reports',
     walSpent: 'Spent', walMonth: 'This month', walAvg: 'Daily average', walWeek: 'Last 7 days',
-    walTop: 'Largest expense', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…', launchpad: 'Launchpad', lpClock: 'Clock', lpClockSub: 'Drift-corrected world clock', lpWalletSub: 'Balance, daily spending & reports', lpOffline: 'Offline single-file',
+    walTop: 'Largest expense', pDay: 'Day', pWeek: 'Week', pMonth: 'Month', pSem: 'Semester', pYear: 'Year', pDec: 'Decade', walNet: 'Net', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…', launchpad: 'Launchpad', lpClock: 'Clock', lpClockSub: 'Drift-corrected world clock', lpWalletSub: 'Balance, daily spending & reports', lpOffline: 'Offline single-file',
     date: 'Date', time: 'Time', window: 'Window', light: 'Light', night: 'Night Shift',
     resync: 'Re-sync', search: 'Search city or country…', signin: 'Sign in', signout: 'Sign out', account: 'Account', settings: 'Settings', appearance: 'Appearance', homeCity: 'Clock city', currency: 'Currency', data: 'Data', resetData: 'Reset local data', resetQ: 'Clear language, theme, city, currency and account snapshots on this device? Wallet transactions are kept.', portalNote: 'Sign in from the header to keep these settings per Google account on this device.', lpSettingsSub: 'Language, theme, city & currency', language: 'Language', local: 'Local',
     addZone: 'Add zone', single: 'Single', side: 'Side by side', quad: '2 × 2',
@@ -1674,7 +1686,7 @@ export const STRINGS = {
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
     walAmount: '金額', walNote: '備註', walAdd: '新增', walDays: '每日', walReports: '報表',
     walSpent: '已花費', walMonth: '本月', walAvg: '日均', walWeek: '最近 7 天',
-    walTop: '最大支出', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…', launchpad: '啟動台', lpClock: '時鐘', lpClockSub: '漂移校正世界時鐘', lpWalletSub: '餘額、每日花費與報表', lpOffline: '離線單一檔案',
+    walTop: '最大支出', pDay: '日', pWeek: '週', pMonth: '月', pSem: '學期', pYear: '年', pDec: '十年', walNet: '淨額', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…', launchpad: '啟動台', lpClock: '時鐘', lpClockSub: '漂移校正世界時鐘', lpWalletSub: '餘額、每日花費與報表', lpOffline: '離線單一檔案',
     date: '日期', time: '時間', window: '視窗', light: '淺色', night: '夜間模式',
     resync: '重新同步', search: '搜尋城市或國家…', signin: '登入', signout: '登出', account: '帳戶', settings: '設定', appearance: '外觀', homeCity: '時鐘城市', currency: '貨幣', data: '資料', resetData: '重設本地資料', resetQ: '清除此裝置上的語言、外觀、城市、貨幣與帳戶快照？錢包交易會保留。', portalNote: '從頁首登入，即可在此裝置上為每個 Google 帳戶保存這些設定。', lpSettingsSub: '語言、外觀、城市與貨幣', language: '語言', local: '本地',
     addZone: '新增時區', single: '單一', side: '並排', quad: '2 × 2',
@@ -1692,7 +1704,7 @@ export const STRINGS = {
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
     walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', walDays: 'दिन', walReports: 'रिपोर्ट',
     walSpent: 'ख़र्च हुआ', walMonth: 'इस माह', walAvg: 'दैनिक औसत', walWeek: 'पिछले 7 दिन',
-    walTop: 'सबसे बड़ा ख़र्च', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…', launchpad: 'लॉन्चपैड', lpClock: 'घड़ी', lpClockSub: 'ड्रिफ्ट-सुधारी विश्व घड़ी', lpWalletSub: 'बैलेंस, दैनिक ख़र्च और रिपोर्ट', lpOffline: 'ऑफ़लाइन एकल फ़ाइल',
+    walTop: 'सबसे बड़ा ख़र्च', pDay: 'दिन', pWeek: 'सप्ताह', pMonth: 'महीना', pSem: 'सेमेस्टर', pYear: 'वर्ष', pDec: 'दशक', walNet: 'शुद्ध', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…', launchpad: 'लॉन्चपैड', lpClock: 'घड़ी', lpClockSub: 'ड्रिफ्ट-सुधारी विश्व घड़ी', lpWalletSub: 'बैलेंस, दैनिक ख़र्च और रिपोर्ट', lpOffline: 'ऑफ़लाइन एकल फ़ाइल',
     date: 'तिथि', time: 'समय', window: 'विंडो', light: 'लाइट', night: 'नाइट शिफ्ट',
     resync: 'री-सिंक', search: 'शहर या देश खोजें…', signin: 'साइन इन', signout: 'साइन आउट', account: 'खाता', settings: 'सेटिंग्स', appearance: 'दिखावट', homeCity: 'घड़ी शहर', currency: 'मुद्रा', data: 'डेटा', resetData: 'स्थानीय डेटा रीसेट करें', resetQ: 'इस डिवाइस पर भाषा, थीम, शहर, मुद्रा और खाता स्नैपशॉट साफ़ करें? वॉलेट लेन-देन बने रहेंगे।', portalNote: 'इस डिवाइस पर प्रति Google खाता ये सेटिंग्स रखने हेतु शीर्ष से साइन इन करें।', lpSettingsSub: 'भाषा, थीम, शहर और मुद्रा', language: 'भाषा', local: 'स्थानीय',
     addZone: 'ज़ोन जोड़ें', single: 'एकल', side: 'साथ-साथ', quad: '2 × 2',
@@ -1710,7 +1722,7 @@ export const STRINGS = {
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
     walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', walDays: 'Días', walReports: 'Informes',
     walSpent: 'Gastado', walMonth: 'Este mes', walAvg: 'Media diaria', walWeek: 'Últimos 7 días',
-    walTop: 'Mayor gasto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…', launchpad: 'Launchpad', lpClock: 'Reloj', lpClockSub: 'Reloj mundial con deriva corregida', lpWalletSub: 'Saldo, gasto diario e informes', lpOffline: 'Un solo archivo sin conexión',
+    walTop: 'Mayor gasto', pDay: 'Día', pWeek: 'Semana', pMonth: 'Mes', pSem: 'Semestre', pYear: 'Año', pDec: 'Década', walNet: 'Neto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…', launchpad: 'Launchpad', lpClock: 'Reloj', lpClockSub: 'Reloj mundial con deriva corregida', lpWalletSub: 'Saldo, gasto diario e informes', lpOffline: 'Un solo archivo sin conexión',
     date: 'Fecha', time: 'Hora', window: 'Ventana', light: 'Claro', night: 'Turno de noche',
     resync: 'Resincronizar', search: 'Buscar ciudad o país…', signin: 'Iniciar sesión', signout: 'Cerrar sesión', account: 'Cuenta', settings: 'Ajustes', appearance: 'Apariencia', homeCity: 'Ciudad del reloj', currency: 'Moneda', data: 'Datos', resetData: 'Restablecer datos locales', resetQ: '¿Borrar idioma, tema, ciudad, moneda y capturas de cuenta en este dispositivo? Las transacciones se conservan.', portalNote: 'Inicia sesión desde la cabecera para guardar estos ajustes por cuenta de Google en este dispositivo.', lpSettingsSub: 'Idioma, tema, ciudad y moneda', language: 'Idioma', local: 'Local',
     addZone: 'Añadir zona', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
@@ -1728,7 +1740,7 @@ export const STRINGS = {
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
     walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', walDays: 'Jours', walReports: 'Rapports',
     walSpent: 'Dépensé', walMonth: 'Ce mois-ci', walAvg: 'Moyenne quotidienne', walWeek: '7 derniers jours',
-    walTop: 'Plus grosse dépense', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…', launchpad: 'Launchpad', lpClock: 'Horloge', lpClockSub: 'Horloge mondiale corrigée de la dérive', lpWalletSub: 'Solde, dépenses du jour et rapports', lpOffline: 'Fichier unique hors ligne',
+    walTop: 'Plus grosse dépense', pDay: 'Jour', pWeek: 'Semaine', pMonth: 'Mois', pSem: 'Semestre', pYear: 'Année', pDec: 'Décennie', walNet: 'Net', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…', launchpad: 'Launchpad', lpClock: 'Horloge', lpClockSub: 'Horloge mondiale corrigée de la dérive', lpWalletSub: 'Solde, dépenses du jour et rapports', lpOffline: 'Fichier unique hors ligne',
     date: 'Date', time: 'Heure', window: 'Fenêtre', light: 'Clair', night: 'Mode nuit',
     resync: 'Resynchroniser', search: 'Rechercher une ville ou un pays…', signin: 'Connexion', signout: 'Déconnexion', account: 'Compte', settings: 'Paramètres', appearance: 'Apparence', homeCity: 'Ville de l’horloge', currency: 'Devise', data: 'Données', resetData: 'Réinitialiser les données locales', resetQ: 'Effacer langue, thème, ville, devise et instantanés de compte sur cet appareil ? Les transactions sont conservées.', portalNote: 'Connectez-vous depuis l’en-tête pour garder ces réglages par compte Google sur cet appareil.', lpSettingsSub: 'Langue, thème, ville et devise', language: 'Langue', local: 'Local',
     addZone: 'Ajouter un fuseau', single: 'Seul', side: 'Côte à côte', quad: '2 × 2',
@@ -1746,7 +1758,7 @@ export const STRINGS = {
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
     walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', walDays: 'الأيام', walReports: 'التقارير',
     walSpent: 'أُنفق', walMonth: 'هذا الشهر', walAvg: 'المتوسط اليومي', walWeek: 'آخر 7 أيام',
-    walTop: 'أكبر مصروف', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…', launchpad: 'منصة الإطلاق', lpClock: 'الساعة', lpClockSub: 'ساعة عالمية مصحَّحة الانحراف', lpWalletSub: 'الرصيد والمصروفات اليومية والتقارير', lpOffline: 'ملف واحد دون اتصال',
+    walTop: 'أكبر مصروف', pDay: 'يوم', pWeek: 'أسبوع', pMonth: 'شهر', pSem: 'فصل دراسي', pYear: 'سنة', pDec: 'عقد', walNet: 'الصافي', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…', launchpad: 'منصة الإطلاق', lpClock: 'الساعة', lpClockSub: 'ساعة عالمية مصحَّحة الانحراف', lpWalletSub: 'الرصيد والمصروفات اليومية والتقارير', lpOffline: 'ملف واحد دون اتصال',
     date: 'التاريخ', time: 'الوقت', window: 'نافذة', light: 'فاتح', night: 'الوضع الليلي',
     resync: 'إعادة المزامنة', search: 'ابحث عن مدينة أو دولة…', signin: 'تسجيل الدخول', signout: 'تسجيل الخروج', account: 'الحساب', settings: 'الإعدادات', appearance: 'المظهر', homeCity: 'مدينة الساعة', currency: 'العملة', data: 'البيانات', resetData: 'إعادة تعيين البيانات المحلية', resetQ: 'مسح اللغة والسمة والمدينة والعملة ولقطات الحساب على هذا الجهاز؟ سيتم الاحتفاظ بالمعاملات.', portalNote: 'سجّل الدخول من الترويسة للاحتفاظ بهذه الإعدادات لكل حساب Google على هذا الجهاز.', lpSettingsSub: 'اللغة والسمة والمدينة والعملة', language: 'اللغة', local: 'محلي',
     addZone: 'أضف منطقة', single: 'واحدة', side: 'جنباً إلى جنب', quad: '2 × 2',
@@ -1764,7 +1776,7 @@ export const STRINGS = {
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
     walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', walDays: 'দিন', walReports: 'রিপোর্ট',
     walSpent: 'খরচ হয়েছে', walMonth: 'এই মাস', walAvg: 'দৈনিক গড়', walWeek: 'শেষ ৭ দিন',
-    walTop: 'সবচেয়ে বড় খরচ', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…', launchpad: 'লঞ্চপ্যাড', lpClock: 'ঘড়ি', lpClockSub: 'ড্রিফট-সংশোধিত বিশ্বঘড়ি', lpWalletSub: 'ব্যালেন্স, দৈনিক খরচ ও রিপোর্ট', lpOffline: 'অফলাইন একক ফাইল',
+    walTop: 'সবচেয়ে বড় খরচ', pDay: 'দিন', pWeek: 'সপ্তাহ', pMonth: 'মাস', pSem: 'সেমিস্টার', pYear: 'বছর', pDec: 'দশক', walNet: 'নিট', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…', launchpad: 'লঞ্চপ্যাড', lpClock: 'ঘড়ি', lpClockSub: 'ড্রিফট-সংশোধিত বিশ্বঘড়ি', lpWalletSub: 'ব্যালেন্স, দৈনিক খরচ ও রিপোর্ট', lpOffline: 'অফলাইন একক ফাইল',
     date: 'তারিখ', time: 'সময়', window: 'উইন্ডো', light: 'লাইট', night: 'নাইট শিফ্ট',
     resync: 'রি-সিঙ্ক', search: 'শহর বা দেশ খুঁজুন…', signin: 'সাইন ইন', signout: 'সাইন আউট', account: 'অ্যাকাউন্ট', settings: 'সেটিংস', appearance: 'চেহারা', homeCity: 'ঘড়ির শহর', currency: 'মুদ্রা', data: 'ডেটা', resetData: 'স্থানীয় ডেটা রিসেট', resetQ: 'এই ডিভাইসে ভাষা, থিম, শহর, মুদ্রা ও অ্যাকাউন্ট স্ন্যাপশট মুছবেন? ওয়ালেটের লেনদেন থাকবে।', portalNote: 'এই ডিভাইসে প্রতিটি Google অ্যাকাউন্টের জন্য এই সেটিংস রাখতে শীর্ষ থেকে সাইন ইন করুন।', lpSettingsSub: 'ভাষা, থিম, শহর ও মুদ্রা', language: 'ভাষা', local: 'স্থানীয়',
     addZone: 'অঞ্চল যোগ করুন', single: 'একক', side: 'পাশাপাশি', quad: '2 × 2',
@@ -1782,7 +1794,7 @@ export const STRINGS = {
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
     walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', walDays: 'Дни', walReports: 'Отчёты',
     walSpent: 'Потрачено', walMonth: 'В этом месяце', walAvg: 'Среднее в день', walWeek: 'Последние 7 дней',
-    walTop: 'Крупнейшая трата', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…', launchpad: 'Лаунчпад', lpClock: 'Часы', lpClockSub: 'Всемирные часы с коррекцией дрейфа', lpWalletSub: 'Баланс, расходы по дням и отчёты', lpOffline: 'Офлайн одним файлом',
+    walTop: 'Крупнейшая трата', pDay: 'День', pWeek: 'Неделя', pMonth: 'Месяц', pSem: 'Семестр', pYear: 'Год', pDec: 'Десятилетие', walNet: 'Нетто', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…', launchpad: 'Лаунчпад', lpClock: 'Часы', lpClockSub: 'Всемирные часы с коррекцией дрейфа', lpWalletSub: 'Баланс, расходы по дням и отчёты', lpOffline: 'Офлайн одним файлом',
     date: 'Дата', time: 'Время', window: 'Окно', light: 'Светлая', night: 'Ночной режим',
     resync: 'Синхронизировать', search: 'Поиск города или страны…', signin: 'Войти', signout: 'Выйти', account: 'Аккаунт', settings: 'Настройки', appearance: 'Оформление', homeCity: 'Город часов', currency: 'Валюта', data: 'Данные', resetData: 'Сбросить локальные данные', resetQ: 'Стереть язык, тему, город, валюту и снимки аккаунта на этом устройстве? Операции кошелька сохранятся.', portalNote: 'Войдите через шапку, чтобы хранить эти настройки для каждого аккаунта Google на этом устройстве.', lpSettingsSub: 'Язык, тема, город и валюта', language: 'Язык', local: 'Местное',
     addZone: 'Добавить пояс', single: 'Один', side: 'Рядом', quad: '2 × 2',
@@ -1800,7 +1812,7 @@ export const STRINGS = {
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
     walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', walDays: 'Dias', walReports: 'Relatórios',
     walSpent: 'Gasto', walMonth: 'Este mês', walAvg: 'Média diária', walWeek: 'Últimos 7 dias',
-    walTop: 'Maior gasto', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…', launchpad: 'Launchpad', lpClock: 'Relógio', lpClockSub: 'Relógio mundial com deriva corrigida', lpWalletSub: 'Saldo, gastos diários e relatórios', lpOffline: 'Arquivo único off-line',
+    walTop: 'Maior gasto', pDay: 'Dia', pWeek: 'Semana', pMonth: 'Mês', pSem: 'Semestre', pYear: 'Ano', pDec: 'Década', walNet: 'Líquido', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…', launchpad: 'Launchpad', lpClock: 'Relógio', lpClockSub: 'Relógio mundial com deriva corrigida', lpWalletSub: 'Saldo, gastos diários e relatórios', lpOffline: 'Arquivo único off-line',
     date: 'Data', time: 'Hora', window: 'Janela', light: 'Claro', night: 'Modo noturno',
     resync: 'Ressincronizar', search: 'Buscar cidade ou país…', signin: 'Entrar', signout: 'Sair', account: 'Conta', settings: 'Configurações', appearance: 'Aparência', homeCity: 'Cidade do relógio', currency: 'Moeda', data: 'Dados', resetData: 'Redefinir dados locais', resetQ: 'Apagar idioma, tema, cidade, moeda e snapshots de conta neste dispositivo? As transações são mantidas.', portalNote: 'Entre pelo cabeçalho para manter estas configurações por conta Google neste dispositivo.', lpSettingsSub: 'Idioma, tema, cidade e moeda', language: 'Idioma', local: 'Local',
     addZone: 'Adicionar fuso', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
@@ -1818,7 +1830,7 @@ export const STRINGS = {
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
     walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', walDays: 'دن', walReports: 'رپورٹس',
     walSpent: 'خرچ ہوا', walMonth: 'اس مہینے', walAvg: 'یومیہ اوسط', walWeek: 'پچھلے 7 دن',
-    walTop: 'سب سے بڑا خرچ', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…', launchpad: 'لائنچ پیڈ', lpClock: 'گھڑی', lpClockSub: 'ڈرفٹ درست شدہ عالمی گھڑی', lpWalletSub: 'بیلنس، یومیہ خرچ اور رپورٹس', lpOffline: 'آف لائن سنگل فائل',
+    walTop: 'سب سے بڑا خرچ', pDay: 'دن', pWeek: 'ہفتہ', pMonth: 'مہینہ', pSem: 'سیمسٹر', pYear: 'سال', pDec: 'دہائی', walNet: 'خالص', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…', launchpad: 'لائنچ پیڈ', lpClock: 'گھڑی', lpClockSub: 'ڈرفٹ درست شدہ عالمی گھڑی', lpWalletSub: 'بیلنس، یومیہ خرچ اور رپورٹس', lpOffline: 'آف لائن سنگل فائل',
     date: 'تاریخ', time: 'وقت', window: 'ونڈو', light: 'ہلکا', night: 'نائٹ موڈ',
     resync: 'دوبارہ سنک', search: 'شہر یا ملک تلاش کریں…', signin: 'سائن ان', signout: 'سائن آؤٹ', account: 'اکاؤنٹ', settings: 'ترتیبات', appearance: 'ظاہری شکل', homeCity: 'گھڑی کا شہر', currency: 'کرنسی', data: 'ڈیٹا', resetData: 'مقامی ڈیٹا ری سیٹ', resetQ: 'اس آلے پر زبان، تھیم، شہر، کرنسی اور اکاؤنٹ اسنیپ شاٹس صاف کریں؟ والٹ کے لین دین محفوظ رہیں گے۔', portalNote: 'اس آلے پر ہر Google اکاؤنٹ کے لیے یہ ترتیبات رکھنے کے لیے ہیڈر سے سائن ان کریں۔', lpSettingsSub: 'زبان، تھیم، شہر اور کرنسی', language: 'زبان', local: 'مقامی',
     addZone: 'زون شامل کریں', single: 'واحد', side: 'بہ پہلو', quad: '2 × 2',
@@ -3331,6 +3343,8 @@ let walType = 'out';
 let walTab = 'days';
 let walPrevTab = 'days';
 let walCurQuery = '';
+let repPeriod = 'week';
+let repOff = 0;
 let walDateVal = null;
 let calView = null;
 let walSeq = 0;
@@ -3469,16 +3483,29 @@ function renderWallet() {
       return `<div class="wal-day"><div class="wal-day-h"><span>${walDateLabel(ymd)}</span><span>${right}</span></div>${items}</div>`;
     }).join('');
   } else {
-    const st = walMonthStats(wallet.tx, walToday());
+    const r = repCompute();
+    const spent = r.spent.reduce((x, y) => x + y, 0);
+    const income = r.income.reduce((x, y) => x + y, 0);
+    const net = income - spent;
+    const PERIODS = [['day', 'pDay'], ['week', 'pWeek'], ['month', 'pMonth'],
+      ['semester', 'pSem'], ['year', 'pYear'], ['decade', 'pDec']];
     box.innerHTML = `
-      <div class="wal-cards">
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walSpent')} · ${t(lang, 'walMonth')}</p><strong>${fmtMoney(st.spent)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walIncome')} · ${t(lang, 'walMonth')}</p><strong>${fmtMoney(st.income)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walAvg')}</p><strong>${fmtMoney(st.avg)}</strong></div>
-        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walTop')}</p><strong>${st.top ? walEsc(`${st.top.note ? `${st.top.note} · ` : ''}${fmtMoney(st.top.amt)}`) : '—'}</strong></div>
+      <div class="wal-seg wal-seg6" role="group" aria-label="${walEsc(t(lang, 'walReports'))}">
+        ${PERIODS.map(([id, k]) => `<button type="button" data-rep="${id}" aria-pressed="${id === repPeriod}">${t(lang, k)}</button>`).join('')}
       </div>
-      <p class="wal-lbl wal-week-lbl">${t(lang, 'walWeek')}</p>
-      ${weekChartSVG(walWeekSeries(wallet.tx, walToday()))}`;
+      <div class="wal-repbar">
+        <button type="button" class="wal-cal-nav" data-repoff="-1" aria-label="‹">‹</button>
+        <strong>${walEsc(r.title)}</strong>
+        <button type="button" class="wal-cal-nav" data-repoff="1" aria-label="›">›</button>
+      </div>
+      <div class="wal-cards">
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walSpent')}</p><strong>${fmtMoney(spent)}</strong></div>
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walIncome')}</p><strong>${fmtMoney(income)}</strong></div>
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walNet')}</p><strong>${net < 0 ? '−' : '+'}${fmtMoney(net).replace('−', '')}</strong></div>
+        <div class="wal-card"><p class="wal-lbl">${t(lang, 'walTop')}</p><strong>${r.top ? walEsc(`${r.top.note ? `${r.top.note} · ` : ''}${fmtMoney(r.top.amt)}`) : '—'}</strong></div>
+      </div>
+      <p class="wal-lbl wal-week-lbl"><span class="lg"></span>${t(lang, 'walSpent')}<span class="lg in"></span>${t(lang, 'walIncome')}</p>
+      ${repChartSVG(r)}`;
   }
 }
 
@@ -3494,6 +3521,113 @@ function setWalTab(v) {
   els.walTabD.setAttribute('aria-pressed', String(v === 'days'));
   els.walTabR.setAttribute('aria-pressed', String(v === 'reports'));
   renderWallet();
+}
+
+
+/* ---------------- reports: day / week / month / semester / year / decade ---------------- */
+
+function repCompute() {
+  const L = langOf(lang).locale;
+  const now = new Date();
+  const tx = wallet.tx;
+  const out = { labels: [], spent: [], income: [], title: '', top: null, nowIdx: -1 };
+  const mk = (n) => { out.spent = Array(n).fill(0); out.income = Array(n).fill(0); out.labels = Array(n).fill(''); };
+  const addTx = (i, x) => {
+    if (x.type === 'out') { out.spent[i] += x.amt; if (!out.top || x.amt > out.top.amt) out.top = x; }
+    else out.income[i] += x.amt;
+  };
+  const ymdOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  if (repPeriod === 'day') {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + repOff);
+    mk(24);
+    const hf = new Intl.DateTimeFormat(L, { hour: 'numeric' });
+    for (let h = 0; h < 24; h++) out.labels[h] = hf.format(new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 30));
+    out.title = new Intl.DateTimeFormat(L, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+    const ymd = ymdOf(d);
+    tx.forEach((x) => { if (x.date === ymd) addTx(new Date(x.ts || 0).getHours(), x); });
+    if (repOff === 0) out.nowIdx = now.getHours();
+  } else if (repPeriod === 'week') {
+    mk(7);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + repOff * 7);
+    const wf = new Intl.DateTimeFormat(L, { weekday: 'narrow' });
+    for (let i = 0; i < 7; i++) out.labels[i] = wf.format(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6 + i));
+    out.title = `${walDateLabel(ymdOf(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6)))} – ${walDateLabel(ymdOf(end))}`;
+    tx.forEach((x) => {
+      for (let i = 0; i < 7; i++) {
+        if (x.date === ymdOf(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6 + i))) { addTx(i, x); break; }
+      }
+    });
+    if (repOff === 0) out.nowIdx = 6;
+  } else if (repPeriod === 'month') {
+    const d = new Date(now.getFullYear(), now.getMonth() + repOff, 1);
+    const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    mk(dim);
+    for (let i = 1; i <= dim; i++) out.labels[i - 1] = String(i);
+    out.title = new Intl.DateTimeFormat(L, { month: 'long', year: 'numeric' }).format(d);
+    const pre = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-`;
+    tx.forEach((x) => {
+      if (x.date && x.date.startsWith(pre)) {
+        const dd = Number(x.date.slice(8, 10));
+        if (dd >= 1 && dd <= dim) addTx(dd - 1, x);
+      }
+    });
+    if (repOff === 0) out.nowIdx = now.getDate() - 1;
+  } else if (repPeriod === 'semester') {
+    const sem = Math.floor(now.getMonth() / 6) + repOff;
+    const start = new Date(now.getFullYear(), sem * 6, 1);
+    mk(6);
+    const mf = new Intl.DateTimeFormat(L, { month: 'short' });
+    for (let i = 0; i < 6; i++) out.labels[i] = mf.format(new Date(start.getFullYear(), start.getMonth() + i, 1));
+    out.title = `${mf.format(start)} – ${mf.format(new Date(start.getFullYear(), start.getMonth() + 5, 1))} ${start.getFullYear()}`;
+    tx.forEach((x) => {
+      if (!x.date) return;
+      const [yy, mm] = x.date.split('-').map(Number);
+      const mi = (yy - start.getFullYear()) * 12 + (mm - 1) - start.getMonth();
+      if (mi >= 0 && mi < 6) addTx(mi, x);
+    });
+    if (repOff === 0) out.nowIdx = now.getMonth() - start.getMonth();
+  } else if (repPeriod === 'year') {
+    const y = now.getFullYear() + repOff;
+    mk(12);
+    const mf = new Intl.DateTimeFormat(L, { month: 'narrow' });
+    for (let i = 0; i < 12; i++) out.labels[i] = mf.format(new Date(y, i, 1));
+    out.title = new Intl.DateTimeFormat(L, { year: 'numeric' }).format(new Date(y, 0, 1));
+    tx.forEach((x) => {
+      if (!x.date) return;
+      const [yy, mm] = x.date.split('-').map(Number);
+      if (yy === y) addTx(mm - 1, x);
+    });
+    if (repOff === 0) out.nowIdx = now.getMonth();
+  } else { /* decade */
+    const ds = Math.floor(now.getFullYear() / 10) * 10 + repOff * 10;
+    mk(10);
+    for (let i = 0; i < 10; i++) out.labels[i] = String(ds + i);
+    out.title = `${ds}–${ds + 9}`;
+    tx.forEach((x) => {
+      if (!x.date) return;
+      const yy = Number(x.date.slice(0, 4));
+      if (yy >= ds && yy < ds + 10) addTx(yy - ds, x);
+    });
+    if (repOff === 0) out.nowIdx = now.getFullYear() - ds;
+  }
+  return out;
+}
+
+function repChartSVG(r) {
+  const n = r.spent.length;
+  const max = Math.max(...r.spent, ...r.income, 1);
+  const bw = 320 / n;
+  const step = Math.ceil(n / 12);
+  let inner = '';
+  for (let i = 0; i < n; i++) {
+    const hs = r.spent[i] > 0 ? Math.max(3, Math.round((r.spent[i] / max) * 78)) : 1;
+    const hi = r.income[i] > 0 ? Math.max(3, Math.round((r.income[i] / max) * 78)) : 0;
+    const x = i * bw;
+    if (hi) inner += `<rect class="wal-bar in" x="${(x + bw * 0.10).toFixed(1)}" y="${92 - hi}" width="${(bw * 0.34).toFixed(1)}" height="${hi}" rx="1.5"/>`;
+    inner += `<rect class="wal-bar${i === r.nowIdx ? ' now' : ''}" x="${(x + bw * 0.50).toFixed(1)}" y="${92 - hs}" width="${(bw * 0.34).toFixed(1)}" height="${hs}" rx="1.5"/>`;
+    if (i % step === 0) inner += `<text x="${(x + bw / 2).toFixed(1)}" y="106">${r.labels[i]}</text>`;
+  }
+  return `<svg class="wal-chart" viewBox="0 0 320 110" aria-hidden="true">${inner}</svg>`;
 }
 
 /* ---------------- language + theme ---------------- */
@@ -3539,6 +3673,10 @@ function updateThemeBtn() {
 
 function init() {
   wallet = loadWallet();
+  try {
+    const rp = localStorage.getItem('singhoah:walrep') || '';
+    if (['day', 'week', 'month', 'semester', 'year', 'decade'].includes(rp)) repPeriod = rp;
+  } catch { /* ignore */ }
 
   let savedLang = '';
   try { savedLang = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
@@ -3610,6 +3748,16 @@ function init() {
   });
 
   document.querySelector('.wal-panel').addEventListener('click', (e) => {
+    const rbtn = e.target.closest('[data-rep]');
+    if (rbtn) {
+      repPeriod = rbtn.dataset.rep;
+      repOff = 0;
+      try { localStorage.setItem('singhoah:walrep', repPeriod); } catch { /* ignore */ }
+      renderWallet();
+      return;
+    }
+    const rnav = e.target.closest('[data-repoff]');
+    if (rnav) { repOff += Number(rnav.dataset.repoff); renderWallet(); return; }
     const row = e.target.closest('.cur-row');
     if (row) {
       wallet.cur = row.dataset.code;
