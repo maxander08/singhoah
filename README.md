@@ -156,6 +156,28 @@ project:
 5. *Authentication → Settings → Authorized domains*: add the domain you serve the site
    from (Pages adds `*.github.io` automatically).
 
+### Cloud sync of wallet + preferences (Firestore, still no server)
+
+When signed in, the wallet ledger and the preferences (language, theme, clock city,
+launchpad zone) are stored per account in Cloud Firestore (`users/<uid>`): downloaded
+on sign-in, written back on every change (last write wins). If Firestore is not
+reachable, the portal falls back to per-account snapshots in that browser. To enable:
+
+1. Open <https://console.firebase.google.com/project/singhoah1/firestore> →
+   **Create database** → pick a region → **Start in production mode**.
+2. In the **Rules** tab, publish exactly this (each user may only touch their own doc):
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /users/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+
 Nothing else changes: the portal detects a real config and activates on its own, and
 the Firebase SDK is only downloaded when someone actually clicks Sign in. Put the
 `PASTE_`/`YOUR_` placeholders back and it goes fully dormant again. The standalone
