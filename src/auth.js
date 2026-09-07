@@ -64,6 +64,10 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       const v = localStorage.getItem('singhoah:' + k);
       if (v !== null) o[k] = v;
     }
+    try {
+      const sc = localStorage.getItem('singhoah:scribe');
+      if (sc) o.scribe = sc;
+    } catch { /* ignore */ }
     return o;
   };
   const sig = (o) => JSON.stringify({ ...o, updated: 0 });
@@ -107,6 +111,7 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
         for (const k of ['lang', 'night', 'tz', 'lptz']) {
           if (typeof d[k] === 'string') { try { localStorage.setItem('singhoah:' + k, d[k]); } catch { /* ignore */ } }
         }
+        if (typeof d.scribe === 'string') { try { localStorage.setItem('singhoah:scribe', d.scribe); } catch { /* ignore */ } }
         try { sessionStorage.setItem('singhoah:cloudrestored', '1'); } catch { /* ignore */ }
         lastSent = '';
         location.reload();           /* every app picks up the cloud state */

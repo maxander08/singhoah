@@ -1001,6 +1001,29 @@ ok('settings offers a local-data reset', await spage.evaluate(() =>
   !!document.querySelector('#btnReset')));
 ok('no page errors in the settings app', serrors.length === 0, serrors.join('; '));
 
+/* --- SinghoScribe: lecture transcription, doc-style --- */
+const scpg = await context.newPage();
+const scerrs = [];
+scpg.on('pageerror', (e) => scerrs.push(String(e)));
+await scpg.goto(URL + 'scribe.html', { waitUntil: 'load' });
+await scpg.waitForTimeout(400);
+ok('SinghoScribe loads as its own app',
+  (await scpg.locator('.wordmark').textContent()).includes('Scribe'));
+ok('scribe defaults to Traditional Chinese in and out', await scpg.evaluate(() =>
+  document.getElementById('scrIn').value === 'zh-TW' &&
+  document.getElementById('scrOut').value === 'zh-TW'));
+await scpg.evaluate(() => {
+  const d = document.getElementById('scrDoc');
+  d.textContent = 'hello scribe world';
+  d.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await scpg.waitForTimeout(900);
+ok('scribe document autosaves like a doc', await scpg.evaluate(() =>
+  (localStorage.getItem('singhoah:scribe') || '').includes('hello scribe world')));
+ok('launchpad lists SinghoScribe', await lp2.evaluate(() =>
+  (document.getElementById('cardScribe') || { getAttribute: () => null }).getAttribute('href') === 'scribe.html'));
+ok('no page errors in the scribe app', scerrs.length === 0, scerrs.join('; '));
+
 
 await browser.close();
 

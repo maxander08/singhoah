@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SinghoScribe — live lecture transcription</title>
+<meta name="description" content="Speak in any of the supported languages and watch an editable, auto-saved document fill up — Google-Doc style, with optional translation of the transcript.">
+<meta name="color-scheme" content="dark light">
+<script>
+  try { if ((localStorage.getItem('singhoah:night') || '1') === '1') document.documentElement.classList.add('dark'); }
+  catch (e) { document.documentElement.classList.add('dark'); }
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2f0e6'/%3E%3Crect x='13' y='5' width='6' height='12' rx='3' fill='%23000dff'/%3E%3Cpath d='M9 14a7 7 0 0 0 14 0M16 21v5' stroke='%23000' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-app="scribe">
+
+<header class="topbar">
+  <div class="brand"><p class="wordmark">S<em>ingho</em>Scribe</p><p class="wordmark-zh" lang="zh-Hant">聽寫</p></div>
+  <div class="controls">
+    <div class="langwrap">
+      <button type="button" class="btn tz-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language · 語言">
+        <img id="langFlag" class="flag" alt="" width="20" height="15">
+        <span id="langLabel">EN</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop lang-pop" id="langPop" hidden>
+        <div class="tz-list" id="langList" role="listbox" aria-label="Language"></div>
+      </div>
+    </div>
+    <button type="button" class="btn" id="btnNight" aria-pressed="false" title="Toggle night shift (N)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.50838 10.1889 3.87875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C19.1965 16.9113 20.5529 16.4409 21.8577 15.9125Z" fill="currentColor"/></svg>
+      <span id="nightText">Light</span>
+    </button>
+    <a class="btn" id="btnLaunch" href="launch.html" title="Launchpad">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
+      <span id="launchText">Launchpad</span>
+    </a>
+    <a class="btn" id="btnSettings" href="settings.html" title="Settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span id="settingsText">Settings</span>
+    </a>
+  <div class="authwrap" id="authWrap"></div>
+  </div>
+</header>
+
+<div class="scr-bar">
+  <input id="scrTitle" class="scr-title" value="Untitled document" aria-label="Document title">
+  <span class="scr-status" id="scrStatus"></span>
+  <span class="scr-grow"></span>
+  <label class="scr-lbl" for="scrIn" id="lblIn">Spoken language</label>
+  <select id="scrIn" class="btn scr-sel" title="Spoken language"></select>
+  <label class="scr-lbl" for="scrOut" id="lblOut">Transcript language</label>
+  <select id="scrOut" class="btn scr-sel" title="Transcript language"></select>
+  <button type="button" class="btn scr-mic" id="scrMic" aria-pressed="false">
+    <span class="scr-dot" aria-hidden="true"></span>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span id="scrMicText">Start</span>
+  </button>
+  <button type="button" class="btn" id="scrCopy" title="Copy">Copy</button>
+  <button type="button" class="btn" id="scrDl" title="Download">Download</button>
+  <button type="button" class="btn" id="scrClear" title="Clear">Clear</button>
+</div>
+
+<main class="scr-scroll">
+  <div id="scrDoc" class="scr-page" contenteditable="true" aria-label="Transcript document"></div>
+</main>
+
+<footer class="scr-foot">
+  <span id="scrCount">0 words</span>
+  <span class="scr-status" id="scrListen"></span>
+</footer>
+
+<script src="flags.js"></script>
+<script type="module" src="app.js"></script>
+<script src="firebase-config.js"></script>
+<script type="module" src="auth.js"></script>
+<script type="module">
+  const { LANGS, t, langOf, ccFlag, makeLangPicker } = globalThis.__SING_LIB;
+  const $ = (id) => document.getElementById(id);
+
+  /* spoken languages offered to the recognizer (BCP-47) */
+  const SR_LANGS = [
+    ['zh-TW', '繁體中文'], ['zh-CN', '简体中文'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'],
+    ['ja-JP', '日本語'], ['ko-KR', '한국어'], ['es-ES', 'Español'], ['fr-FR', 'Français'],
+    ['de-DE', 'Deutsch'], ['hi-IN', 'हिन्दी'], ['ru-RU', 'Русский'], ['pt-BR', 'Português'], ['ar-SA', 'العربية'],
+  ];
+  for (const sel of [$('scrIn'), $('scrOut')]) {
+    for (const [code, name] of SR_LANGS) {
+      const o = document.createElement('option');
+      o.value = code; o.textContent = `${name} · ${code}`;
+      sel.appendChild(o);
+    }
+  }
+
+  /* ---------- persistence (Google-Doc style autosave) ---------- */
+  const KEY = 'singhoah:scribe';
+  let saveTimer = 0;
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (d && typeof d === 'object') {
+        if (typeof d.html === 'string') $('scrDoc').innerHTML = d.html;
+        if (typeof d.title === 'string' && d.title) $('scrTitle').value = d.title;
+        if (SR_LANGS.some(([c]) => c === d.in)) $('scrIn').value = d.in;
+        if (SR_LANGS.some(([c]) => c === d.out)) $('scrOut').value = d.out;
+      }
+    } catch { /* ignore */ }
+  }
+  function save() {
+    $('scrStatus').textContent = t(lang, 'scribeSaving');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(KEY, JSON.stringify({
+          html: $('scrDoc').innerHTML, title: $('scrTitle').value,
+          in: $('scrIn').value, out: $('scrOut').value,
+        }));
+      } catch { /* ignore */ }
+      $('scrStatus').textContent = t(lang, 'scribeSaved');
+    }, 600);
+  }
+
+  /* ---------- document ---------- */
+  function words() {
+    const m = $('scrDoc').textContent.replace(/​/g, '').match(/[\u3400-\u9fff\uf900-\ufaff]|\w+/g);
+    return m ? m.length : 0;
+  }
+  function count() { $('scrCount').textContent = `${words()} ${t(lang, 'scribeWords')}`; }
+  function interimEl(remove) {
+    const ex = $('scrDoc').querySelector('#scrInterim');
+    if (remove && ex) ex.remove();
+    return ex;
+  }
+  function setInterim(text) {
+    let el = interimEl(false);
+    if (!text) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('p');
+      el.id = 'scrInterim';
+      el.className = 'scr-interim';
+      $('scrDoc').appendChild(el);
+    }
+    el.textContent = text;
+    $('scrDoc').parentElement.scrollTop = $('scrDoc').parentElement.scrollHeight;
+  }
+  function appendFinal(text) {
+    if (!text) return;
+    interimEl(true);
+    const p = document.createElement('p');
+    p.textContent = text;
+    $('scrDoc').appendChild(p);
+    count(); save();
+    $('scrDoc').parentElement.scrollTop = $('scrDoc').parentElement.scrollHeight;
+  }
+  async function translate(text, from, to) {
+    try {
+      const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(from)}|${encodeURIComponent(to)}`);
+      const j = await r.json();
+      const s = j && j.responseData && j.responseData.translatedText;
+      if (typeof s === 'string' && s && !/MYMEMORY/i.test(s)) return s;
+    } catch { /* offline: keep original */ }
+    return text;
+  }
+
+  /* ---------- speech recognition ---------- */
+  const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+  let rec = null, listening = false;
+  function micUI() {
+    $('scrMic').setAttribute('aria-pressed', String(listening));
+    $('scrMicText').textContent = t(lang, listening ? 'scribeStop' : 'scribeStart');
+    $('scrListen').textContent = listening ? t(lang, 'scribeListening') : '';
+  }
+  function startRec() {
+    if (!SR) { $('scrStatus').textContent = t(lang, 'scribeNo'); return; }
+    if (listening) return;
+    listening = true;
+    micUI();
+    const loop = () => {
+      rec = new SR();
+      rec.lang = $('scrIn').value;
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            const text = r[0].transcript.trim();
+            if (!text) continue;
+            const from = $('scrIn').value, to = $('scrOut').value;
+            if (from === to) appendFinal(text);
+            else translate(text, from, to).then(appendFinal);
+          } else interim += r[0].transcript;
+        }
+        setInterim(interim.trim());
+      };
+      rec.onend = () => { if (listening) { try { loop(); } catch { listening = false; micUI(); } } else setInterim(''); };
+      rec.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+          listening = false; micUI();
+          $('scrStatus').textContent = t(lang, 'scribeNo');
+        }
+      };
+      try { rec.start(); } catch { listening = false; micUI(); }
+    };
+    loop();
+  }
+  function stopRec() { listening = false; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
+  $('scrMic').addEventListener('click', () => { if (listening) stopRec(); else startRec(); });
+  $('scrIn').addEventListener('change', () => { if (listening) { stopRec(); startRec(); } save(); });
+  $('scrOut').addEventListener('change', save);
+
+  /* ---------- toolbar ---------- */
+  $('scrCopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('scrDoc').textContent.replace(/\u200b/g, '').trim()); } catch { /* ignore */ }
+  });
+  $('scrDl').addEventListener('click', () => {
+    const name = ($('scrTitle').value.trim() || 'singhoscribe') + '.txt';
+    const blob = new Blob([$('scrDoc').textContent.replace(/\u200b/g, '').trim()], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 500);
+  });
+  $('scrClear').addEventListener('click', () => {
+    if (!confirm(t(lang, 'resetQ'))) return;
+    $('scrDoc').innerHTML = '';
+    count(); save();
+  });
+  $('scrDoc').addEventListener('input', () => { count(); save(); });
+  $('scrTitle').addEventListener('input', save);
+
+  /* ---------- UI language ---------- */
+  let lang = 'en';
+  function applyLang(id, persist = true) {
+    lang = langOf(id).id;
+    const L = langOf(lang);
+    document.documentElement.lang = L.locale;
+    document.documentElement.dir = L.dir;
+    $('langFlag').src = ccFlag(L.flag);
+    $('langLabel').textContent = lang === 'zh-Hant' ? '繁中' : lang.toUpperCase();
+    $('lblIn').textContent = t(lang, 'scribeIn');
+    $('lblOut').textContent = t(lang, 'scribeOut');
+    $('scrIn').title = t(lang, 'scribeIn');
+    $('scrOut').title = t(lang, 'scribeOut');
+    $('scrCopy').textContent = t(lang, 'scribeCopy');
+    $('scrDl').textContent = t(lang, 'scribeDownload');
+    $('scrClear').textContent = t(lang, 'scribeClear');
+    $('scrCopy').title = t(lang, 'scribeCopy');
+    $('scrDl').title = t(lang, 'scribeDownload');
+    $('scrClear').title = t(lang, 'scribeClear');
+    $('launchText').textContent = t(lang, 'launchpad');
+    $('settingsText').textContent = t(lang, 'settings');
+    $('btnLaunch').title = t(lang, 'launchpad');
+    $('btnSettings').title = t(lang, 'settings');
+    const dark = document.documentElement.classList.contains('dark');
+    $('nightText').textContent = t(lang, dark ? 'light' : 'night');
+    $('scrStatus').textContent = t(lang, 'scribeSaved');
+    $('scrDoc').dataset.hint = t(lang, 'scribeHint');
+    micUI(); count();
+    if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
+    document.dispatchEvent(new CustomEvent('singhoah:lang'));
+  }
+  $('btnNight').addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    const dark = document.documentElement.classList.contains('dark');
+    try { localStorage.setItem('singhoah:night', dark ? '1' : '0'); } catch { /* ignore */ }
+    $('nightText').textContent = t(lang, dark ? 'light' : 'night');
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('langPop').hidden = true; });
+
+  load();
+  let saved = '';
+  try { saved = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
+  applyLang(LANGS.some((l) => l.id === saved) ? saved : 'en', false);
+  makeLangPicker($('langBtn'), $('langPop'), $('langList'), (id) => applyLang(id), '.langwrap');
+  count();
+  $('scrStatus').textContent = t(lang, 'scribeSaved');
+</script>
+</body>
+</html>

@@ -72,11 +72,17 @@
       <strong>SinghoSettings · <span id="lpSettingsT">Settings</span></strong>
       <span class="lp-sub" id="lpSettingsS">Language, theme, city &amp; currency</span>
     </a>
+    <a class="lp-card" id="cardScribe" href="scribe.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <strong>SinghoScribe · <span id="lpScribeT">Scribe</span></strong>
+      <span class="lp-sub" id="lpScribeS">Live lecture transcription</span>
+    </a>
   </div>
   <div class="lp-offrow">
     <a class="btn" id="lpOffClock" href="standalone.html">Clock · Offline single-file</a>
     <a class="btn" id="lpOffWallet" href="wallet-standalone.html">Wallet · Offline single-file</a>
     <a class="btn" id="lpOffSettings" href="settings-standalone.html">Settings · Offline single-file</a>
+    <a class="btn" id="lpOffScribe" href="scribe-standalone.html">Scribe · Offline single-file</a>
   </div>
 </main>
 
@@ -204,6 +210,9 @@
     $('lpSettingsS').textContent = t(lang, 'lpSettingsSub');
     $('lpOffSettings').textContent = `${t(lang, 'settings')} · ${t(lang, 'lpOffline')}`;
     if ($('settingsText')) $('settingsText').textContent = t(lang, 'settings');
+    $('lpScribeT').textContent = t(lang, 'lpScribe');
+    $('lpScribeS').textContent = t(lang, 'lpScribeSub');
+    $('lpOffScribe').textContent = `${t(lang, 'lpScribe')} · ${t(lang, 'lpOffline')}`;
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');
     lpTzSearch.placeholder = t(lang, 'search');
     lpTzSearch.setAttribute('aria-label', t(lang, 'search'));

@@ -118,7 +118,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 143 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 148 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
@@ -126,6 +126,18 @@ that glyph slots are pixel-identical in width, night shift, NTP sync and that ev
 viewport from 360 px up fits without scrolling, and that the window
 formats reflow the current window — never a new tab — with one
 independently-running zone per cell.
+
+## SinghoScribe — live lecture transcription
+
+A fifth app (`scribe.html`, plus offline single-file build): press **Start**, speak,
+and the editable document fills up in real time (interim text shown faint until
+finalized), Google-Doc style — editable page, renameable title, "Saving… / All
+changes saved" status, word count, copy / download / clear, autosaved to
+`singhoah:scribe` (and synced with the account when signed in). The **spoken
+language** (recognizer) and **transcript language** are independently selectable;
+defaults are both Chinese (Traditional). When they differ, each finalized sentence
+is translated (MyMemory, free) before being appended. Uses the browser's Web Speech
+API (Chrome/Edge/Safari; a clear notice appears where unsupported).
 
 ## SinghoSettings — the settings page
 
