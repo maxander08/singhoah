@@ -1130,6 +1130,23 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
 }
 @media (max-width: 700px) { .scr-page { padding: 28px 18px; } }
 
+/* ---------- map usability: zoom / pan / tooltip ---------- */
+.map-ui {
+  position: fixed; top: 92px; right: calc(var(--gap) * 2);   /* below the map header readout */
+  display: flex; flex-direction: column; gap: var(--gap); z-index: 71;
+}
+.map-ui .btn { width: var(--h-ctl); justify-content: center; }
+.map-tip {
+  position: fixed; z-index: 72; pointer-events: none;
+  background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px 10px; font-size: 12px; line-height: 1.45; max-width: 240px;
+}
+.map-tip strong { display: block; font-size: 13px; }
+.map-cc { stroke-width: calc(0.6 * var(--mapk, 1)); }
+.map-cc:not(.nozone):hover { stroke-width: calc(1 * var(--mapk, 1)); }
+.map-cc.sel { stroke-width: calc(1.4 * var(--mapk, 1)); }
+.map-grat { stroke-width: calc(0.5 * var(--mapk, 1)); }
+
 </style>
 </head>
 <body data-app="scribe">
@@ -2172,17 +2189,34 @@ export class ClockCore {
     this.schedule = deps.schedule || ((fn) => requestAnimationFrame(fn));
     this.onTick = deps.onTick || (() => {});
     this.offset = 0;
+    this._sw = null;
     this._running = false;
     this.start();
   }
 
   get running() { return this._running; }
 
-  /** Time the display should show: local system time, drift-corrected. */
-  now() { return new Date(this.nowFn() + this.offset); }
+  /* Current correction while a slew is running (smoothstep easing). */
+  _curOff() {
+    if (!this._sw) return this.offset;
+    const k = (this.nowFn() - this._sw.t0) / this._sw.dur;
+    if (k >= 1) { this.offset = this._sw.to; this._sw = null; return this.offset; }
+    const e = k <= 0 ? 0 : k * k * (3 - 2 * k);
+    return Math.round(this._sw.from + (this._sw.to - this._sw.from) * e);
+  }
 
+  /** Time the display should show: local system time, drift-corrected. */
+  now() { return new Date(this.nowFn() + this._curOff()); }
+
+  /* Small corrections ease in over ~2 s so the digits never jump;
+     large ones (system clock stepped) apply instantly. */
   setOffset(ms) {
-    this.offset = Number.isFinite(ms) ? Math.round(ms) : 0;
+    const to = Number.isFinite(ms) ? Math.round(ms) : 0;
+    const from = this._curOff();
+    if (Math.abs(to - from) > 2000) { this.offset = to; this._sw = null; }
+    else if (to !== from) {
+      this._sw = { from, to, t0: this.nowFn(), dur: Math.min(2500, 400 + Math.abs(to - from) * 4) };
+    }
     this.onTick(this.now());
   }
 
@@ -2336,6 +2370,7 @@ function grabElements() {
     'btnStop', 'stopText', 'btnIp', 'ipText', 'ipPop', 'ipFlag', 'ipIp', 'ipMac', 'ipLoc', 'ipCoord',
     'ipUse', 'lblMac', 'lblLoc', 'lblCoord',
     'btnMap', 'mapText', 'mapWrap', 'mapSvg',
+    'mapZoomIn', 'mapZoomOut', 'mapZoomReset', 'mapClose', 'mapTip',
     'btnLaunch', 'launchText', 'btnSettings', 'settingsText',
   ]) els[id] = document.getElementById(id);
 }
@@ -3045,6 +3080,7 @@ function buildMap() {
 }
 
 function mapCountryClick(cc) {
+  if (mapMoved) return;   /* that was a drag, not a pick */
   const zs = (globalThis.__SINGHOAH_CCZONES && globalThis.__SINGHOAH_CCZONES.get(cc)) || [];
   if (!zs.length) return;
   closeMap();
@@ -3059,6 +3095,8 @@ function markMapSel() {
 }
 
 function openMap() {
+  mapView = { k: 1, cx: mapBase.w / 2, cy: mapBase.h / 2 };
+  if (mapBase.w) mapApply();
   /* the full-screen map closes any menu left floating above it */
   closePop();
   closeLangPop();
@@ -3073,6 +3111,113 @@ function closeMap() {
   if (els.mapWrap.hidden) return;
   els.mapWrap.hidden = true;
   els.btnMap.setAttribute('aria-pressed', 'false');
+}
+
+/* ---- map tools: zoom, pan, live tooltip, close ---- */
+let mapView = { k: 1, cx: 0, cy: 0 };
+let mapBase = { w: 0, h: 0 };
+let mapDrag = null;
+let mapMoved = false;
+let mapDN = null, mapDNL = '';
+
+function ccName(cc) {
+  const L = langOf(lang).locale;
+  if (mapDNL !== L) { try { mapDN = new Intl.DisplayNames([L], { type: 'region' }); } catch { mapDN = null; } mapDNL = L; }
+  try { return (mapDN && mapDN.of(cc)) || cc; } catch { return cc; }
+}
+function mapApply() {
+  const { w, h } = mapBase;
+  const k = mapView.k;
+  const vw = w / k, vh = h / k;
+  let x = mapView.cx - vw / 2, y = mapView.cy - vh / 2;
+  x = Math.max(0, Math.min(w - vw, x));
+  y = Math.max(0, Math.min(h - vh, y));
+  mapView.cx = x + vw / 2; mapView.cy = y + vh / 2;
+  els.mapSvg.setAttribute('viewBox', `${x} ${y} ${vw} ${vh}`);
+  els.mapSvg.style.setProperty('--mapk', String(1 / k));   /* hairlines stay hairlines */
+}
+function mapZoom(f, px, py) {
+  const k2 = Math.max(1, Math.min(10, mapView.k * f));
+  if (k2 === mapView.k) return;
+  const { w, h } = mapBase;
+  const vw = w / mapView.k, vh = h / mapView.k;
+  const x = mapView.cx - vw / 2 + px * vw;
+  const y = mapView.cy - vh / 2 + py * vh;
+  mapView.k = k2;
+  const vw2 = w / k2, vh2 = h / k2;
+  mapView.cx = x - px * vw2 + vw2 / 2;
+  mapView.cy = y - py * vh2 + vh2 / 2;
+  mapApply();
+}
+function mapTipShow(e, cc) {
+  const tip = els.mapTip;
+  const zs = (globalThis.__SINGHOAH_CCZONES && globalThis.__SINGHOAH_CCZONES.get(cc)) || [];
+  let when = '';
+  if (zs.length) {
+    const now = window.__clock ? window.__clock.now() : new Date();
+    const sg = toSegments(now, zs[0]);
+    when = `${sg.hh}:${sg.mm} · ${zoneInfo(now, zs[0]).utc}`;
+  }
+  tip.innerHTML = '';
+  const st = document.createElement('strong');
+  st.textContent = ccName(cc);
+  tip.appendChild(st);
+  if (when) tip.appendChild(document.createTextNode(when));
+  tip.hidden = false;
+  const pad = 14;
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+  tip.style.left = `${x}px`;
+  tip.style.top = `${y}px`;
+}
+function initMapTools() {
+  const svg = els.mapSvg;
+  els.mapZoomIn.addEventListener('click', () => mapZoom(1.5, 0.5, 0.5));
+  els.mapZoomOut.addEventListener('click', () => mapZoom(1 / 1.5, 0.5, 0.5));
+  els.mapZoomReset.addEventListener('click', () => {
+    mapView = { k: 1, cx: mapBase.w / 2, cy: mapBase.h / 2 };
+    mapApply();
+  });
+  els.mapClose.addEventListener('click', closeMap);
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    mapZoom(e.deltaY < 0 ? 1.25 : 0.8, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  }, { passive: false });
+  svg.addEventListener('dblclick', (e) => {
+    const r = svg.getBoundingClientRect();
+    mapZoom(1.6, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  });
+  /* pan via window listeners (no setPointerCapture — it would retarget
+     the click event to the svg and break country picking) */
+  svg.addEventListener('pointerdown', (e) => {
+    mapDrag = { x: e.clientX, y: e.clientY, cx: mapView.cx, cy: mapView.cy, r: svg.getBoundingClientRect() };
+    mapMoved = false;
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (mapDrag && mapView.k > 1) {
+      const r = mapDrag.r;
+      const vw = mapBase.w / mapView.k, vh = mapBase.h / mapView.k;
+      const dx = (e.clientX - mapDrag.x) / r.width * vw;
+      const dy = (e.clientY - mapDrag.y) / r.height * vh;
+      if (Math.abs(e.clientX - mapDrag.x) + Math.abs(e.clientY - mapDrag.y) > 4) mapMoved = true;
+      mapView.cx = mapDrag.cx - dx;
+      mapView.cy = mapDrag.cy - dy;
+      mapApply();
+    }
+  });
+  const endDrag = () => { if (mapDrag) { mapDrag = null; setTimeout(() => { mapMoved = false; }, 0); } };
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+  svg.addEventListener('pointermove', (e) => {
+    if (mapDrag) { els.mapTip.hidden = true; return; }
+    const p = e.target.closest && e.target.closest('.map-cc');
+    if (p && !p.classList.contains('nozone')) mapTipShow(e, p.dataset.cc);
+    else els.mapTip.hidden = true;
+  });
+  svg.addEventListener('pointerleave', () => { els.mapTip.hidden = true; });
 }
 
 let ipInfo = null;
@@ -3180,6 +3325,8 @@ function initUI() {
   buildWindowMenu();
   buildTimerPop();
   buildMap();
+  if (globalThis.__SINGHOAH_MAP) { mapBase = { w: globalThis.__SINGHOAH_MAP.w, h: globalThis.__SINGHOAH_MAP.h }; }
+  initMapTools();
 
   const zones = allTimeZones();
   const system = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -3277,6 +3424,10 @@ function initUI() {
   renderSync();
   runSync();
   setInterval(runSync, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !syncResult || !syncResult.at) return;
+    if (Date.now() - syncResult.at > 60 * 1000) runSync();   /* woke up: re-check drift */
+  });
 }
 
 /** Reusable anchored language picker (wallet & launchpad pages). */

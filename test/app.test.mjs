@@ -186,10 +186,20 @@ test('ClockCore shows the system clock and applies a measured drift offset', () 
   assert.equal(formatClock(core.now()), '10:00:00:250');
   assert.equal(seen.length, 2);
 
-  // the device clock is 137 ms slow -> the display is nudged forward
+  // the device clock is 137 ms slow -> small corrections glide in over
+  // ~1 s (slewed) instead of making the millisecond digits jump
   core.setOffset(137);
+  assert.equal(formatClock(core.now()), '10:00:00:250', 'no immediate jump');
+  t += 500;
+  const mid = core.now().getMilliseconds();
+  assert.ok(mid > 250 && mid < 887, 'mid-slew: correction partially applied');
+  t += 500;                                   // slew duration is 948 ms
+  assert.equal(formatClock(core.now()), '10:00:01:387');
   assert.equal(core.offset, 137);
-  assert.equal(formatClock(core.now()), '10:00:00:387');
+
+  // large jumps (e.g. a manual override) still apply instantly
+  core.setOffset(5000);
+  assert.equal(core.offset, 5000);
 
   // frames queued while stopped must not keep rendering
   const before = seen.length;

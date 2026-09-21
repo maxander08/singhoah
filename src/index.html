@@ -158,6 +158,13 @@
 
 <div class="map-wrap" id="mapWrap" hidden>
   <svg id="mapSvg" role="listbox" aria-label="World time zone map"></svg>
+  <div class="map-ui">
+    <button type="button" id="mapZoomIn" class="btn" aria-label="Zoom in">+</button>
+    <button type="button" id="mapZoomOut" class="btn" aria-label="Zoom out">−</button>
+    <button type="button" id="mapZoomReset" class="btn" aria-label="Reset view">⌂</button>
+    <button type="button" id="mapClose" class="btn" aria-label="Close map">×</button>
+  </div>
+  <div class="map-tip" id="mapTip" hidden></div>
 </div>
 
 <script src="mapdata.js"></script>

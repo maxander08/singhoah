@@ -1025,6 +1025,46 @@ ok('launchpad lists SinghoScribe', await lp2.evaluate(() =>
 ok('no page errors in the scribe app', scerrs.length === 0, scerrs.join('; '));
 
 
+/* ---- map usability: zoom controls, wheel zoom, hover tooltip, close button ---- */
+await page.click('#btnMap');
+await page.waitForTimeout(400);
+ok('map opens with zoom controls', await page.isVisible('#mapZoomIn') && await page.isVisible('#mapClose'));
+const mvb0 = await page.getAttribute('#mapSvg', 'viewBox');
+await page.click('#mapZoomIn');
+await page.waitForTimeout(200);
+const mvb1 = await page.getAttribute('#mapSvg', 'viewBox');
+const mw0 = parseFloat(mvb0.split(' ')[2]), mw1 = parseFloat(mvb1.split(' ')[2]);
+ok('zoom-in button zooms (viewBox width shrinks)', mw1 > 0 && mw1 < mw0);
+await page.dispatchEvent('#mapSvg', 'wheel', { deltaY: -100, clientX: 600, clientY: 400 });
+await page.waitForTimeout(200);
+const mvb2 = await page.getAttribute('#mapSvg', 'viewBox');
+const mw2 = parseFloat(mvb2.split(' ')[2]);
+ok('mouse-wheel zoom works', mw2 < mw1);
+await page.click('#mapZoomReset');
+await page.waitForTimeout(200);
+ok('reset button restores full view', Math.abs(parseFloat((await page.getAttribute('#mapSvg', 'viewBox')).split(' ')[2]) - mw0) < 1);
+const mccPath = page.locator('.map-cc:not(.nozone)').first();
+await mccPath.hover();
+await page.waitForTimeout(300);
+const mtipShown = !(await page.locator('#mapTip').isHidden()) && (await page.textContent('#mapTip')).length > 1;
+ok('hover tooltip shows country + local time', mtipShown);
+await page.click('#mapClose');
+await page.waitForTimeout(200);
+ok('map close button hides the map', await page.locator('#mapWrap').isHidden());
+
+/* ---- drift fix: small offset corrections glide instead of jumping ---- */
+const mslew = await page.evaluate(async () => {
+  const c = window.__clock;
+  if (!c) return null;
+  const o0 = c._curOff();
+  c.setOffset(o0 + 120);
+  const imm = c._curOff() - o0;                    /* mid-slew: well under 120 */
+  await new Promise(r => setTimeout(r, 3000));
+  const done = c._curOff() - o0;                   /* settled: ~120 */
+  return { imm, done };
+});
+ok('clock slews small corrections (no ms jump)', !!mslew && mslew.imm >= 0 && mslew.imm < 100 && mslew.done >= 100 && mslew.done <= 145, JSON.stringify(mslew));
+
 await browser.close();
 
 if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);

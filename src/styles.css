@@ -1107,3 +1107,20 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
   color: var(--pigeon); font-size: 12px;
 }
 @media (max-width: 700px) { .scr-page { padding: 28px 18px; } }
+
+/* ---------- map usability: zoom / pan / tooltip ---------- */
+.map-ui {
+  position: fixed; top: 92px; right: calc(var(--gap) * 2);   /* below the map header readout */
+  display: flex; flex-direction: column; gap: var(--gap); z-index: 71;
+}
+.map-ui .btn { width: var(--h-ctl); justify-content: center; }
+.map-tip {
+  position: fixed; z-index: 72; pointer-events: none;
+  background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px 10px; font-size: 12px; line-height: 1.45; max-width: 240px;
+}
+.map-tip strong { display: block; font-size: 13px; }
+.map-cc { stroke-width: calc(0.6 * var(--mapk, 1)); }
+.map-cc:not(.nozone):hover { stroke-width: calc(1 * var(--mapk, 1)); }
+.map-cc.sel { stroke-width: calc(1.4 * var(--mapk, 1)); }
+.map-grat { stroke-width: calc(0.5 * var(--mapk, 1)); }

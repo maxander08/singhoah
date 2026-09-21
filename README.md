@@ -27,7 +27,10 @@ Tuesday, 25 August 2026                       05:51 UTC
   (`offset = server + rtt/2 − receive`), median of the fast ones, re-checked every
   5 minutes or on demand. If no millisecond-resolution API answers, a CORS CDN's
   `Date` header is used as a second-resolution fallback (truncation-compensated, and
-  flagged as such in the status bar).
+  flagged as such in the status bar). Small corrections (≤ 2 s) are *slewed*
+  in over a fraction of a second instead of jumping, so the millisecond digits
+  never visibly skip; the tab also re-syncs the moment it becomes visible again
+  after being backgrounded or the device slept.
 - **Every time zone, with flags** — a searchable picker listing all 400+
   IANA zones grouped by region, each with its country flag as an embedded SVG
   (IANA's public-domain `zone1970.tab` maps zones to countries; simplified
@@ -68,7 +71,10 @@ Tuesday, 25 August 2026                       05:51 UTC
   atlas style — dark-grey landmasses with white country borders and a
   15° graticule, no labels, no colors. Click a country to adopt its zone; countries with
   several zones open the picker pre-filtered to them; the current zone's
-  country is outlined in yellow. Works by tap on phones.
+  country is outlined in yellow. Works by tap on phones. Zoom up to 10× with
+  the `+`/`−` buttons, the mouse wheel or a double-click (anchored at the
+  cursor), drag to pan, hover any country for a tooltip with its name (in the
+  UI language) and local time, and close with the `×` button or `Esc`.
 - **IP locator** — the *IP* button shows your public IP with its country
   flag, the city/region/country and coordinates it geolocates to (ipapi.co
   with an ipwho.is fallback), and a one-tap *Use this time zone* action.
@@ -118,7 +124,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 148 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 155 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
