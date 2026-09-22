@@ -775,6 +775,15 @@ ok('the wallet panel wheel-scrolls instead of clipping', await wpage.evaluate(()
   const oy = getComputedStyle(document.querySelector('.wallet-app')).overflowY;
   return oy === 'auto' || oy === 'scroll';
 }));
+await wpage.click('#langBtn');
+await wpage.waitForTimeout(200);
+const walAlign = await wpage.evaluate(() => {
+  const b = document.getElementById('langBtn').getBoundingClientRect();
+  const d = document.getElementById('langPop').getBoundingClientRect();
+  return { dl: Math.abs(d.left - b.left), below: d.top >= b.bottom, inVw: d.right <= innerWidth - 4 && d.left >= 4 };
+});
+ok('wallet language dropdown anchors left-edge to its button', walAlign.dl <= 1 && walAlign.below && walAlign.inVw, JSON.stringify(walAlign));
+await wpage.keyboard.press('Escape');
 ok('錢包 sits beside the SinghoWallet wordmark',
   (await wpage.locator('.wordmark-zh').textContent()) === '錢包');
 ok('wallet defaults to USD', await (async () => {

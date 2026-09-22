@@ -2359,19 +2359,23 @@ function placePop(pop) {
   pop.style.left = '0px';
   pop.style.right = 'auto';
   pop.style.transform = 'none';
+  /* anchor to the trigger button's own rect — never to a CSS ancestor */
+  const wrap = pop.parentElement;
+  let btn = pop.previousElementSibling;
+  if (!btn || !btn.matches || !btn.matches('button, a')) btn = wrap.querySelector('button, a');
+  const b = (btn || wrap).getBoundingClientRect();
+  const r = pop.getBoundingClientRect();
   const m = 8;
   const vw = document.documentElement.clientWidth;
   const vh = document.documentElement.clientHeight;
-  let r = pop.getBoundingClientRect();
-  let dx = 0;
-  if (r.right > vw - m) dx = (vw - m) - r.right;      /* pull in from the right */
-  if (r.left + dx < m) dx = m - r.left;               /* …but never past the left */
-  let dy = 0;
-  if (r.bottom > vh - m && r.height <= vh - 2 * m) {  /* phones: keep it on-screen */
-    const above = r.top - pop.offsetHeight - 40;      /* button height ≈ 34 + gap */
-    dy = above >= m ? -(pop.offsetHeight + 10) : (vh - m) - r.bottom;
-  }
-  if (dx || dy) pop.style.transform = `translate(${dx}px, ${dy}px)`;
+  let L = b.left;                                     /* left edge on the button's left edge */
+  if (L + r.width > vw - m) L = (vw - m) - r.width;   /* clamp on phones… */
+  if (L < m) L = m;
+  let T = b.bottom + 6;                               /* below the button */
+  if (T + r.height > vh - m && b.top - r.height - 6 >= m) T = b.top - r.height - 6;
+  const dx = L - r.left;
+  const dy = T - r.top;
+  pop.style.transform = `translate(${Math.round(dx)}px, ${Math.round(dy)}px)`;
 }
 if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
   const popMo = new MutationObserver((muts) => {
@@ -2381,9 +2385,11 @@ if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') 
     }
   });
   popMo.observe(document, { attributes: true, attributeFilter: ['hidden'], subtree: true });
-  window.addEventListener('resize', () => {
+  const reposition = () => {
     document.querySelectorAll(POP_SEL).forEach((pp) => { if (!pp.hidden) placePop(pp); });
-  });
+  };
+  window.addEventListener('resize', reposition);
+  window.addEventListener('scroll', reposition, true);
 }
 
 /* ---------------- UI (browser only) ---------------- */
