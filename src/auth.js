@@ -73,60 +73,71 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
   const sig = (o) => JSON.stringify({ ...o, updated: 0 });
 
   let pollTimer = 0, lastSent = '', pollRef = null, pollF = null;
-  let lastRemoteUpdated = 0;
+  /* `updated` timestamp of the state this device last wrote (push or adopt);
+     it is what makes last-write-wins safe across devices. */
+  const META = 'singhoah:cloudupdated';
+  const getMeta = () => { try { return Number(localStorage.getItem(META)) || 0; } catch { return 0; } };
+  const setMeta = (v) => { try { localStorage.setItem(META, String(v)); } catch { /* ignore */ } };
   function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; } }
 
-  /* Apply a newer remote state: wallet lands live (no reload), prefs reload. */
+  /* Write a newer remote state into this browser. Wallet changes go live via
+     an event; preference changes are reported so the caller can reload. */
   function adoptRemote(d) {
+    let wallet = false, prefs = false;
     if (d.wallet && typeof d.wallet === 'object') {
       const next = JSON.stringify(d.wallet);
       if (localStorage.getItem('singhoah:wallet') !== next) {
         try { localStorage.setItem('singhoah:wallet', next); } catch { /* ignore */ }
         document.dispatchEvent(new CustomEvent('singhoah:cloudsync'));
+        wallet = true;
       }
     }
-    let prefsChanged = false;
     for (const k of ['lang', 'night', 'tz', 'lptz']) {
       if (typeof d[k] === 'string' && localStorage.getItem('singhoah:' + k) !== d[k]) {
         try { localStorage.setItem('singhoah:' + k, d[k]); } catch { /* ignore */ }
-        prefsChanged = true;
+        prefs = true;
       }
     }
     if (typeof d.scribe === 'string' && localStorage.getItem('singhoah:scribe') !== d.scribe) {
       try { localStorage.setItem('singhoah:scribe', d.scribe); } catch { /* ignore */ }
-      prefsChanged = true;
+      prefs = true;
     }
-    if (prefsChanged) location.reload();
+    setMeta(d.updated || 0);
+    return { wallet, prefs };
   }
 
-  /* Push local changes AND pull newer remote ones — both directions,
-     last write (by `updated`) wins, every 2.5 s while signed in. */
+  async function pushLocal(F, ref) {
+    const o = collect();
+    lastSent = sig(o);
+    setMeta(o.updated);
+    try { await F.setDoc(ref, o, { merge: true }); return true; }
+    catch { return false; }   /* offline: next tick retries */
+  }
+
+  /* Two-way sync, newest `updated` wins. Pull first; only push when the
+     remote is not newer than us — never clobber a fresher ledger. */
   function startPoll() {
     stopPoll();
     pollTimer = setInterval(async () => {
       if (!user || !pollRef || !pollF) return;
-      const o = collect();
-      const s = sig(o);
-      if (s !== lastSent) {
-        lastSent = s;
-        lastRemoteUpdated = Math.max(lastRemoteUpdated, o.updated);
-        pollF.setDoc(pollRef, o, { merge: true }).catch(() => { /* offline: next tick retries */ });
-      }
+      let d = null;
       try {
         const snap = await pollF.getDoc(pollRef);
-        if (!snap.exists()) return;
-        const d = snap.data() || {};
-        if ((d.updated || 0) > lastRemoteUpdated && sig(d) !== s) {
-          lastRemoteUpdated = d.updated || 0;
-          adoptRemote(d);
-        }
-      } catch { /* offline: next tick retries */ }
+        if (snap.exists()) d = snap.data() || {};
+      } catch { /* offline */ }
+      const o = collect();
+      const s = sig(o);
+      if (d && (d.updated || 0) > getMeta() && sig(d) !== s) {
+        const ch = adoptRemote(d);
+        if (ch.prefs) location.reload();
+        return;
+      }
+      if (s !== lastSent) await pushLocal(pollF, pollRef);
     }, 2500);
   }
 
-  /* Returns true when the cloud handled this sign-in (adopted or
-     pushed the ledger); false when Firestore is unreachable, so the
-     caller falls back to the per-account local snapshot. */
+  /* Sign-in entry: adopt the cloud state when it is newer than ours,
+     publish ours when we are newer, and only then start polling. */
   async function cloudSyncStart(u) {
     const { app } = await loadFB();
     let F;
@@ -138,31 +149,20 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       snap = await F.getDoc(ref);
     } catch { return false; }        /* rules / network / not created */
     pollRef = ref; pollF = F;
-    lastRemoteUpdated = (snap.exists() ? ((snap.data() || {}).updated || 0) : 0);
     if (snap.exists()) {
-      let restored = false;
-      try { restored = sessionStorage.getItem('singhoah:cloudrestored') === '1'; } catch { /* ignore */ }
-      if (!restored) {
-        const d = snap.data() || {};
-        if (d.wallet && typeof d.wallet === 'object') {
-          try { localStorage.setItem('singhoah:wallet', JSON.stringify(d.wallet)); } catch { /* ignore */ }
-        }
-        for (const k of ['lang', 'night', 'tz', 'lptz']) {
-          if (typeof d[k] === 'string') { try { localStorage.setItem('singhoah:' + k, d[k]); } catch { /* ignore */ } }
-        }
-        if (typeof d.scribe === 'string') { try { localStorage.setItem('singhoah:scribe', d.scribe); } catch { /* ignore */ } }
-        try { sessionStorage.setItem('singhoah:cloudrestored', '1'); } catch { /* ignore */ }
-        lastSent = '';
-        location.reload();           /* every app picks up the cloud state */
-        return true;
+      const d = snap.data() || {};
+      const s = sig(collect());
+      if ((d.updated || 0) > getMeta() && sig(d) !== s) {
+        const ch = adoptRemote(d);   /* wallet repaints live via the event */
+        if (ch.prefs) { location.reload(); return true; }
+        lastSent = sig(collect());
       }
+      if (sig(d) !== s && getMeta() > (d.updated || 0)) {
+        if (!(await pushLocal(F, ref))) return false;
+      }
+      lastSent = sig(collect());
     } else {
-      try {
-        const o = collect();
-        await F.setDoc(ref, o);
-        lastSent = sig(o);
-        lastRemoteUpdated = o.updated;
-      } catch { return false; }
+      if (!(await pushLocal(F, ref))) return false;
     }
     startPoll();
     return true;
