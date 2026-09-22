@@ -466,3 +466,9 @@ function init() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+
+/* A cloud sync adopted a newer ledger — repaint without a reload. */
+document.addEventListener('singhoah:cloudsync', () => {
+  wallet = loadWallet();
+  renderWallet();
+});

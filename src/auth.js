@@ -73,16 +73,54 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
   const sig = (o) => JSON.stringify({ ...o, updated: 0 });
 
   let pollTimer = 0, lastSent = '', pollRef = null, pollF = null;
+  let lastRemoteUpdated = 0;
   function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; } }
+
+  /* Apply a newer remote state: wallet lands live (no reload), prefs reload. */
+  function adoptRemote(d) {
+    if (d.wallet && typeof d.wallet === 'object') {
+      const next = JSON.stringify(d.wallet);
+      if (localStorage.getItem('singhoah:wallet') !== next) {
+        try { localStorage.setItem('singhoah:wallet', next); } catch { /* ignore */ }
+        document.dispatchEvent(new CustomEvent('singhoah:cloudsync'));
+      }
+    }
+    let prefsChanged = false;
+    for (const k of ['lang', 'night', 'tz', 'lptz']) {
+      if (typeof d[k] === 'string' && localStorage.getItem('singhoah:' + k) !== d[k]) {
+        try { localStorage.setItem('singhoah:' + k, d[k]); } catch { /* ignore */ }
+        prefsChanged = true;
+      }
+    }
+    if (typeof d.scribe === 'string' && localStorage.getItem('singhoah:scribe') !== d.scribe) {
+      try { localStorage.setItem('singhoah:scribe', d.scribe); } catch { /* ignore */ }
+      prefsChanged = true;
+    }
+    if (prefsChanged) location.reload();
+  }
+
+  /* Push local changes AND pull newer remote ones — both directions,
+     last write (by `updated`) wins, every 2.5 s while signed in. */
   function startPoll() {
     stopPoll();
-    pollTimer = setInterval(() => {
+    pollTimer = setInterval(async () => {
       if (!user || !pollRef || !pollF) return;
       const o = collect();
       const s = sig(o);
-      if (s === lastSent) return;
-      lastSent = s;
-      pollF.setDoc(pollRef, o, { merge: true }).catch(() => { /* offline: next tick retries */ });
+      if (s !== lastSent) {
+        lastSent = s;
+        lastRemoteUpdated = Math.max(lastRemoteUpdated, o.updated);
+        pollF.setDoc(pollRef, o, { merge: true }).catch(() => { /* offline: next tick retries */ });
+      }
+      try {
+        const snap = await pollF.getDoc(pollRef);
+        if (!snap.exists()) return;
+        const d = snap.data() || {};
+        if ((d.updated || 0) > lastRemoteUpdated && sig(d) !== s) {
+          lastRemoteUpdated = d.updated || 0;
+          adoptRemote(d);
+        }
+      } catch { /* offline: next tick retries */ }
     }, 2500);
   }
 
@@ -100,6 +138,7 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       snap = await F.getDoc(ref);
     } catch { return false; }        /* rules / network / not created */
     pollRef = ref; pollF = F;
+    lastRemoteUpdated = (snap.exists() ? ((snap.data() || {}).updated || 0) : 0);
     if (snap.exists()) {
       let restored = false;
       try { restored = sessionStorage.getItem('singhoah:cloudrestored') === '1'; } catch { /* ignore */ }
@@ -122,6 +161,7 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
         const o = collect();
         await F.setDoc(ref, o);
         lastSent = sig(o);
+        lastRemoteUpdated = o.updated;
       } catch { return false; }
     }
     startPoll();

@@ -771,9 +771,10 @@ await wpage.goto(URL + 'wallet.html', { waitUntil: 'load' });
 await wpage.waitForTimeout(400);
 ok('SinghoWallet loads as its own app',
   (await wpage.locator('.wordmark').textContent()).includes('Wallet'));
-ok('the wallet page does not scroll', await wpage.evaluate(() =>
-  getComputedStyle(document.querySelector('.wallet-app')).overflow === 'hidden'
-  && getComputedStyle(document.querySelector('.wal-body')).overflow === 'hidden'));
+ok('the wallet panel wheel-scrolls instead of clipping', await wpage.evaluate(() => {
+  const oy = getComputedStyle(document.querySelector('.wallet-app')).overflowY;
+  return oy === 'auto' || oy === 'scroll';
+}));
 ok('錢包 sits beside the SinghoWallet wordmark',
   (await wpage.locator('.wordmark-zh').textContent()) === '錢包');
 ok('wallet defaults to USD', await (async () => {
@@ -1062,6 +1063,10 @@ await mccPath.hover();
 await page.waitForTimeout(300);
 const mtipShown = !(await page.locator('#mapTip').isHidden()) && (await page.textContent('#mapTip')).length > 1;
 ok('hover tooltip shows country + local time', mtipShown);
+ok('map hover stays monochrome (blue reserved for your zone)', await page.evaluate(() => {
+  const el = document.querySelector('.map-cc:not(.nozone):hover') || document.querySelector('.map-cc:not(.nozone)');
+  return getComputedStyle(el).stroke === 'rgb(255, 255, 255)';
+}));
 await page.click('#mapClose');
 await page.waitForTimeout(200);
 ok('map close button hides the map', await page.locator('#mapWrap').isHidden());

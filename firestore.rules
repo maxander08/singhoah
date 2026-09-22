@@ -1,0 +1,12 @@
+rules_version = '2';
+
+/* Singhoah cloud sync: each signed-in visitor may read and write only
+   their own profile document (users/<uid>). Paste this into
+   Firebase console → singhoah1 → Firestore Database → Rules → Publish. */
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

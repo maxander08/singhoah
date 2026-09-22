@@ -278,7 +278,7 @@ button { font: inherit; color: inherit; }
 /* monochrome atlas: dark-grey landmasses, white country borders */
 .map-cc { fill: #2e2e2e; stroke: #ffffff; stroke-width: .6; cursor: pointer; }
 .map-cc.nozone { fill: #1f1f1f; cursor: default; }
-.map-cc:not(.nozone):hover { stroke: var(--notification); stroke-width: 1; }
+.map-cc:not(.nozone):hover { stroke: #ffffff; stroke-width: 1; filter: brightness(1.35); }
 .map-cc.sel { stroke: var(--notification); stroke-width: 1.4; filter: brightness(1.25); }
 .map-grat {
   fill: none;
@@ -564,11 +564,13 @@ button { font: inherit; color: inherit; }
 .wallet-app {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;      /* the panel may outgrow the window: scroll, never clip */
   display: flex;
   justify-content: center;
   padding: 20px 14px 48px;
+  scrollbar-width: none;
 }
+.wallet-app::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .wal-panel {
   width: min(720px, 100%);
   align-self: flex-start;
@@ -645,6 +647,8 @@ button { font: inherit; color: inherit; }
 .lp-zone-btn:hover { color: var(--black); }
 .lp-zone-btn .lp-clock-zone { margin: 0; }
 @media (max-width: 560px) {
+  .wal-form { grid-template-columns: 1fr; }
+  .wal-cards { grid-template-columns: 1fr; }
   .wal-form input, .wal-cur-search { font-size: 16px; }  /* prevents iOS focus zoom */
   .wal-seg button, .wal-tab { min-height: 40px; }
   .wal-bal { font-size: 23px; }

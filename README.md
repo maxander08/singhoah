@@ -170,8 +170,14 @@ in the clock / wallet / launchpad headers and a launchpad card link to it.
 
 Clock / wallet / launchpad each carry a small **optional** sign-in portal in the header
 (`src/auth.js` + `src/firebase-config.js`). Signed in, you get a profile chip, and your
-preferences (language, theme, city, wallet currency) sync per account across devices and
-browsers. Everything stays public without it — no sign-in wall.
+preferences **and the whole wallet ledger** sync per account across devices and
+browsers — live, in both directions (the poller pushes local changes and pulls
+newer remote ones every 2.5 s; wallet entries repaint without a reload). The
+Firestore database must allow each signed-in user to read/write only
+`users/<uid>`: paste `firestore.rules` (shipped in this repo) into
+Firebase console → Firestore Database → Rules → Publish. With the database in
+locked mode the portal degrades silently to per-account local snapshots.
+Everything stays public without it — no sign-in wall.
 
 This repo ships configured for the live `maxander08.github.io` deployment
 (Firebase project `singhoah1`, free Spark tier). For your own fork, point it at your own
