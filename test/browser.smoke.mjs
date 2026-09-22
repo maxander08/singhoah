@@ -101,13 +101,13 @@ ok('no page scroll at 1440×900', await page.evaluate(
 await page.evaluate(() => document.fonts.ready);
 const fontInfo = await page.evaluate(() => ({
   saans: document.fonts.check('700 16px Saans'),
-  serrif: document.fonts.check('italic 400 16px Serrif'),
+  wm: (() => { const w = getComputedStyle(document.querySelector('.wordmark')); return { fw: Number(w.fontWeight), ff: w.fontFamily }; })(),
   clockFont: getComputedStyle(document.getElementById('clock')).fontFamily,
   size: getComputedStyle(document.getElementById('clock')).fontSize,
   fvs: getComputedStyle(document.getElementById('clock')).fontVariationSettings,
 }));
 ok('Saans variable font loaded', fontInfo.saans, `clock font-size ${fontInfo.size}, ${fontInfo.fvs}`);
-ok('Serrif loaded for the wordmark accent', fontInfo.serrif, fontInfo.clockFont);
+ok('wordmark is bold geometric sans (Metro scheme)', fontInfo.wm.fw >= 700 && /Saans/.test(fontInfo.wm.ff), JSON.stringify(fontInfo.wm));
 
 /* --- digits are truly monospaced, so the clock never jitters ---
    glyph boxes are pixel-snapped by the browser (±1 px noise), so we assert the
@@ -132,7 +132,7 @@ const start = await page.evaluate(() => ({
   bg: getComputedStyle(document.body).backgroundColor,
   label: document.getElementById('btnNight').textContent.trim(),
 }));
-ok('starts in dark mode (the default scheme)', start.dark && near(parse(start.bg), [0, 0, 0]), `bg ${start.bg}`);
+ok('starts in dark mode (the default scheme)', start.dark && near(parse(start.bg), [20, 20, 20]), `bg ${start.bg}`);
 ok('theme toggle offers Light while dark', start.label === 'Light', start.label);
 
 await page.locator('#btnNight').click();
@@ -145,7 +145,7 @@ const lightNow = await page.evaluate(() => ({
   label: document.getElementById('btnNight').textContent.trim(),
 }));
 ok('toggle switches to the paper scheme',
-  !lightNow.dark && near(parse(lightNow.bg), [242, 240, 230]) && near(parse(lightNow.fg), [0, 0, 0]),
+  !lightNow.dark && near(parse(lightNow.bg), [235, 233, 227]) && near(parse(lightNow.fg), [29, 29, 27]),
   `bg ${lightNow.bg} · fg ${lightNow.fg}`);
 ok('theme choice is remembered', lightNow.saved === '0' && lightNow.label === 'Night Shift',
   `localStorage=${lightNow.saved} · label=${lightNow.label}`);
@@ -153,7 +153,7 @@ await page.screenshot({ path: 'shot-light.png' });
 await page.locator('#btnNight').click();
 await page.waitForTimeout(400);
 ok('toggling back restores black', await page.evaluate(
-  () => getComputedStyle(document.body).backgroundColor) === 'rgb(0, 0, 0)');
+  () => getComputedStyle(document.body).backgroundColor) === 'rgb(20, 20, 20)');
 
 /* --- NTP sync finished --- */
 await page.waitForFunction(

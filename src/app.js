@@ -799,6 +799,42 @@ export function fitFontSize(w, h, opts = {}) {
   return Math.max(12, Math.floor(Math.min(byWidth, byHeight, max) * 100) / 100);
 }
 
+/* ---------------- standardized dropdown anchoring ----------------
+   Every dropdown opens below its button with the menu's left edge on the
+   button's left edge; a viewport clamp keeps it fully on-screen on phones.
+   Installed once, site-wide, and catches dynamically created popovers. */
+const POP_SEL = '.tz-pop, .wallet-pop, .auth-pop, .win-pop, .ip-pop, .timer-pop';
+function placePop(pop) {
+  pop.style.left = '0px';
+  pop.style.right = 'auto';
+  pop.style.transform = 'none';
+  const m = 8;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  let r = pop.getBoundingClientRect();
+  let dx = 0;
+  if (r.right > vw - m) dx = (vw - m) - r.right;      /* pull in from the right */
+  if (r.left + dx < m) dx = m - r.left;               /* …but never past the left */
+  let dy = 0;
+  if (r.bottom > vh - m && r.height <= vh - 2 * m) {  /* phones: keep it on-screen */
+    const above = r.top - pop.offsetHeight - 40;      /* button height ≈ 34 + gap */
+    dy = above >= m ? -(pop.offsetHeight + 10) : (vh - m) - r.bottom;
+  }
+  if (dx || dy) pop.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  const popMo = new MutationObserver((muts) => {
+    for (const mu of muts) {
+      const el = mu.target;
+      if (el instanceof HTMLElement && el.matches(POP_SEL) && !el.hidden) placePop(el);
+    }
+  });
+  popMo.observe(document, { attributes: true, attributeFilter: ['hidden'], subtree: true });
+  window.addEventListener('resize', () => {
+    document.querySelectorAll(POP_SEL).forEach((pp) => { if (!pp.hidden) placePop(pp); });
+  });
+}
+
 /* ---------------- UI (browser only) ---------------- */
 
 const els = {};
