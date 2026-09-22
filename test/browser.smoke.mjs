@@ -1020,6 +1020,20 @@ await scpg.evaluate(() => {
 await scpg.waitForTimeout(900);
 ok('scribe document autosaves like a doc', await scpg.evaluate(() =>
   (localStorage.getItem('singhoah:scribe') || '').includes('hello scribe world')));
+ok('scribe toolbar gained undo/find/stamps/import/print', await scpg.evaluate(() =>
+  ['scrUndo', 'scrRedo', 'scrFind', 'scrStamps', 'scrImport', 'scrPrint'].every((i) => document.getElementById(i))));
+await scpg.click('#scrFind');
+await scpg.fill('#scrFindIn', 'scribe');
+await scpg.waitForTimeout(150);
+ok('scribe find highlights matches', await scpg.locator('mark.scr-hl').count() === 1);
+await scpg.fill('#scrReplIn', 'lecture');
+await scpg.click('#scrReplAll');
+await scpg.waitForTimeout(150);
+ok('scribe replace-all rewrites the doc', await scpg.evaluate(() =>
+  document.getElementById('scrDoc').textContent.includes('hello lecture world')));
+ok('scribe footer counts words and characters', await scpg.evaluate(() =>
+  document.getElementById('scrCount').textContent.includes('·')));
+await scpg.click('#scrFindX');
 ok('launchpad lists SinghoScribe', await lp2.evaluate(() =>
   (document.getElementById('cardScribe') || { getAttribute: () => null }).getAttribute('href') === 'scribe.html'));
 ok('no page errors in the scribe app', scerrs.length === 0, scerrs.join('; '));

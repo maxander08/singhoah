@@ -58,9 +58,42 @@
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     <span id="scrMicText">Start</span>
   </button>
+  <span class="scr-sep" aria-hidden="true"></span>
+  <button type="button" class="btn scr-ic" id="scrUndo" title="Undo" aria-label="Undo">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5 4 9l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10a6 6 0 0 1 0 12h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrRedo" title="Redo" aria-label="Redo">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m16 5 4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9H10a6 6 0 0 0 0 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <span class="scr-sep" aria-hidden="true"></span>
+  <button type="button" class="btn scr-ic" id="scrFind" title="Find" aria-label="Find">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" stroke="currentColor" stroke-width="1.8"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrStamps" title="Timestamps" aria-pressed="false" aria-label="Timestamps">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrImport" title="Import text file" aria-label="Import text file">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrPrint" title="Print" aria-label="Print">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 8V3h10v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="4" y="8" width="16" height="8" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 13h8v8H8z" stroke="currentColor" stroke-width="1.8"/></svg>
+  </button>
+  <input type="file" id="scrFile" accept=".txt,.md,text/plain,text/markdown" hidden>
   <button type="button" class="btn" id="scrCopy" title="Copy">Copy</button>
   <button type="button" class="btn" id="scrDl" title="Download">Download</button>
   <button type="button" class="btn" id="scrClear" title="Clear">Clear</button>
+</div>
+
+<div class="scr-find" id="scrFindBar" hidden>
+  <input id="scrFindIn" placeholder="Find" aria-label="Find">
+  <span id="scrFindCount" aria-live="polite"></span>
+  <button type="button" class="btn scr-ic" id="scrFindPrev" aria-label="Previous match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 14 6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button type="button" class="btn scr-ic" id="scrFindNext" aria-label="Next match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 10 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <input id="scrReplIn" placeholder="Replace" aria-label="Replace">
+  <button type="button" class="btn" id="scrReplOne">Replace</button>
+  <button type="button" class="btn" id="scrReplAll">Replace all</button>
+  <span class="scr-grow"></span>
+  <button type="button" class="btn scr-ic" id="scrFindX" aria-label="Close find bar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 </div>
 
 <main class="scr-scroll">
@@ -69,6 +102,7 @@
 
 <footer class="scr-foot">
   <span id="scrCount">0 words</span>
+  <span id="scrTime" class="scr-time" hidden></span>
   <span class="scr-status" id="scrListen"></span>
 </footer>
 
@@ -97,6 +131,7 @@
   /* ---------- persistence (Google-Doc style autosave) ---------- */
   const KEY = 'singhoah:scribe';
   let saveTimer = 0;
+  let stamps = false;
   function load() {
     try {
       const d = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -105,6 +140,7 @@
         if (typeof d.title === 'string' && d.title) $('scrTitle').value = d.title;
         if (SR_LANGS.some(([c]) => c === d.in)) $('scrIn').value = d.in;
         if (SR_LANGS.some(([c]) => c === d.out)) $('scrOut').value = d.out;
+        if (typeof d.stamps === 'boolean') stamps = d.stamps;
       }
     } catch { /* ignore */ }
   }
@@ -115,7 +151,7 @@
       try {
         localStorage.setItem(KEY, JSON.stringify({
           html: $('scrDoc').innerHTML, title: $('scrTitle').value,
-          in: $('scrIn').value, out: $('scrOut').value,
+          in: $('scrIn').value, out: $('scrOut').value, stamps,
         }));
       } catch { /* ignore */ }
       $('scrStatus').textContent = t(lang, 'scribeSaved');
@@ -127,7 +163,10 @@
     const m = $('scrDoc').textContent.replace(/​/g, '').match(/[\u3400-\u9fff\uf900-\ufaff]|\w+/g);
     return m ? m.length : 0;
   }
-  function count() { $('scrCount').textContent = `${words()} ${t(lang, 'scribeWords')}`; }
+  function chars() { return $('scrDoc').textContent.replace(/​/g, '').length; }
+  function count() {
+    $('scrCount').textContent = `${words()} ${t(lang, 'scribeWords')} · ${chars()} ${t(lang, 'scribeChars')}`;
+  }
   function interimEl(remove) {
     const ex = $('scrDoc').querySelector('#scrInterim');
     if (remove && ex) ex.remove();
@@ -145,11 +184,21 @@
     el.textContent = text;
     $('scrDoc').parentElement.scrollTop = $('scrDoc').parentElement.scrollHeight;
   }
+  function stampNow() {
+    const el = document.createElement('span');
+    el.className = 'scr-stamp';
+    try {
+      el.textContent = new Intl.DateTimeFormat(langOf(lang).locale,
+        { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
+    } catch { el.textContent = new Date().toTimeString().slice(0, 8); }
+    return el;
+  }
   function appendFinal(text) {
     if (!text) return;
     interimEl(true);
     const p = document.createElement('p');
-    p.textContent = text;
+    if (stamps) { p.appendChild(stampNow()); p.appendChild(document.createTextNode(' ')); }
+    p.appendChild(document.createTextNode(text));
     $('scrDoc').appendChild(p);
     count(); save();
     $('scrDoc').parentElement.scrollTop = $('scrDoc').parentElement.scrollHeight;
@@ -167,6 +216,14 @@
   /* ---------- speech recognition ---------- */
   const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
   let rec = null, listening = false;
+  let listenSec = 0, tickT = 0;
+  const fmtTime = () => {
+    const mm = String(Math.floor(listenSec / 60)).padStart(2, '0');
+    const ss = String(listenSec % 60).padStart(2, '0');
+    $('scrTime').textContent = `${mm}:${ss}`;
+    $('scrTime').title = t(lang, 'scribeListening');
+  };
+  function stampsUI() { $('scrStamps').setAttribute('aria-pressed', String(stamps)); }
   function micUI() {
     $('scrMic').setAttribute('aria-pressed', String(listening));
     $('scrMicText').textContent = t(lang, listening ? 'scribeStop' : 'scribeStart');
@@ -177,6 +234,8 @@
     if (listening) return;
     listening = true;
     micUI();
+    listenSec = 0; fmtTime(); $('scrTime').hidden = false;
+    clearInterval(tickT); tickT = setInterval(() => { listenSec += 1; fmtTime(); }, 1000);
     const loop = () => {
       rec = new SR();
       rec.lang = $('scrIn').value;
@@ -207,7 +266,7 @@
     };
     loop();
   }
-  function stopRec() { listening = false; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
+  function stopRec() { listening = false; clearInterval(tickT); $('scrTime').hidden = true; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
   $('scrMic').addEventListener('click', () => { if (listening) stopRec(); else startRec(); });
   $('scrIn').addEventListener('change', () => { if (listening) { stopRec(); startRec(); } save(); });
   $('scrOut').addEventListener('change', save);
@@ -230,6 +289,119 @@
     $('scrDoc').innerHTML = '';
     count(); save();
   });
+  $('scrUndo').addEventListener('click', () => { $('scrDoc').focus(); document.execCommand('undo'); });
+  $('scrRedo').addEventListener('click', () => { $('scrDoc').focus(); document.execCommand('redo'); });
+  $('scrPrint').addEventListener('click', () => window.print());
+  $('scrStamps').addEventListener('click', () => { stamps = !stamps; stampsUI(); save(); });
+  $('scrImport').addEventListener('click', () => $('scrFile').click());
+  $('scrFile').addEventListener('change', async () => {
+    const f = $('scrFile').files && $('scrFile').files[0];
+    if (!f) return;
+    try {
+      const txt = await f.text();
+      for (const line of txt.split(/\r?\n+/)) {
+        const one = line.trim();
+        if (!one) continue;
+        const p = document.createElement('p');
+        p.textContent = one;
+        $('scrDoc').appendChild(p);
+      }
+      count(); save();
+    } catch { /* unreadable file */ }
+    $('scrFile').value = '';
+  });
+
+  /* ---------- find & replace ---------- */
+  const docEl2 = $('scrDoc');
+  let fCur = -1;
+  function clearHl() {
+    for (const m of [...docEl2.querySelectorAll('mark.scr-hl')]) {
+      const par = m.parentNode;
+      par.replaceChild(document.createTextNode(m.textContent), m);
+      par.normalize();
+    }
+    fCur = -1;
+  }
+  function findAll(q) {
+    clearHl();
+    if (!q) return 0;
+    const ql = q.toLowerCase();
+    const nodes = [];
+    const walker = document.createTreeWalker(docEl2, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let total = 0;
+    for (const n of nodes) {
+      const txt = n.textContent, lt = txt.toLowerCase();
+      if (lt.indexOf(ql) < 0) continue;
+      const frag = document.createDocumentFragment();
+      let pos = 0, i = lt.indexOf(ql);
+      while (i >= 0) {
+        if (i > pos) frag.appendChild(document.createTextNode(txt.slice(pos, i)));
+        const mk = document.createElement('mark');
+        mk.className = 'scr-hl';
+        mk.textContent = txt.slice(i, i + q.length);
+        frag.appendChild(mk);
+        pos = i + q.length; total += 1;
+        i = lt.indexOf(ql, pos);
+      }
+      if (pos < txt.length) frag.appendChild(document.createTextNode(txt.slice(pos)));
+      n.parentNode.replaceChild(frag, n);
+    }
+    return total;
+  }
+  const marks = () => [...docEl2.querySelectorAll('mark.scr-hl')];
+  function goMark(idx) {
+    const ms = marks();
+    if (!ms.length) { $('scrFindCount').textContent = t(lang, 'scribeNoHits'); return; }
+    ms.forEach((m) => m.classList.remove('scr-cur'));
+    fCur = ((idx % ms.length) + ms.length) % ms.length;
+    ms[fCur].classList.add('scr-cur');
+    ms[fCur].scrollIntoView({ block: 'center' });
+    $('scrFindCount').textContent = `${fCur + 1}/${ms.length}`;
+  }
+  function doFind() {
+    const q = $('scrFindIn').value.trim();
+    const n = findAll(q);
+    if (n) goMark(0);
+    else $('scrFindCount').textContent = q ? t(lang, 'scribeNoHits') : '';
+  }
+  function replOne() {
+    const ms = marks();
+    if (!ms.length) return;
+    const m = ms[(fCur < 0 ? 0 : fCur) % ms.length];
+    m.replaceWith(document.createTextNode($('scrReplIn').value));
+    count(); save(); doFind();
+  }
+  function replAll() {
+    const q = $('scrFindIn').value.trim();
+    if (!q) return;
+    const ql = q.toLowerCase(), rv = $('scrReplIn').value;
+    clearHl();
+    const nodes = [];
+    const walker = document.createTreeWalker(docEl2, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let hits = 0;
+    for (const node of nodes) {
+      const txt = node.textContent, lt = txt.toLowerCase();
+      if (lt.indexOf(ql) < 0) continue;
+      let out = '', pos = 0, i = lt.indexOf(ql);
+      while (i >= 0) { out += txt.slice(pos, i) + rv; pos = i + q.length; hits += 1; i = lt.indexOf(ql, pos); }
+      out += txt.slice(pos);
+      node.textContent = out;
+    }
+    if (hits) { count(); save(); }
+    doFind();
+  }
+  $('scrFind').addEventListener('click', () => {
+    $('scrFindBar').hidden = !$('scrFindBar').hidden;
+    if (!$('scrFindBar').hidden) $('scrFindIn').focus(); else clearHl();
+  });
+  $('scrFindIn').addEventListener('input', doFind);
+  $('scrFindNext').addEventListener('click', () => goMark(fCur + 1));
+  $('scrFindPrev').addEventListener('click', () => goMark(fCur - 1));
+  $('scrReplOne').addEventListener('click', replOne);
+  $('scrReplAll').addEventListener('click', replAll);
+  $('scrFindX').addEventListener('click', () => { $('scrFindBar').hidden = true; clearHl(); });
   $('scrDoc').addEventListener('input', () => { count(); save(); });
   $('scrTitle').addEventListener('input', save);
 
@@ -252,6 +424,16 @@
     $('scrCopy').title = t(lang, 'scribeCopy');
     $('scrDl').title = t(lang, 'scribeDownload');
     $('scrClear').title = t(lang, 'scribeClear');
+    $('scrUndo').title = t(lang, 'scribeUndo'); $('scrUndo').setAttribute('aria-label', t(lang, 'scribeUndo'));
+    $('scrRedo').title = t(lang, 'scribeRedo'); $('scrRedo').setAttribute('aria-label', t(lang, 'scribeRedo'));
+    $('scrFind').title = t(lang, 'scribeFind'); $('scrFind').setAttribute('aria-label', t(lang, 'scribeFind'));
+    $('scrStamps').title = t(lang, 'scribeStamps'); $('scrStamps').setAttribute('aria-label', t(lang, 'scribeStamps'));
+    $('scrImport').title = t(lang, 'scribeImport'); $('scrImport').setAttribute('aria-label', t(lang, 'scribeImport'));
+    $('scrPrint').title = t(lang, 'scribePrint'); $('scrPrint').setAttribute('aria-label', t(lang, 'scribePrint'));
+    $('scrFindIn').placeholder = t(lang, 'scribeFind');
+    $('scrReplIn').placeholder = t(lang, 'scribeReplace');
+    $('scrReplOne').textContent = t(lang, 'scribeReplace');
+    $('scrReplAll').textContent = t(lang, 'scribeReplaceAll');
     $('launchText').textContent = t(lang, 'launchpad');
     $('settingsText').textContent = t(lang, 'settings');
     $('btnLaunch').title = t(lang, 'launchpad');
@@ -270,9 +452,21 @@
     try { localStorage.setItem('singhoah:night', dark ? '1' : '0'); } catch { /* ignore */ }
     $('nightText').textContent = t(lang, dark ? 'light' : 'night');
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('langPop').hidden = true; });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      $('langPop').hidden = true;
+      if (!$('scrFindBar').hidden) { $('scrFindBar').hidden = true; clearHl(); }
+      return;
+    }
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); $('scrFindBar').hidden = false; $('scrFindIn').focus(); }
+    else if (e.key === 'h' || e.key === 'H') { e.preventDefault(); $('scrFindBar').hidden = false; $('scrReplIn').focus(); }
+    else if (e.key === 's' || e.key === 'S') { e.preventDefault(); save(); }
+  });
 
   load();
+  stampsUI();
   let saved = '';
   try { saved = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
   applyLang(LANGS.some((l) => l.id === saved) ? saved : 'en', false);

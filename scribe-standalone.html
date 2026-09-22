@@ -1130,6 +1130,39 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
 }
 @media (max-width: 700px) { .scr-page { padding: 28px 18px; } }
 
+/* ---------- scribe: toolbar groups, find bar, stamps, print ---------- */
+.scr-sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--border); }
+.scr-ic { width: var(--h-ctl); justify-content: center; padding: 0; }
+.scr-ic[aria-pressed="true"] { border-color: currentColor; }
+.scr-find {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+}
+.scr-find input {
+  height: 30px; width: 150px; padding: 0 8px;
+  background: transparent; border: 1px solid var(--border); border-radius: var(--radius);
+  color: inherit; font: inherit; font-size: 13px;
+}
+.scr-find input:focus { outline: 1px solid var(--border); }
+.scr-find .btn { height: 30px; }
+#scrFindCount { min-width: 52px; text-align: center; color: var(--pigeon); font-size: 12px; }
+mark.scr-hl { background: var(--notification); color: var(--on-notification); border-radius: 2px; }
+mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1px; }
+.scr-stamp {
+  color: var(--pigeon); font-size: 0.72em; margin-inline-end: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.scr-time { color: var(--pigeon); font-variant-numeric: tabular-nums; }
+
+@media print {
+  body[data-app="scribe"] .topbar,
+  body[data-app="scribe"] .scr-bar,
+  body[data-app="scribe"] .scr-find,
+  body[data-app="scribe"] .scr-foot { display: none !important; }
+  body[data-app="scribe"] .scr-scroll { overflow: visible; height: auto; }
+  body[data-app="scribe"] .scr-page { max-width: none; margin: 0; padding: 0; box-shadow: none; border: 0; }
+}
+
 /* ---------- map usability: zoom / pan / tooltip ---------- */
 .map-ui {
   position: fixed; top: 92px; right: calc(var(--gap) * 2);   /* below the map header readout */
@@ -1193,9 +1226,42 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     <span id="scrMicText">Start</span>
   </button>
+  <span class="scr-sep" aria-hidden="true"></span>
+  <button type="button" class="btn scr-ic" id="scrUndo" title="Undo" aria-label="Undo">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5 4 9l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10a6 6 0 0 1 0 12h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrRedo" title="Redo" aria-label="Redo">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m16 5 4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9H10a6 6 0 0 0 0 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <span class="scr-sep" aria-hidden="true"></span>
+  <button type="button" class="btn scr-ic" id="scrFind" title="Find" aria-label="Find">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" stroke="currentColor" stroke-width="1.8"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrStamps" title="Timestamps" aria-pressed="false" aria-label="Timestamps">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrImport" title="Import text file" aria-label="Import text file">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <button type="button" class="btn scr-ic" id="scrPrint" title="Print" aria-label="Print">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 8V3h10v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="4" y="8" width="16" height="8" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 13h8v8H8z" stroke="currentColor" stroke-width="1.8"/></svg>
+  </button>
+  <input type="file" id="scrFile" accept=".txt,.md,text/plain,text/markdown" hidden>
   <button type="button" class="btn" id="scrCopy" title="Copy">Copy</button>
   <button type="button" class="btn" id="scrDl" title="Download">Download</button>
   <button type="button" class="btn" id="scrClear" title="Clear">Clear</button>
+</div>
+
+<div class="scr-find" id="scrFindBar" hidden>
+  <input id="scrFindIn" placeholder="Find" aria-label="Find">
+  <span id="scrFindCount" aria-live="polite"></span>
+  <button type="button" class="btn scr-ic" id="scrFindPrev" aria-label="Previous match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 14 6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button type="button" class="btn scr-ic" id="scrFindNext" aria-label="Next match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 10 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <input id="scrReplIn" placeholder="Replace" aria-label="Replace">
+  <button type="button" class="btn" id="scrReplOne">Replace</button>
+  <button type="button" class="btn" id="scrReplAll">Replace all</button>
+  <span class="scr-grow"></span>
+  <button type="button" class="btn scr-ic" id="scrFindX" aria-label="Close find bar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 </div>
 
 <main class="scr-scroll">
@@ -1204,6 +1270,7 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
 
 <footer class="scr-foot">
   <span id="scrCount">0 words</span>
+  <span id="scrTime" class="scr-time" hidden></span>
   <span class="scr-status" id="scrListen"></span>
 </footer>
 
@@ -1706,7 +1773,7 @@ export const STRINGS = {
     walSpent: 'Spent', walMonth: 'This month', walAvg: 'Daily average', walWeek: 'Last 7 days',
     walTop: 'Largest expense', pDay: 'Day', pWeek: 'Week', pMonth: 'Month', pSem: 'Semester', pYear: 'Year', pDec: 'Decade', walNet: 'Net', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…', launchpad: 'Launchpad', lpClock: 'Clock', lpClockSub: 'Drift-corrected world clock', lpWalletSub: 'Balance, daily spending & reports', lpOffline: 'Offline single-file',
     date: 'Date', time: 'Time', window: 'Window', light: 'Light', night: 'Night Shift',
-    resync: 'Re-sync', search: 'Search city or country…', signin: 'Sign in', signout: 'Sign out', account: 'Account', settings: 'Settings', appearance: 'Appearance', homeCity: 'Clock city', currency: 'Currency', data: 'Data', resetData: 'Reset local data', resetQ: 'Clear language, theme, city, currency and account snapshots on this device? Wallet transactions are kept.', portalNote: 'Sign in and your language, theme, city, currency and wallet follow your Google account on any device.', lpSettingsSub: 'Language, theme, city & currency', scribeIn: 'Spoken language', scribeOut: 'Transcript language', scribeStart: 'Start', scribeStop: 'Stop', scribeListening: 'Listening', scribeClear: 'Clear', scribeCopy: 'Copy', scribeDownload: 'Download', scribeSaved: 'All changes saved', scribeSaving: 'Saving…', scribeWords: 'words', scribeHint: 'Press Start and speak — the transcript appears here and stays editable.', scribeNo: 'Speech recognition is not supported in this browser.', lpScribeSub: 'Live lecture transcription', lpScribe: 'Scribe', language: 'Language', local: 'Local',
+    resync: 'Re-sync', search: 'Search city or country…', signin: 'Sign in', signout: 'Sign out', account: 'Account', settings: 'Settings', appearance: 'Appearance', homeCity: 'Clock city', currency: 'Currency', data: 'Data', resetData: 'Reset local data', resetQ: 'Clear language, theme, city, currency and account snapshots on this device? Wallet transactions are kept.', portalNote: 'Sign in and your language, theme, city, currency and wallet follow your Google account on any device.', lpSettingsSub: 'Language, theme, city & currency', scribeIn: 'Spoken language', scribeOut: 'Transcript language', scribeStart: 'Start', scribeStop: 'Stop', scribeListening: 'Listening', scribeClear: 'Clear', scribeCopy: 'Copy', scribeDownload: 'Download', scribeSaved: 'All changes saved', scribeSaving: 'Saving…', scribeWords: 'words', scribeHint: 'Press Start and speak — the transcript appears here and stays editable.', scribeNo: 'Speech recognition is not supported in this browser.', scribeUndo: 'Undo', scribeRedo: 'Redo', scribeFind: 'Find', scribeReplace: 'Replace', scribeReplaceAll: 'Replace all', scribePrint: 'Print', scribeImport: 'Import text file', scribeStamps: 'Timestamps', scribeChars: 'characters', scribeNoHits: 'No matches', lpScribeSub: 'Live lecture transcription', lpScribe: 'Scribe', language: 'Language', local: 'Local',
     addZone: 'Add zone', single: 'Single', side: 'Side by side', quad: '2 × 2',
     winTitle: 'Window layout', winAdd: 'Add to this window',
     analog: 'Analog', digital: 'Digital',
@@ -1724,7 +1791,7 @@ export const STRINGS = {
     walSpent: '已花費', walMonth: '本月', walAvg: '日均', walWeek: '最近 7 天',
     walTop: '最大支出', pDay: '日', pWeek: '週', pMonth: '月', pSem: '學期', pYear: '年', pDec: '十年', walNet: '淨額', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…', launchpad: '啟動台', lpClock: '時鐘', lpClockSub: '漂移校正世界時鐘', lpWalletSub: '餘額、每日花費與報表', lpOffline: '離線單一檔案',
     date: '日期', time: '時間', window: '視窗', light: '淺色', night: '夜間模式',
-    resync: '重新同步', search: '搜尋城市或國家…', signin: '登入', signout: '登出', account: '帳戶', settings: '設定', appearance: '外觀', homeCity: '時鐘城市', currency: '貨幣', data: '資料', resetData: '重設本地資料', resetQ: '清除此裝置上的語言、外觀、城市、貨幣與帳戶快照？錢包交易會保留。', portalNote: '登入後，您的語言、外觀、城市、貨幣與錢包將隨 Google 帳戶在任何裝置上同步。', lpSettingsSub: '語言、外觀、城市與貨幣', scribeIn: '語音語言', scribeOut: '轉寫語言', scribeStart: '開始', scribeStop: '停止', scribeListening: '聆聽中', scribeClear: '清除', scribeCopy: '複製', scribeDownload: '下載', scribeSaved: '所有變更已儲存', scribeSaving: '儲存中…', scribeWords: '字', scribeHint: '按下「開始」並說話——轉寫會出現在這裡，並可隨時編輯。', scribeNo: '此瀏覽器不支援語音辨識。', lpScribeSub: '即時課堂轉寫', lpScribe: '聽寫', language: '語言', local: '本地',
+    resync: '重新同步', search: '搜尋城市或國家…', signin: '登入', signout: '登出', account: '帳戶', settings: '設定', appearance: '外觀', homeCity: '時鐘城市', currency: '貨幣', data: '資料', resetData: '重設本地資料', resetQ: '清除此裝置上的語言、外觀、城市、貨幣與帳戶快照？錢包交易會保留。', portalNote: '登入後，您的語言、外觀、城市、貨幣與錢包將隨 Google 帳戶在任何裝置上同步。', lpSettingsSub: '語言、外觀、城市與貨幣', scribeIn: '語音語言', scribeOut: '轉寫語言', scribeStart: '開始', scribeStop: '停止', scribeListening: '聆聽中', scribeClear: '清除', scribeCopy: '複製', scribeDownload: '下載', scribeSaved: '所有變更已儲存', scribeSaving: '儲存中…', scribeWords: '字', scribeHint: '按下「開始」並說話——轉寫會出現在這裡，並可隨時編輯。', scribeNo: '此瀏覽器不支援語音辨識。', scribeUndo: '復原', scribeRedo: '重做', scribeFind: '尋找', scribeReplace: '取代', scribeReplaceAll: '全部取代', scribePrint: '列印', scribeImport: '匯入文字檔', scribeStamps: '時間戳記', scribeChars: '字元', scribeNoHits: '沒有符合的結果', lpScribeSub: '即時課堂轉寫', lpScribe: '聽寫', language: '語言', local: '本地',
     addZone: '新增時區', single: '單一', side: '並排', quad: '2 × 2',
     winTitle: '視窗格式', winAdd: '加入此視窗',
     analog: '類比', digital: '數位',
@@ -1742,7 +1809,7 @@ export const STRINGS = {
     walSpent: 'ख़र्च हुआ', walMonth: 'इस माह', walAvg: 'दैनिक औसत', walWeek: 'पिछले 7 दिन',
     walTop: 'सबसे बड़ा ख़र्च', pDay: 'दिन', pWeek: 'सप्ताह', pMonth: 'महीना', pSem: 'सेमेस्टर', pYear: 'वर्ष', pDec: 'दशक', walNet: 'शुद्ध', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…', launchpad: 'लॉन्चपैड', lpClock: 'घड़ी', lpClockSub: 'ड्रिफ्ट-सुधारी विश्व घड़ी', lpWalletSub: 'बैलेंस, दैनिक ख़र्च और रिपोर्ट', lpOffline: 'ऑफ़लाइन एकल फ़ाइल',
     date: 'तिथि', time: 'समय', window: 'विंडो', light: 'लाइट', night: 'नाइट शिफ्ट',
-    resync: 'री-सिंक', search: 'शहर या देश खोजें…', signin: 'साइन इन', signout: 'साइन आउट', account: 'खाता', settings: 'सेटिंग्स', appearance: 'दिखावट', homeCity: 'घड़ी शहर', currency: 'मुद्रा', data: 'डेटा', resetData: 'स्थानीय डेटा रीसेट करें', resetQ: 'इस डिवाइस पर भाषा, थीम, शहर, मुद्रा और खाता स्नैपशॉट साफ़ करें? वॉलेट लेन-देन बने रहेंगे।', portalNote: 'साइन इन करें और आपकी भाषा, थीम, शहर, मुद्रा और वॉलेट किसी भी डिवाइस पर आपके Google खाते के साथ चलेंगे।', lpSettingsSub: 'भाषा, थीम, शहर और मुद्रा', scribeIn: 'बोली भाषा', scribeOut: 'लेख भाषा', scribeStart: 'शुरू', scribeStop: 'रोकें', scribeListening: 'सुन रहा है', scribeClear: 'साफ़', scribeCopy: 'कॉपी', scribeDownload: 'डाउनलोड', scribeSaved: 'सभी परिवर्तन सहेजे गए', scribeSaving: 'सहेजा जा रहा…', scribeWords: 'शब्द', scribeHint: 'स्टार्ट दबाएँ और बोलिए — लेख यहाँ दिखेगा और संपादनीय रहेगा।', scribeNo: 'इस ब्राउज़र में वाक् पहचान समर्थित नहीं है।', lpScribeSub: 'लाइव व्याख्यान प्रतिलेखन', lpScribe: 'स्क्राइब', language: 'भाषा', local: 'स्थानीय',
+    resync: 'री-सिंक', search: 'शहर या देश खोजें…', signin: 'साइन इन', signout: 'साइन आउट', account: 'खाता', settings: 'सेटिंग्स', appearance: 'दिखावट', homeCity: 'घड़ी शहर', currency: 'मुद्रा', data: 'डेटा', resetData: 'स्थानीय डेटा रीसेट करें', resetQ: 'इस डिवाइस पर भाषा, थीम, शहर, मुद्रा और खाता स्नैपशॉट साफ़ करें? वॉलेट लेन-देन बने रहेंगे।', portalNote: 'साइन इन करें और आपकी भाषा, थीम, शहर, मुद्रा और वॉलेट किसी भी डिवाइस पर आपके Google खाते के साथ चलेंगे।', lpSettingsSub: 'भाषा, थीम, शहर और मुद्रा', scribeIn: 'बोली भाषा', scribeOut: 'लेख भाषा', scribeStart: 'शुरू', scribeStop: 'रोकें', scribeListening: 'सुन रहा है', scribeClear: 'साफ़', scribeCopy: 'कॉपी', scribeDownload: 'डाउनलोड', scribeSaved: 'सभी परिवर्तन सहेजे गए', scribeSaving: 'सहेजा जा रहा…', scribeWords: 'शब्द', scribeHint: 'स्टार्ट दबाएँ और बोलिए — लेख यहाँ दिखेगा और संपादनीय रहेगा।', scribeNo: 'इस ब्राउज़र में वाक् पहचान समर्थित नहीं है।', scribeUndo: 'पूर्ववत करें', scribeRedo: 'फिर करें', scribeFind: 'खोजें', scribeReplace: 'बदलें', scribeReplaceAll: 'सभी बदलें', scribePrint: 'प्रिंट करें', scribeImport: 'टेक्स्ट फ़ाइल आयात करें', scribeStamps: 'टाइमस्टैम्प', scribeChars: 'वर्ण', scribeNoHits: 'कोई मिलान नहीं', lpScribeSub: 'लाइव व्याख्यान प्रतिलेखन', lpScribe: 'स्क्राइब', language: 'भाषा', local: 'स्थानीय',
     addZone: 'ज़ोन जोड़ें', single: 'एकल', side: 'साथ-साथ', quad: '2 × 2',
     winTitle: 'विंडो लेआउट', winAdd: 'इस विंडो में जोड़ें',
     analog: 'एनालॉग', digital: 'डिजिटल',
@@ -1760,7 +1827,7 @@ export const STRINGS = {
     walSpent: 'Gastado', walMonth: 'Este mes', walAvg: 'Media diaria', walWeek: 'Últimos 7 días',
     walTop: 'Mayor gasto', pDay: 'Día', pWeek: 'Semana', pMonth: 'Mes', pSem: 'Semestre', pYear: 'Año', pDec: 'Década', walNet: 'Neto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…', launchpad: 'Launchpad', lpClock: 'Reloj', lpClockSub: 'Reloj mundial con deriva corregida', lpWalletSub: 'Saldo, gasto diario e informes', lpOffline: 'Un solo archivo sin conexión',
     date: 'Fecha', time: 'Hora', window: 'Ventana', light: 'Claro', night: 'Turno de noche',
-    resync: 'Resincronizar', search: 'Buscar ciudad o país…', signin: 'Iniciar sesión', signout: 'Cerrar sesión', account: 'Cuenta', settings: 'Ajustes', appearance: 'Apariencia', homeCity: 'Ciudad del reloj', currency: 'Moneda', data: 'Datos', resetData: 'Restablecer datos locales', resetQ: '¿Borrar idioma, tema, ciudad, moneda y capturas de cuenta en este dispositivo? Las transacciones se conservan.', portalNote: 'Inicia sesión y tu idioma, tema, ciudad, moneda y cartera seguirán tu cuenta de Google en cualquier dispositivo.', lpSettingsSub: 'Idioma, tema, ciudad y moneda', scribeIn: 'Idioma hablado', scribeOut: 'Idioma del texto', scribeStart: 'Iniciar', scribeStop: 'Detener', scribeListening: 'Escuchando', scribeClear: 'Limpiar', scribeCopy: 'Copiar', scribeDownload: 'Descargar', scribeSaved: 'Todos los cambios guardados', scribeSaving: 'Guardando…', scribeWords: 'palabras', scribeHint: 'Pulsa Iniciar y habla: la transcripción aparece aquí y sigue editable.', scribeNo: 'Este navegador no admite reconocimiento de voz.', lpScribeSub: 'Transcripción de clases en vivo', lpScribe: 'Scribe', language: 'Idioma', local: 'Local',
+    resync: 'Resincronizar', search: 'Buscar ciudad o país…', signin: 'Iniciar sesión', signout: 'Cerrar sesión', account: 'Cuenta', settings: 'Ajustes', appearance: 'Apariencia', homeCity: 'Ciudad del reloj', currency: 'Moneda', data: 'Datos', resetData: 'Restablecer datos locales', resetQ: '¿Borrar idioma, tema, ciudad, moneda y capturas de cuenta en este dispositivo? Las transacciones se conservan.', portalNote: 'Inicia sesión y tu idioma, tema, ciudad, moneda y cartera seguirán tu cuenta de Google en cualquier dispositivo.', lpSettingsSub: 'Idioma, tema, ciudad y moneda', scribeIn: 'Idioma hablado', scribeOut: 'Idioma del texto', scribeStart: 'Iniciar', scribeStop: 'Detener', scribeListening: 'Escuchando', scribeClear: 'Limpiar', scribeCopy: 'Copiar', scribeDownload: 'Descargar', scribeSaved: 'Todos los cambios guardados', scribeSaving: 'Guardando…', scribeWords: 'palabras', scribeHint: 'Pulsa Iniciar y habla: la transcripción aparece aquí y sigue editable.', scribeNo: 'Este navegador no admite reconocimiento de voz.', scribeUndo: 'Deshacer', scribeRedo: 'Rehacer', scribeFind: 'Buscar', scribeReplace: 'Reemplazar', scribeReplaceAll: 'Reemplazar todo', scribePrint: 'Imprimir', scribeImport: 'Importar archivo de texto', scribeStamps: 'Marcas de tiempo', scribeChars: 'caracteres', scribeNoHits: 'Sin coincidencias', lpScribeSub: 'Transcripción de clases en vivo', lpScribe: 'Scribe', language: 'Idioma', local: 'Local',
     addZone: 'Añadir zona', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
     winTitle: 'Formato de ventana', winAdd: 'Añadir a esta ventana',
     analog: 'Analógico', digital: 'Digital',
@@ -1778,7 +1845,7 @@ export const STRINGS = {
     walSpent: 'Dépensé', walMonth: 'Ce mois-ci', walAvg: 'Moyenne quotidienne', walWeek: '7 derniers jours',
     walTop: 'Plus grosse dépense', pDay: 'Jour', pWeek: 'Semaine', pMonth: 'Mois', pSem: 'Semestre', pYear: 'Année', pDec: 'Décennie', walNet: 'Net', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…', launchpad: 'Launchpad', lpClock: 'Horloge', lpClockSub: 'Horloge mondiale corrigée de la dérive', lpWalletSub: 'Solde, dépenses du jour et rapports', lpOffline: 'Fichier unique hors ligne',
     date: 'Date', time: 'Heure', window: 'Fenêtre', light: 'Clair', night: 'Mode nuit',
-    resync: 'Resynchroniser', search: 'Rechercher une ville ou un pays…', signin: 'Connexion', signout: 'Déconnexion', account: 'Compte', settings: 'Paramètres', appearance: 'Apparence', homeCity: 'Ville de l’horloge', currency: 'Devise', data: 'Données', resetData: 'Réinitialiser les données locales', resetQ: 'Effacer langue, thème, ville, devise et instantanés de compte sur cet appareil ? Les transactions sont conservées.', portalNote: 'Connectez-vous et votre langue, thème, ville, devise et portefeuille suivront votre compte Google sur tous vos appareils.', lpSettingsSub: 'Langue, thème, ville et devise', scribeIn: 'Langue parlée', scribeOut: 'Langue du texte', scribeStart: 'Démarrer', scribeStop: 'Arrêter', scribeListening: 'Écoute', scribeClear: 'Effacer', scribeCopy: 'Copier', scribeDownload: 'Télécharger', scribeSaved: 'Toutes les modifications sont enregistrées', scribeSaving: 'Enregistrement…', scribeWords: 'mots', scribeHint: 'Appuyez sur Démarrer et parlez : la transcription s’affiche ici et reste modifiable.', scribeNo: 'Ce navigateur ne prend pas en charge la reconnaissance vocale.', lpScribeSub: 'Transcription de cours en direct', lpScribe: 'Scribe', language: 'Langue', local: 'Local',
+    resync: 'Resynchroniser', search: 'Rechercher une ville ou un pays…', signin: 'Connexion', signout: 'Déconnexion', account: 'Compte', settings: 'Paramètres', appearance: 'Apparence', homeCity: 'Ville de l’horloge', currency: 'Devise', data: 'Données', resetData: 'Réinitialiser les données locales', resetQ: 'Effacer langue, thème, ville, devise et instantanés de compte sur cet appareil ? Les transactions sont conservées.', portalNote: 'Connectez-vous et votre langue, thème, ville, devise et portefeuille suivront votre compte Google sur tous vos appareils.', lpSettingsSub: 'Langue, thème, ville et devise', scribeIn: 'Langue parlée', scribeOut: 'Langue du texte', scribeStart: 'Démarrer', scribeStop: 'Arrêter', scribeListening: 'Écoute', scribeClear: 'Effacer', scribeCopy: 'Copier', scribeDownload: 'Télécharger', scribeSaved: 'Toutes les modifications sont enregistrées', scribeSaving: 'Enregistrement…', scribeWords: 'mots', scribeHint: 'Appuyez sur Démarrer et parlez : la transcription s’affiche ici et reste modifiable.', scribeNo: 'Ce navigateur ne prend pas en charge la reconnaissance vocale.', scribeUndo: 'Annuler', scribeRedo: 'Rétablir', scribeFind: 'Rechercher', scribeReplace: 'Remplacer', scribeReplaceAll: 'Tout remplacer', scribePrint: 'Imprimer', scribeImport: 'Importer un fichier texte', scribeStamps: 'Horodatage', scribeChars: 'caractères', scribeNoHits: 'Aucun résultat', lpScribeSub: 'Transcription de cours en direct', lpScribe: 'Scribe', language: 'Langue', local: 'Local',
     addZone: 'Ajouter un fuseau', single: 'Seul', side: 'Côte à côte', quad: '2 × 2',
     winTitle: 'Format de fenêtre', winAdd: 'Ajouter à cette fenêtre',
     analog: 'Analogique', digital: 'Numérique',
@@ -1796,7 +1863,7 @@ export const STRINGS = {
     walSpent: 'أُنفق', walMonth: 'هذا الشهر', walAvg: 'المتوسط اليومي', walWeek: 'آخر 7 أيام',
     walTop: 'أكبر مصروف', pDay: 'يوم', pWeek: 'أسبوع', pMonth: 'شهر', pSem: 'فصل دراسي', pYear: 'سنة', pDec: 'عقد', walNet: 'الصافي', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…', launchpad: 'منصة الإطلاق', lpClock: 'الساعة', lpClockSub: 'ساعة عالمية مصحَّحة الانحراف', lpWalletSub: 'الرصيد والمصروفات اليومية والتقارير', lpOffline: 'ملف واحد دون اتصال',
     date: 'التاريخ', time: 'الوقت', window: 'نافذة', light: 'فاتح', night: 'الوضع الليلي',
-    resync: 'إعادة المزامنة', search: 'ابحث عن مدينة أو دولة…', signin: 'تسجيل الدخول', signout: 'تسجيل الخروج', account: 'الحساب', settings: 'الإعدادات', appearance: 'المظهر', homeCity: 'مدينة الساعة', currency: 'العملة', data: 'البيانات', resetData: 'إعادة تعيين البيانات المحلية', resetQ: 'مسح اللغة والسمة والمدينة والعملة ولقطات الحساب على هذا الجهاز؟ سيتم الاحتفاظ بالمعاملات.', portalNote: 'سجّل الدخول وستتبع لغتك وسمتك ومدينتك وعملتك ومحفظتك حساب Google على أي جهاز.', lpSettingsSub: 'اللغة والسمة والمدينة والعملة', scribeIn: 'لغة الكلام', scribeOut: 'لغة النص', scribeStart: 'بدء', scribeStop: 'إيقاف', scribeListening: 'يستمع', scribeClear: 'مسح', scribeCopy: 'نسخ', scribeDownload: 'تنزيل', scribeSaved: 'تم حفظ جميع التغييرات', scribeSaving: 'جارٍ الحفظ…', scribeWords: 'كلمة', scribeHint: 'اضغط «بدء» وتحدّث — يظهر النص هنا ويبقى قابلًا للتحرير.', scribeNo: 'هذا المتصفح لا يدعم التعرف على الكلام.', lpScribeSub: 'نسخ المحاضرات مباشرة', lpScribe: 'الكاتب', language: 'اللغة', local: 'محلي',
+    resync: 'إعادة المزامنة', search: 'ابحث عن مدينة أو دولة…', signin: 'تسجيل الدخول', signout: 'تسجيل الخروج', account: 'الحساب', settings: 'الإعدادات', appearance: 'المظهر', homeCity: 'مدينة الساعة', currency: 'العملة', data: 'البيانات', resetData: 'إعادة تعيين البيانات المحلية', resetQ: 'مسح اللغة والسمة والمدينة والعملة ولقطات الحساب على هذا الجهاز؟ سيتم الاحتفاظ بالمعاملات.', portalNote: 'سجّل الدخول وستتبع لغتك وسمتك ومدينتك وعملتك ومحفظتك حساب Google على أي جهاز.', lpSettingsSub: 'اللغة والسمة والمدينة والعملة', scribeIn: 'لغة الكلام', scribeOut: 'لغة النص', scribeStart: 'بدء', scribeStop: 'إيقاف', scribeListening: 'يستمع', scribeClear: 'مسح', scribeCopy: 'نسخ', scribeDownload: 'تنزيل', scribeSaved: 'تم حفظ جميع التغييرات', scribeSaving: 'جارٍ الحفظ…', scribeWords: 'كلمة', scribeHint: 'اضغط «بدء» وتحدّث — يظهر النص هنا ويبقى قابلًا للتحرير.', scribeNo: 'هذا المتصفح لا يدعم التعرف على الكلام.', scribeUndo: 'تراجع', scribeRedo: 'إعادة', scribeFind: 'بحث', scribeReplace: 'استبدال', scribeReplaceAll: 'استبدال الكل', scribePrint: 'طباعة', scribeImport: 'استيراد ملف نصي', scribeStamps: 'طوابع زمنية', scribeChars: 'أحرف', scribeNoHits: 'لا نتائج', lpScribeSub: 'نسخ المحاضرات مباشرة', lpScribe: 'الكاتب', language: 'اللغة', local: 'محلي',
     addZone: 'أضف منطقة', single: 'واحدة', side: 'جنباً إلى جنب', quad: '2 × 2',
     winTitle: 'تنسيق النافذة', winAdd: 'أضف إلى هذه النافذة',
     analog: 'تناظري', digital: 'رقمي',
@@ -1814,7 +1881,7 @@ export const STRINGS = {
     walSpent: 'খরচ হয়েছে', walMonth: 'এই মাস', walAvg: 'দৈনিক গড়', walWeek: 'শেষ ৭ দিন',
     walTop: 'সবচেয়ে বড় খরচ', pDay: 'দিন', pWeek: 'সপ্তাহ', pMonth: 'মাস', pSem: 'সেমিস্টার', pYear: 'বছর', pDec: 'দশক', walNet: 'নিট', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…', launchpad: 'লঞ্চপ্যাড', lpClock: 'ঘড়ি', lpClockSub: 'ড্রিফট-সংশোধিত বিশ্বঘড়ি', lpWalletSub: 'ব্যালেন্স, দৈনিক খরচ ও রিপোর্ট', lpOffline: 'অফলাইন একক ফাইল',
     date: 'তারিখ', time: 'সময়', window: 'উইন্ডো', light: 'লাইট', night: 'নাইট শিফ্ট',
-    resync: 'রি-সিঙ্ক', search: 'শহর বা দেশ খুঁজুন…', signin: 'সাইন ইন', signout: 'সাইন আউট', account: 'অ্যাকাউন্ট', settings: 'সেটিংস', appearance: 'চেহারা', homeCity: 'ঘড়ির শহর', currency: 'মুদ্রা', data: 'ডেটা', resetData: 'স্থানীয় ডেটা রিসেট', resetQ: 'এই ডিভাইসে ভাষা, থিম, শহর, মুদ্রা ও অ্যাকাউন্ট স্ন্যাপশট মুছবেন? ওয়ালেটের লেনদেন থাকবে।', portalNote: 'সাইন ইন করলে আপনার ভাষা, থিম, শহর, মুদ্রা ও ওয়ালেট যেকোনো ডিভাইসে আপনার Google অ্যাকাউন্ট অনুসরণ করবে।', lpSettingsSub: 'ভাষা, থিম, শহর ও মুদ্রা', scribeIn: 'কথ্য ভাষা', scribeOut: 'লিপির ভাষা', scribeStart: 'শুরু', scribeStop: 'থামুন', scribeListening: 'শুনছে', scribeClear: 'মুছুন', scribeCopy: 'কপি', scribeDownload: 'ডাউনলোড', scribeSaved: 'সব পরিবর্তন সংরক্ষিত', scribeSaving: 'সংরক্ষণ হচ্ছে…', scribeWords: 'শব্দ', scribeHint: 'শুরু চাপুন ও বলুন — লিপি এখানে আসবে ও সম্পাদনাযোগ্য থাকবে।', scribeNo: 'এই ব্রাউজারে স্পিচ রিকগনিশন নেই।', lpScribeSub: 'লাইভ লেকচার ট্রান্সক্রিপশন', lpScribe: 'স্ক্রাইব', language: 'ভাষা', local: 'স্থানীয়',
+    resync: 'রি-সিঙ্ক', search: 'শহর বা দেশ খুঁজুন…', signin: 'সাইন ইন', signout: 'সাইন আউট', account: 'অ্যাকাউন্ট', settings: 'সেটিংস', appearance: 'চেহারা', homeCity: 'ঘড়ির শহর', currency: 'মুদ্রা', data: 'ডেটা', resetData: 'স্থানীয় ডেটা রিসেট', resetQ: 'এই ডিভাইসে ভাষা, থিম, শহর, মুদ্রা ও অ্যাকাউন্ট স্ন্যাপশট মুছবেন? ওয়ালেটের লেনদেন থাকবে।', portalNote: 'সাইন ইন করলে আপনার ভাষা, থিম, শহর, মুদ্রা ও ওয়ালেট যেকোনো ডিভাইসে আপনার Google অ্যাকাউন্ট অনুসরণ করবে।', lpSettingsSub: 'ভাষা, থিম, শহর ও মুদ্রা', scribeIn: 'কথ্য ভাষা', scribeOut: 'লিপির ভাষা', scribeStart: 'শুরু', scribeStop: 'থামুন', scribeListening: 'শুনছে', scribeClear: 'মুছুন', scribeCopy: 'কপি', scribeDownload: 'ডাউনলোড', scribeSaved: 'সব পরিবর্তন সংরক্ষিত', scribeSaving: 'সংরক্ষণ হচ্ছে…', scribeWords: 'শব্দ', scribeHint: 'শুরু চাপুন ও বলুন — লিপি এখানে আসবে ও সম্পাদনাযোগ্য থাকবে।', scribeNo: 'এই ব্রাউজারে স্পিচ রিকগনিশন নেই।', scribeUndo: 'আনডু', scribeRedo: 'রিডু', scribeFind: 'খুঁজুন', scribeReplace: 'প্রতিস্থাপন', scribeReplaceAll: 'সব প্রতিস্থাপন', scribePrint: 'প্রিন্ট', scribeImport: 'টেক্সট ফাইল আমদানি', scribeStamps: 'টাইমস্ট্যাম্প', scribeChars: 'অক্ষর', scribeNoHits: 'কোনো মিল নেই', lpScribeSub: 'লাইভ লেকচার ট্রান্সক্রিপশন', lpScribe: 'স্ক্রাইব', language: 'ভাষা', local: 'স্থানীয়',
     addZone: 'অঞ্চল যোগ করুন', single: 'একক', side: 'পাশাপাশি', quad: '2 × 2',
     winTitle: 'উইন্ডো বিন্যাস', winAdd: 'এই উইন্ডোতে যোগ করুন',
     analog: 'অ্যানালগ', digital: 'ডিজিটল',
@@ -1832,7 +1899,7 @@ export const STRINGS = {
     walSpent: 'Потрачено', walMonth: 'В этом месяце', walAvg: 'Среднее в день', walWeek: 'Последние 7 дней',
     walTop: 'Крупнейшая трата', pDay: 'День', pWeek: 'Неделя', pMonth: 'Месяц', pSem: 'Семестр', pYear: 'Год', pDec: 'Десятилетие', walNet: 'Нетто', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…', launchpad: 'Лаунчпад', lpClock: 'Часы', lpClockSub: 'Всемирные часы с коррекцией дрейфа', lpWalletSub: 'Баланс, расходы по дням и отчёты', lpOffline: 'Офлайн одним файлом',
     date: 'Дата', time: 'Время', window: 'Окно', light: 'Светлая', night: 'Ночной режим',
-    resync: 'Синхронизировать', search: 'Поиск города или страны…', signin: 'Войти', signout: 'Выйти', account: 'Аккаунт', settings: 'Настройки', appearance: 'Оформление', homeCity: 'Город часов', currency: 'Валюта', data: 'Данные', resetData: 'Сбросить локальные данные', resetQ: 'Стереть язык, тему, город, валюту и снимки аккаунта на этом устройстве? Операции кошелька сохранятся.', portalNote: 'Войдите — и язык, тема, город, валюта и кошелёк будут следовать за вашим аккаунтом Google на любом устройстве.', lpSettingsSub: 'Язык, тема, город и валюта', scribeIn: 'Язык речи', scribeOut: 'Язык текста', scribeStart: 'Старт', scribeStop: 'Стоп', scribeListening: 'Слушаю', scribeClear: 'Очистить', scribeCopy: 'Копировать', scribeDownload: 'Скачать', scribeSaved: 'Все изменения сохранены', scribeSaving: 'Сохранение…', scribeWords: 'слов', scribeHint: 'Нажмите Старт и говорите — текст появится здесь и останется редактируемым.', scribeNo: 'Этот браузер не поддерживает распознавание речи.', lpScribeSub: 'Живая транскрипция лекций', lpScribe: 'Скрайб', language: 'Язык', local: 'Местное',
+    resync: 'Синхронизировать', search: 'Поиск города или страны…', signin: 'Войти', signout: 'Выйти', account: 'Аккаунт', settings: 'Настройки', appearance: 'Оформление', homeCity: 'Город часов', currency: 'Валюта', data: 'Данные', resetData: 'Сбросить локальные данные', resetQ: 'Стереть язык, тему, город, валюту и снимки аккаунта на этом устройстве? Операции кошелька сохранятся.', portalNote: 'Войдите — и язык, тема, город, валюта и кошелёк будут следовать за вашим аккаунтом Google на любом устройстве.', lpSettingsSub: 'Язык, тема, город и валюта', scribeIn: 'Язык речи', scribeOut: 'Язык текста', scribeStart: 'Старт', scribeStop: 'Стоп', scribeListening: 'Слушаю', scribeClear: 'Очистить', scribeCopy: 'Копировать', scribeDownload: 'Скачать', scribeSaved: 'Все изменения сохранены', scribeSaving: 'Сохранение…', scribeWords: 'слов', scribeHint: 'Нажмите Старт и говорите — текст появится здесь и останется редактируемым.', scribeNo: 'Этот браузер не поддерживает распознавание речи.', scribeUndo: 'Отменить', scribeRedo: 'Вернуть', scribeFind: 'Найти', scribeReplace: 'Заменить', scribeReplaceAll: 'Заменить все', scribePrint: 'Печать', scribeImport: 'Импорт файла', scribeStamps: 'Метки времени', scribeChars: 'символов', scribeNoHits: 'Нет совпадений', lpScribeSub: 'Живая транскрипция лекций', lpScribe: 'Скрайб', language: 'Язык', local: 'Местное',
     addZone: 'Добавить пояс', single: 'Один', side: 'Рядом', quad: '2 × 2',
     winTitle: 'Формат окна', winAdd: 'Добавить в это окно',
     analog: 'Аналоговый', digital: 'Цифровой',
@@ -1850,7 +1917,7 @@ export const STRINGS = {
     walSpent: 'Gasto', walMonth: 'Este mês', walAvg: 'Média diária', walWeek: 'Últimos 7 dias',
     walTop: 'Maior gasto', pDay: 'Dia', pWeek: 'Semana', pMonth: 'Mês', pSem: 'Semestre', pYear: 'Ano', pDec: 'Década', walNet: 'Líquido', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…', launchpad: 'Launchpad', lpClock: 'Relógio', lpClockSub: 'Relógio mundial com deriva corrigida', lpWalletSub: 'Saldo, gastos diários e relatórios', lpOffline: 'Arquivo único off-line',
     date: 'Data', time: 'Hora', window: 'Janela', light: 'Claro', night: 'Modo noturno',
-    resync: 'Ressincronizar', search: 'Buscar cidade ou país…', signin: 'Entrar', signout: 'Sair', account: 'Conta', settings: 'Configurações', appearance: 'Aparência', homeCity: 'Cidade do relógio', currency: 'Moeda', data: 'Dados', resetData: 'Redefinir dados locais', resetQ: 'Apagar idioma, tema, cidade, moeda e snapshots de conta neste dispositivo? As transações são mantidas.', portalNote: 'Entre e seu idioma, tema, cidade, moeda e carteira seguirão sua conta Google em qualquer dispositivo.', lpSettingsSub: 'Idioma, tema, cidade e moeda', scribeIn: 'Idioma falado', scribeOut: 'Idioma do texto', scribeStart: 'Iniciar', scribeStop: 'Parar', scribeListening: 'Ouvindo', scribeClear: 'Limpar', scribeCopy: 'Copiar', scribeDownload: 'Baixar', scribeSaved: 'Todas as alterações salvas', scribeSaving: 'Salvando…', scribeWords: 'palavras', scribeHint: 'Toque em Iniciar e fale: a transcrição aparece aqui e continua editável.', scribeNo: 'Este navegador não oferece reconhecimento de voz.', lpScribeSub: 'Transcrição de aulas ao vivo', lpScribe: 'Scribe', language: 'Idioma', local: 'Local',
+    resync: 'Ressincronizar', search: 'Buscar cidade ou país…', signin: 'Entrar', signout: 'Sair', account: 'Conta', settings: 'Configurações', appearance: 'Aparência', homeCity: 'Cidade do relógio', currency: 'Moeda', data: 'Dados', resetData: 'Redefinir dados locais', resetQ: 'Apagar idioma, tema, cidade, moeda e snapshots de conta neste dispositivo? As transações são mantidas.', portalNote: 'Entre e seu idioma, tema, cidade, moeda e carteira seguirão sua conta Google em qualquer dispositivo.', lpSettingsSub: 'Idioma, tema, cidade e moeda', scribeIn: 'Idioma falado', scribeOut: 'Idioma do texto', scribeStart: 'Iniciar', scribeStop: 'Parar', scribeListening: 'Ouvindo', scribeClear: 'Limpar', scribeCopy: 'Copiar', scribeDownload: 'Baixar', scribeSaved: 'Todas as alterações salvas', scribeSaving: 'Salvando…', scribeWords: 'palavras', scribeHint: 'Toque em Iniciar e fale: a transcrição aparece aqui e continua editável.', scribeNo: 'Este navegador não oferece reconhecimento de voz.', scribeUndo: 'Desfazer', scribeRedo: 'Refazer', scribeFind: 'Buscar', scribeReplace: 'Substituir', scribeReplaceAll: 'Substituir tudo', scribePrint: 'Imprimir', scribeImport: 'Importar arquivo', scribeStamps: 'Marcas de tempo', scribeChars: 'caracteres', scribeNoHits: 'Nenhuma ocorrência', lpScribeSub: 'Transcrição de aulas ao vivo', lpScribe: 'Scribe', language: 'Idioma', local: 'Local',
     addZone: 'Adicionar fuso', single: 'Único', side: 'Lado a lado', quad: '2 × 2',
     winTitle: 'Formato da janela', winAdd: 'Adicionar a esta janela',
     analog: 'Analógico', digital: 'Digital',
@@ -1868,7 +1935,7 @@ export const STRINGS = {
     walSpent: 'خرچ ہوا', walMonth: 'اس مہینے', walAvg: 'یومیہ اوسط', walWeek: 'پچھلے 7 دن',
     walTop: 'سب سے بڑا خرچ', pDay: 'دن', pWeek: 'ہفتہ', pMonth: 'مہینہ', pSem: 'سیمسٹر', pYear: 'سال', pDec: 'دہائی', walNet: 'خالص', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…', launchpad: 'لائنچ پیڈ', lpClock: 'گھڑی', lpClockSub: 'ڈرفٹ درست شدہ عالمی گھڑی', lpWalletSub: 'بیلنس، یومیہ خرچ اور رپورٹس', lpOffline: 'آف لائن سنگل فائل',
     date: 'تاریخ', time: 'وقت', window: 'ونڈو', light: 'ہلکا', night: 'نائٹ موڈ',
-    resync: 'دوبارہ سنک', search: 'شہر یا ملک تلاش کریں…', signin: 'سائن ان', signout: 'سائن آؤٹ', account: 'اکاؤنٹ', settings: 'ترتیبات', appearance: 'ظاہری شکل', homeCity: 'گھڑی کا شہر', currency: 'کرنسی', data: 'ڈیٹا', resetData: 'مقامی ڈیٹا ری سیٹ', resetQ: 'اس آلے پر زبان، تھیم، شہر، کرنسی اور اکاؤنٹ اسنیپ شاٹس صاف کریں؟ والٹ کے لین دین محفوظ رہیں گے۔', portalNote: 'سائن ان کریں تو آپ کی زبان، تھیم، شہر، کرنسی اور والٹ کسی بھی آلے پر آپ کے Google اکاؤنٹ کے ساتھ چلیں گے۔', lpSettingsSub: 'زبان، تھیم، شہر اور کرنسی', scribeIn: 'بولی جانے والی زبان', scribeOut: 'متن کی زبان', scribeStart: 'شروع', scribeStop: 'روکیں', scribeListening: 'سن رہا ہے', scribeClear: 'صاف', scribeCopy: 'کاپی', scribeDownload: 'ڈاؤن لوڈ', scribeSaved: 'تمام تبدیلیاں محفوظ', scribeSaving: 'محفوظ ہو رہا ہے…', scribeWords: 'الفاظ', scribeHint: 'اسٹارت دبائیں اور بولیں — نقل یہاں ظاہر ہوگا اور قابلِ ترمیم رہے گا۔', scribeNo: 'یہ براؤزر آواز کی پہچان سپورٹ نہیں کرتا۔', lpScribeSub: 'لائیو لیکچر نقل', lpScribe: 'اسکرائب', language: 'زبان', local: 'مقامی',
+    resync: 'دوبارہ سنک', search: 'شہر یا ملک تلاش کریں…', signin: 'سائن ان', signout: 'سائن آؤٹ', account: 'اکاؤنٹ', settings: 'ترتیبات', appearance: 'ظاہری شکل', homeCity: 'گھڑی کا شہر', currency: 'کرنسی', data: 'ڈیٹا', resetData: 'مقامی ڈیٹا ری سیٹ', resetQ: 'اس آلے پر زبان، تھیم، شہر، کرنسی اور اکاؤنٹ اسنیپ شاٹس صاف کریں؟ والٹ کے لین دین محفوظ رہیں گے۔', portalNote: 'سائن ان کریں تو آپ کی زبان، تھیم، شہر، کرنسی اور والٹ کسی بھی آلے پر آپ کے Google اکاؤنٹ کے ساتھ چلیں گے۔', lpSettingsSub: 'زبان، تھیم، شہر اور کرنسی', scribeIn: 'بولی جانے والی زبان', scribeOut: 'متن کی زبان', scribeStart: 'شروع', scribeStop: 'روکیں', scribeListening: 'سن رہا ہے', scribeClear: 'صاف', scribeCopy: 'کاپی', scribeDownload: 'ڈاؤن لوڈ', scribeSaved: 'تمام تبدیلیاں محفوظ', scribeSaving: 'محفوظ ہو رہا ہے…', scribeWords: 'الفاظ', scribeHint: 'اسٹارت دبائیں اور بولیں — نقل یہاں ظاہر ہوگا اور قابلِ ترمیم رہے گا۔', scribeNo: 'یہ براؤزر آواز کی پہچان سپورٹ نہیں کرتا۔', scribeUndo: 'واپس', scribeRedo: 'دوبارہ', scribeFind: 'تلاش', scribeReplace: 'بدلیں', scribeReplaceAll: 'سب بدلیں', scribePrint: 'پرنٹ', scribeImport: 'فائل درآمد', scribeStamps: 'ٹائم اسٹامپ', scribeChars: 'حروف', scribeNoHits: 'کوئی میل نہیں', lpScribeSub: 'لائیو لیکچر نقل', lpScribe: 'اسکرائب', language: 'زبان', local: 'مقامی',
     addZone: 'زون شامل کریں', single: 'واحد', side: 'بہ پہلو', quad: '2 × 2',
     winTitle: 'ونڈو فارمیٹ', winAdd: 'اس ونڈو میں شامل کریں',
     analog: 'انالاگ', digital: 'ڈیجیٹل',
@@ -3583,6 +3650,7 @@ if (typeof document !== 'undefined') {
   /* ---------- persistence (Google-Doc style autosave) ---------- */
   const KEY = 'singhoah:scribe';
   let saveTimer = 0;
+  let stamps = false;
   function load() {
     try {
       const d = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -3591,6 +3659,7 @@ if (typeof document !== 'undefined') {
         if (typeof d.title === 'string' && d.title) $('scrTitle').value = d.title;
         if (SR_LANGS.some(([c]) => c === d.in)) $('scrIn').value = d.in;
         if (SR_LANGS.some(([c]) => c === d.out)) $('scrOut').value = d.out;
+        if (typeof d.stamps === 'boolean') stamps = d.stamps;
       }
     } catch { /* ignore */ }
   }
@@ -3601,7 +3670,7 @@ if (typeof document !== 'undefined') {
       try {
         localStorage.setItem(KEY, JSON.stringify({
           html: $('scrDoc').innerHTML, title: $('scrTitle').value,
-          in: $('scrIn').value, out: $('scrOut').value,
+          in: $('scrIn').value, out: $('scrOut').value, stamps,
         }));
       } catch { /* ignore */ }
       $('scrStatus').textContent = t(lang, 'scribeSaved');
@@ -3613,7 +3682,10 @@ if (typeof document !== 'undefined') {
     const m = $('scrDoc').textContent.replace(/​/g, '').match(/[\u3400-\u9fff\uf900-\ufaff]|\w+/g);
     return m ? m.length : 0;
   }
-  function count() { $('scrCount').textContent = `${words()} ${t(lang, 'scribeWords')}`; }
+  function chars() { return $('scrDoc').textContent.replace(/​/g, '').length; }
+  function count() {
+    $('scrCount').textContent = `${words()} ${t(lang, 'scribeWords')} · ${chars()} ${t(lang, 'scribeChars')}`;
+  }
   function interimEl(remove) {
     const ex = $('scrDoc').querySelector('#scrInterim');
     if (remove && ex) ex.remove();
@@ -3631,11 +3703,21 @@ if (typeof document !== 'undefined') {
     el.textContent = text;
     $('scrDoc').parentElement.scrollTop = $('scrDoc').parentElement.scrollHeight;
   }
+  function stampNow() {
+    const el = document.createElement('span');
+    el.className = 'scr-stamp';
+    try {
+      el.textContent = new Intl.DateTimeFormat(langOf(lang).locale,
+        { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
+    } catch { el.textContent = new Date().toTimeString().slice(0, 8); }
+    return el;
+  }
   function appendFinal(text) {
     if (!text) return;
     interimEl(true);
     const p = document.createElement('p');
-    p.textContent = text;
+    if (stamps) { p.appendChild(stampNow()); p.appendChild(document.createTextNode(' ')); }
+    p.appendChild(document.createTextNode(text));
     $('scrDoc').appendChild(p);
     count(); save();
     $('scrDoc').parentElement.scrollTop = $('scrDoc').parentElement.scrollHeight;
@@ -3653,6 +3735,14 @@ if (typeof document !== 'undefined') {
   /* ---------- speech recognition ---------- */
   const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
   let rec = null, listening = false;
+  let listenSec = 0, tickT = 0;
+  const fmtTime = () => {
+    const mm = String(Math.floor(listenSec / 60)).padStart(2, '0');
+    const ss = String(listenSec % 60).padStart(2, '0');
+    $('scrTime').textContent = `${mm}:${ss}`;
+    $('scrTime').title = t(lang, 'scribeListening');
+  };
+  function stampsUI() { $('scrStamps').setAttribute('aria-pressed', String(stamps)); }
   function micUI() {
     $('scrMic').setAttribute('aria-pressed', String(listening));
     $('scrMicText').textContent = t(lang, listening ? 'scribeStop' : 'scribeStart');
@@ -3663,6 +3753,8 @@ if (typeof document !== 'undefined') {
     if (listening) return;
     listening = true;
     micUI();
+    listenSec = 0; fmtTime(); $('scrTime').hidden = false;
+    clearInterval(tickT); tickT = setInterval(() => { listenSec += 1; fmtTime(); }, 1000);
     const loop = () => {
       rec = new SR();
       rec.lang = $('scrIn').value;
@@ -3693,7 +3785,7 @@ if (typeof document !== 'undefined') {
     };
     loop();
   }
-  function stopRec() { listening = false; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
+  function stopRec() { listening = false; clearInterval(tickT); $('scrTime').hidden = true; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
   $('scrMic').addEventListener('click', () => { if (listening) stopRec(); else startRec(); });
   $('scrIn').addEventListener('change', () => { if (listening) { stopRec(); startRec(); } save(); });
   $('scrOut').addEventListener('change', save);
@@ -3716,6 +3808,119 @@ if (typeof document !== 'undefined') {
     $('scrDoc').innerHTML = '';
     count(); save();
   });
+  $('scrUndo').addEventListener('click', () => { $('scrDoc').focus(); document.execCommand('undo'); });
+  $('scrRedo').addEventListener('click', () => { $('scrDoc').focus(); document.execCommand('redo'); });
+  $('scrPrint').addEventListener('click', () => window.print());
+  $('scrStamps').addEventListener('click', () => { stamps = !stamps; stampsUI(); save(); });
+  $('scrImport').addEventListener('click', () => $('scrFile').click());
+  $('scrFile').addEventListener('change', async () => {
+    const f = $('scrFile').files && $('scrFile').files[0];
+    if (!f) return;
+    try {
+      const txt = await f.text();
+      for (const line of txt.split(/\r?\n+/)) {
+        const one = line.trim();
+        if (!one) continue;
+        const p = document.createElement('p');
+        p.textContent = one;
+        $('scrDoc').appendChild(p);
+      }
+      count(); save();
+    } catch { /* unreadable file */ }
+    $('scrFile').value = '';
+  });
+
+  /* ---------- find & replace ---------- */
+  const docEl2 = $('scrDoc');
+  let fCur = -1;
+  function clearHl() {
+    for (const m of [...docEl2.querySelectorAll('mark.scr-hl')]) {
+      const par = m.parentNode;
+      par.replaceChild(document.createTextNode(m.textContent), m);
+      par.normalize();
+    }
+    fCur = -1;
+  }
+  function findAll(q) {
+    clearHl();
+    if (!q) return 0;
+    const ql = q.toLowerCase();
+    const nodes = [];
+    const walker = document.createTreeWalker(docEl2, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let total = 0;
+    for (const n of nodes) {
+      const txt = n.textContent, lt = txt.toLowerCase();
+      if (lt.indexOf(ql) < 0) continue;
+      const frag = document.createDocumentFragment();
+      let pos = 0, i = lt.indexOf(ql);
+      while (i >= 0) {
+        if (i > pos) frag.appendChild(document.createTextNode(txt.slice(pos, i)));
+        const mk = document.createElement('mark');
+        mk.className = 'scr-hl';
+        mk.textContent = txt.slice(i, i + q.length);
+        frag.appendChild(mk);
+        pos = i + q.length; total += 1;
+        i = lt.indexOf(ql, pos);
+      }
+      if (pos < txt.length) frag.appendChild(document.createTextNode(txt.slice(pos)));
+      n.parentNode.replaceChild(frag, n);
+    }
+    return total;
+  }
+  const marks = () => [...docEl2.querySelectorAll('mark.scr-hl')];
+  function goMark(idx) {
+    const ms = marks();
+    if (!ms.length) { $('scrFindCount').textContent = t(lang, 'scribeNoHits'); return; }
+    ms.forEach((m) => m.classList.remove('scr-cur'));
+    fCur = ((idx % ms.length) + ms.length) % ms.length;
+    ms[fCur].classList.add('scr-cur');
+    ms[fCur].scrollIntoView({ block: 'center' });
+    $('scrFindCount').textContent = `${fCur + 1}/${ms.length}`;
+  }
+  function doFind() {
+    const q = $('scrFindIn').value.trim();
+    const n = findAll(q);
+    if (n) goMark(0);
+    else $('scrFindCount').textContent = q ? t(lang, 'scribeNoHits') : '';
+  }
+  function replOne() {
+    const ms = marks();
+    if (!ms.length) return;
+    const m = ms[(fCur < 0 ? 0 : fCur) % ms.length];
+    m.replaceWith(document.createTextNode($('scrReplIn').value));
+    count(); save(); doFind();
+  }
+  function replAll() {
+    const q = $('scrFindIn').value.trim();
+    if (!q) return;
+    const ql = q.toLowerCase(), rv = $('scrReplIn').value;
+    clearHl();
+    const nodes = [];
+    const walker = document.createTreeWalker(docEl2, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let hits = 0;
+    for (const node of nodes) {
+      const txt = node.textContent, lt = txt.toLowerCase();
+      if (lt.indexOf(ql) < 0) continue;
+      let out = '', pos = 0, i = lt.indexOf(ql);
+      while (i >= 0) { out += txt.slice(pos, i) + rv; pos = i + q.length; hits += 1; i = lt.indexOf(ql, pos); }
+      out += txt.slice(pos);
+      node.textContent = out;
+    }
+    if (hits) { count(); save(); }
+    doFind();
+  }
+  $('scrFind').addEventListener('click', () => {
+    $('scrFindBar').hidden = !$('scrFindBar').hidden;
+    if (!$('scrFindBar').hidden) $('scrFindIn').focus(); else clearHl();
+  });
+  $('scrFindIn').addEventListener('input', doFind);
+  $('scrFindNext').addEventListener('click', () => goMark(fCur + 1));
+  $('scrFindPrev').addEventListener('click', () => goMark(fCur - 1));
+  $('scrReplOne').addEventListener('click', replOne);
+  $('scrReplAll').addEventListener('click', replAll);
+  $('scrFindX').addEventListener('click', () => { $('scrFindBar').hidden = true; clearHl(); });
   $('scrDoc').addEventListener('input', () => { count(); save(); });
   $('scrTitle').addEventListener('input', save);
 
@@ -3738,6 +3943,16 @@ if (typeof document !== 'undefined') {
     $('scrCopy').title = t(lang, 'scribeCopy');
     $('scrDl').title = t(lang, 'scribeDownload');
     $('scrClear').title = t(lang, 'scribeClear');
+    $('scrUndo').title = t(lang, 'scribeUndo'); $('scrUndo').setAttribute('aria-label', t(lang, 'scribeUndo'));
+    $('scrRedo').title = t(lang, 'scribeRedo'); $('scrRedo').setAttribute('aria-label', t(lang, 'scribeRedo'));
+    $('scrFind').title = t(lang, 'scribeFind'); $('scrFind').setAttribute('aria-label', t(lang, 'scribeFind'));
+    $('scrStamps').title = t(lang, 'scribeStamps'); $('scrStamps').setAttribute('aria-label', t(lang, 'scribeStamps'));
+    $('scrImport').title = t(lang, 'scribeImport'); $('scrImport').setAttribute('aria-label', t(lang, 'scribeImport'));
+    $('scrPrint').title = t(lang, 'scribePrint'); $('scrPrint').setAttribute('aria-label', t(lang, 'scribePrint'));
+    $('scrFindIn').placeholder = t(lang, 'scribeFind');
+    $('scrReplIn').placeholder = t(lang, 'scribeReplace');
+    $('scrReplOne').textContent = t(lang, 'scribeReplace');
+    $('scrReplAll').textContent = t(lang, 'scribeReplaceAll');
     $('launchText').textContent = t(lang, 'launchpad');
     $('settingsText').textContent = t(lang, 'settings');
     $('btnLaunch').title = t(lang, 'launchpad');
@@ -3756,9 +3971,21 @@ if (typeof document !== 'undefined') {
     try { localStorage.setItem('singhoah:night', dark ? '1' : '0'); } catch { /* ignore */ }
     $('nightText').textContent = t(lang, dark ? 'light' : 'night');
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('langPop').hidden = true; });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      $('langPop').hidden = true;
+      if (!$('scrFindBar').hidden) { $('scrFindBar').hidden = true; clearHl(); }
+      return;
+    }
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod) return;
+    if (e.key === 'f' || e.key === 'F') { e.preventDefault(); $('scrFindBar').hidden = false; $('scrFindIn').focus(); }
+    else if (e.key === 'h' || e.key === 'H') { e.preventDefault(); $('scrFindBar').hidden = false; $('scrReplIn').focus(); }
+    else if (e.key === 's' || e.key === 'S') { e.preventDefault(); save(); }
+  });
 
   load();
+  stampsUI();
   let saved = '';
   try { saved = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
   applyLang(LANGS.some((l) => l.id === saved) ? saved : 'en', false);

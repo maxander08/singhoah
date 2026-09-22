@@ -1108,6 +1108,39 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
 }
 @media (max-width: 700px) { .scr-page { padding: 28px 18px; } }
 
+/* ---------- scribe: toolbar groups, find bar, stamps, print ---------- */
+.scr-sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--border); }
+.scr-ic { width: var(--h-ctl); justify-content: center; padding: 0; }
+.scr-ic[aria-pressed="true"] { border-color: currentColor; }
+.scr-find {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+}
+.scr-find input {
+  height: 30px; width: 150px; padding: 0 8px;
+  background: transparent; border: 1px solid var(--border); border-radius: var(--radius);
+  color: inherit; font: inherit; font-size: 13px;
+}
+.scr-find input:focus { outline: 1px solid var(--border); }
+.scr-find .btn { height: 30px; }
+#scrFindCount { min-width: 52px; text-align: center; color: var(--pigeon); font-size: 12px; }
+mark.scr-hl { background: var(--notification); color: var(--on-notification); border-radius: 2px; }
+mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1px; }
+.scr-stamp {
+  color: var(--pigeon); font-size: 0.72em; margin-inline-end: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.scr-time { color: var(--pigeon); font-variant-numeric: tabular-nums; }
+
+@media print {
+  body[data-app="scribe"] .topbar,
+  body[data-app="scribe"] .scr-bar,
+  body[data-app="scribe"] .scr-find,
+  body[data-app="scribe"] .scr-foot { display: none !important; }
+  body[data-app="scribe"] .scr-scroll { overflow: visible; height: auto; }
+  body[data-app="scribe"] .scr-page { max-width: none; margin: 0; padding: 0; box-shadow: none; border: 0; }
+}
+
 /* ---------- map usability: zoom / pan / tooltip ---------- */
 .map-ui {
   position: fixed; top: 92px; right: calc(var(--gap) * 2);   /* below the map header readout */

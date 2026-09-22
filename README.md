@@ -130,7 +130,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 156 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 160 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
@@ -144,8 +144,13 @@ independently-running zone per cell.
 A fifth app (`scribe.html`, plus offline single-file build): press **Start**, speak,
 and the editable document fills up in real time (interim text shown faint until
 finalized), Google-Doc style — editable page, renameable title, "Saving… / All
-changes saved" status, word count, copy / download / clear, autosaved to
-`singhoah:scribe` (and synced with the account when signed in). The **spoken
+changes saved" status, word **and character** count with a listening-time
+timer, copy / download / clear, autosaved to `singhoah:scribe` (and synced with
+the account when signed in). The toolbar adds **undo / redo**, **find &
+replace** (Ctrl+F / Ctrl+H, highlighted matches with next/previous, replace one
+or all), optional **timestamps** on each dictated paragraph, **import** of
+.txt/.md files and **print** (a print stylesheet yields a clean paper copy).
+All of it follows the UI language in all ten languages. The **spoken
 language** (recognizer) and **transcript language** are independently selectable;
 defaults are both Chinese (Traditional). When they differ, each finalized sentence
 is translated (MyMemory, free) before being appended. Uses the browser's Web Speech
