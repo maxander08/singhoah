@@ -2204,6 +2204,8 @@ export class ClockCore {
     this.schedule = deps.schedule || ((fn) => requestAnimationFrame(fn));
     this.onTick = deps.onTick || (() => {});
     this.offset = 0;
+    this.rate = 0;                 // measured device drift, correction-ms per device-ms
+    this.offAt = this.nowFn();     // device time the current offset was anchored
     this._sw = null;
     this._running = false;
     this.start();
@@ -2212,12 +2214,23 @@ export class ClockCore {
   get running() { return this._running; }
 
   /* Current correction while a slew is running (smoothstep easing). */
+  /* between syncs the device keeps drifting at its measured rate, so the
+     correction grows with it — the display stays pinned to true time. */
+  _rateTerm() {
+    const x = this.rate * (this.nowFn() - this.offAt);
+    return Math.max(-2000, Math.min(2000, Math.round(x)));
+  }
+
   _curOff() {
-    if (!this._sw) return this.offset;
-    const k = (this.nowFn() - this._sw.t0) / this._sw.dur;
-    if (k >= 1) { this.offset = this._sw.to; this._sw = null; return this.offset; }
-    const e = k <= 0 ? 0 : k * k * (3 - 2 * k);
-    return Math.round(this._sw.from + (this._sw.to - this._sw.from) * e);
+    if (this._sw) {
+      const k = (this.nowFn() - this._sw.t0) / this._sw.dur;
+      if (k >= 1) { this.offset = this._sw.to; this._sw = null; }
+      else {
+        const e = k <= 0 ? 0 : k * k * (3 - 2 * k);
+        return Math.round(this._sw.from + (this._sw.to - this._sw.from) * e);
+      }
+    }
+    return this.offset + this._rateTerm();
   }
 
   /** Time the display should show: local system time, drift-corrected. */
@@ -2225,8 +2238,13 @@ export class ClockCore {
 
   /* Small corrections ease in over ~2 s so the digits never jump;
      large ones (system clock stepped) apply instantly. */
-  setOffset(ms) {
+  setOffset(ms) { this.setSync(ms, 0, this.nowFn()); }
+
+  /* A sync anchors the correction at `at` and carries the fitted drift rate. */
+  setSync(ms, rate = 0, at = null) {
     const to = Number.isFinite(ms) ? Math.round(ms) : 0;
+    this.rate = Number.isFinite(rate) ? Math.max(-5e-4, Math.min(5e-4, rate)) : 0;
+    this.offAt = Number.isFinite(at) ? at : this.nowFn();
     const from = this._curOff();
     if (Math.abs(to - from) > 2000) { this.offset = to; this._sw = null; }
     else if (to !== from) {
@@ -3030,19 +3048,52 @@ function renderSync() {
     : t(lang, 'checking');
 }
 
-async function runSync() {
+/* Sync history of precise samples -> fitted device drift rate, so the clock
+   stays corrected between checks instead of only at each check. */
+const syncHist = [];
+globalThis.__SINGHOAH_SYNCHIST = syncHist;
+function fitRate() {
+  if (syncHist.length < 3) return 0;
+  const span = syncHist[syncHist.length - 1].at - syncHist[0].at;
+  if (span < 120 * 1000) return 0;
+  const n = syncHist.length;
+  const t0 = syncHist[0].at;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  for (const pt of syncHist) {
+    const x = pt.at - t0, y = pt.offset;
+    sx += x; sy += y; sxy += x * y; sxx += x * x;
+  }
+  const den = n * sxx - sx * sx;
+  if (!den) return 0;
+  return Math.max(-5e-4, Math.min(5e-4, (n * sxy - sx * sy) / den));
+}
+const predictAt = (at) => {
+  const last = syncHist[syncHist.length - 1];
+  return last ? last.offset + fitRate() * (at - last.at) : 0;
+};
+
+let syncFails = 0;
+let retryTimer = null;
+let lastFullAt = 0;
+
+/* full = 3-round calibration (boot, manual, wake, escalation);
+   light = one quick round, every minute, forever. */
+async function runSync(full = true) {
   if (syncing) return;
   syncing = true;
-  els.btnSync.disabled = true;
-  els.btnSync.classList.add('is-busy');
-  els.lastSync.textContent = t(lang, 'syncing');
+  if (full) {
+    els.btnSync.disabled = true;
+    els.btnSync.classList.add('is-busy');
+    els.lastSync.textContent = t(lang, 'syncing');
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
-  const rounds = [0, 1, 2].map(async (i) => {
+  const roundList = full ? [0, 1, 2] : [0];
+  const rounds = roundList.map(async (i) => {
     if (i) await new Promise((r) => setTimeout(r, 120 * i));
-    const results = await Promise.all(NTP_SOURCES.map((s) => sampleNtp(s, {
-      fetch: (...a) => fetch(...a, { signal: controller.signal, cache: 'no-store' }),
+    const results = await Promise.all(NTP_SOURCES.map((sr) => sampleNtp(sr, {
+      fetch: (...ar) => fetch(...ar, { signal: controller.signal, cache: 'no-store' }),
     })));
     return pickNtpResult(results);
   });
@@ -3055,8 +3106,31 @@ async function runSync() {
   els.btnSync.disabled = false;
   els.btnSync.classList.remove('is-busy');
 
-  syncResult = picked;
-  if (picked) window.__clock.setOffset(picked.offset);
+  if (picked) {
+    syncFails = 0;
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    if (full) lastFullAt = Date.now();
+    const predicted = predictAt(picked.at);
+    if (picked.resolution === 'millisecond') {
+      syncHist.push({ at: picked.at, offset: picked.offset });
+      while (syncHist.length > 10) syncHist.shift();
+      window.__clock.setSync(picked.offset, fitRate(), picked.at);
+    } else if (full || Math.abs(picked.offset - predicted) > 1200) {
+      /* second-resolution fallback: only trusted when nothing finer answers
+         AND we are genuinely far off — its +-500 ms noise must not wobble us */
+      window.__clock.setSync(picked.offset, 0, picked.at);
+    }
+    if (!full && Math.abs(picked.offset - predictAt(picked.at)) > 150) {
+      setTimeout(() => runSync(true), 4000);   /* odd light check -> recalibrate */
+    }
+    syncResult = picked;
+  } else {
+    /* failed: retry on our own with backoff — the user never has to */
+    syncFails += 1;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => { retryTimer = null; runSync(true); },
+      Math.min(60 * 1000, 10 * 1000 * 2 ** Math.min(syncFails, 3)));
+  }
   renderSync();
   window.dispatchEvent(new CustomEvent('singhoah:sync', { detail: picked }));
 }
@@ -3417,7 +3491,7 @@ function initUI() {
     els.ipPop.hidden = true;
   });
 
-  els.btnSync.addEventListener('click', runSync);
+  els.btnSync.addEventListener('click', () => runSync(true));
 
   els.btnFull.addEventListener('click', async () => {
     try {
@@ -3432,18 +3506,19 @@ function initUI() {
     if (e.key === 'n' || e.key === 'N') els.btnNight.click();
     if (e.key === 'a' || e.key === 'A') els.btnMode.click();
     if (e.key === 'f' || e.key === 'F') els.btnFull.click();
-    if (e.key === 'r' || e.key === 'R') runSync();
+    if (e.key === 'r' || e.key === 'R') runSync(true);
   });
 
   // the <head> script applied the stored (or default-dark) scheme pre-paint
   updateThemeBtn();
 
   renderSync();
-  runSync();
-  setInterval(runSync, 5 * 60 * 1000);
+  lastFullAt = Date.now();
+  runSync(true);
+  setInterval(() => runSync(Date.now() - lastFullAt > 15 * 60 * 1000), 60 * 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || !syncResult || !syncResult.at) return;
-    if (Date.now() - syncResult.at > 60 * 1000) runSync();   /* woke up: re-check drift */
+    if (Date.now() - syncResult.at > 60 * 1000) runSync(true);   /* woke up: recalibrate */
   });
 }
 

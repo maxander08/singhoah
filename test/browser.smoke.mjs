@@ -1064,6 +1064,11 @@ const mslew = await page.evaluate(async () => {
   return { imm, done };
 });
 ok('clock slews small corrections (no ms jump)', !!mslew && mslew.imm >= 0 && mslew.imm < 100 && mslew.done >= 100 && mslew.done <= 145, JSON.stringify(mslew));
+ok('auto-sync keeps a drift history and a bounded drift rate', await page.evaluate(() => {
+  const h = window.__SINGHOAH_SYNCHIST;
+  const c = window.__clock;
+  return Array.isArray(h) && h.length >= 1 && Number.isFinite(c.rate) && Math.abs(c.rate) <= 5e-4;
+}));
 
 await browser.close();
 

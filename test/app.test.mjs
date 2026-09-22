@@ -201,6 +201,16 @@ test('ClockCore shows the system clock and applies a measured drift offset', () 
   core.setOffset(5000);
   assert.equal(core.offset, 5000);
 
+test('ClockCore compensates steady device drift between syncs', () => {
+  let t = Date.parse('2026-08-25T10:00:00.000Z');
+  const core = new ClockCore({ now: () => t, schedule: () => {}, onTick: () => {} });
+  core.setSync(100, 2e-4, t);             // device loses 0.2 ms per real second
+  t += 1000;                              // the 800 ms slew has finished
+  assert.equal(core.now().getTime(), t + 100, 'offset anchored once the slew ends');
+  t += 9000;
+  assert.equal(core.now().getTime(), t + 102, 'drift keeps being compensated between syncs');
+});
+
   // frames queued while stopped must not keep rendering
   const before = seen.length;
   core.stop();

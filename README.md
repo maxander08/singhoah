@@ -31,6 +31,12 @@ Tuesday, 25 August 2026                       05:51 UTC
   in over a fraction of a second instead of jumping, so the millisecond digits
   never visibly skip; the tab also re-syncs the moment it becomes visible again
   after being backgrounded or the device slept.
+- **Always-synced, hands-free**: a light one-round check runs every 60 s (full
+  3-round calibration at boot, on demand, on wake, and every 15 min), and the
+  successful samples are fitted to a device drift *rate* that continuously
+  compensates between checks — the display stays pinned to true time instead of
+  wandering until the next sync. Failed checks retry themselves with back-off
+  (10 s → 60 s), so there is never a need to press Re-sync.
 - **Every time zone, with flags** — a searchable picker listing all 400+
   IANA zones grouped by region, each with its country flag as an embedded SVG
   (IANA's public-domain `zone1970.tab` maps zones to countries; simplified
@@ -124,7 +130,7 @@ The committed files in this folder are already built — just serve the folder.
 
 ```sh
 npm test          # 29 unit tests for formatting, zones, flags, i18n, sync, layouts, hands, timers, stopwatch, map, wallet
-npm run test:browser   # 155 checks in real Chromium, incl. touch-emulated phone (needs the server above)
+npm run test:browser   # 156 checks in real Chromium, incl. touch-emulated phone (needs the server above)
 ```
 
 The browser suite verifies the format, that the display equals the system clock,
