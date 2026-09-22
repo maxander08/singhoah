@@ -2550,7 +2550,9 @@ function fitClock() {
   for (const cell of cells) {
     const box = cell.el.getBoundingClientRect();
     const capH = (zenMode || layout > 1) ? cell.cap.offsetHeight + 14 : 0;
-    const size = fitFontSize(box.width, box.height - capH, { padX: 24, padY: 8 });
+    /* 88% of the fitted size — leaves calm margins instead of
+       edge-to-edge digits (and keeps the ms column off the cell border) */
+    const size = Math.max(12, fitFontSize(box.width, box.height - capH, { padX: 24, padY: 8 }) * 0.88);
     cell.clock.style.fontSize = `${size}px`;
     const side = Math.max(96, Math.floor(Math.min(box.width, box.height - capH) - 28));
     cell.dial.style.width = `${side}px`;
