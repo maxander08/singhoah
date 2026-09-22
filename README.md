@@ -175,7 +175,7 @@ browsers — live, in both directions (the poller pushes local changes and pulls
 newer remote ones every 2.5 s; wallet entries repaint without a reload). The
 Firestore database must allow each signed-in user to read/write only
 `users/<uid>`: paste `firestore.rules` (shipped in this repo) into
-Firebase console → Firestore Database → Rules → Publish. With the database in
+Firebase console → Databases & Storage → Firestore → Rules → Publish (or open `console.firebase.google.com/project/singhoah1/firestore/rules` directly). With the database in
 locked mode the portal degrades silently to per-account local snapshots.
 Everything stays public without it — no sign-in wall.
 
