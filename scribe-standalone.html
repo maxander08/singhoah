@@ -3664,7 +3664,6 @@ if (typeof document !== 'undefined') {
     } catch { /* ignore */ }
   }
   function save() {
-    $('scrStatus').textContent = t(lang, 'scribeSaving');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
@@ -3673,7 +3672,6 @@ if (typeof document !== 'undefined') {
           in: $('scrIn').value, out: $('scrOut').value, stamps,
         }));
       } catch { /* ignore */ }
-      $('scrStatus').textContent = t(lang, 'scribeSaved');
     }, 600);
   }
 
@@ -3959,7 +3957,6 @@ if (typeof document !== 'undefined') {
     $('btnSettings').title = t(lang, 'settings');
     const dark = document.documentElement.classList.contains('dark');
     $('nightText').textContent = t(lang, dark ? 'light' : 'night');
-    $('scrStatus').textContent = t(lang, 'scribeSaved');
     $('scrDoc').dataset.hint = t(lang, 'scribeHint');
     micUI(); count();
     if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
@@ -3991,7 +3988,6 @@ if (typeof document !== 'undefined') {
   applyLang(LANGS.some((l) => l.id === saved) ? saved : 'en', false);
   makeLangPicker($('langBtn'), $('langPop'), $('langList'), (id) => applyLang(id), '.langwrap');
   count();
-  $('scrStatus').textContent = t(lang, 'scribeSaved');
 </script>
 </body>
 </html>

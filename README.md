@@ -143,8 +143,7 @@ independently-running zone per cell.
 
 A fifth app (`scribe.html`, plus offline single-file build): press **Start**, speak,
 and the editable document fills up in real time (interim text shown faint until
-finalized), Google-Doc style — editable page, renameable title, "Saving… / All
-changes saved" status, word **and character** count with a listening-time
+finalized), Google-Doc style — editable page, renameable title, silent autosave, word **and character** count with a listening-time
 timer, copy / download / clear, autosaved to `singhoah:scribe` (and synced with
 the account when signed in). The toolbar adds **undo / redo**, **find &
 replace** (Ctrl+F / Ctrl+H, highlighted matches with next/previous, replace one
