@@ -92,7 +92,7 @@
 <script type="module" src="auth.js"></script>
 <script type="module">
   const { LANGS, t, langOf, ccFlag, makeLangPicker, toSegments, anglesFromSegments,
-          makeDial, allTimeZones, cityOf, flagSrc, zoneInfo, clampPop } = globalThis.__SING_LIB;
+          makeDial, allTimeZones, cityOf, flagSrc, zoneInfo, clampPop, langTitleOf } = globalThis.__SING_LIB;
   try { localStorage.setItem('singhoah:visited', '1'); } catch { /* ignore */ }
   const $ = (id) => document.getElementById(id);
   let lang = 'en';
@@ -200,6 +200,13 @@
     document.documentElement.dir = L.dir;
     $('langFlag').src = ccFlag(L.flag);
     $('langLabel').textContent = lang === 'zh-Hant' ? '繁中' : lang.toUpperCase();
+    $('langBtn').title = langTitleOf(lang);
+    $('langList').setAttribute('aria-label', t(lang, 'language'));
+    $('btnNight').title = t(lang, 'nightTitle');
+    $('lpZoneBtn').title = t(lang, 'tzTitle');
+    $('lpTzSearch').placeholder = t(lang, 'tzSearchPh');
+    $('lpTzSearch').setAttribute('aria-label', t(lang, 'tzSearchPh'));
+    $('lpTzList').setAttribute('aria-label', t(lang, 'tzListAria'));
     $('lpClockT').textContent = t(lang, 'lpClock');
     $('lpClockS').textContent = t(lang, 'lpClockSub');
     $('lpWalletT').textContent = t(lang, 'wallet');
@@ -210,6 +217,7 @@
     $('lpSettingsS').textContent = t(lang, 'lpSettingsSub');
     $('lpOffSettings').textContent = `${t(lang, 'settings')} · ${t(lang, 'lpOffline')}`;
     if ($('settingsText')) $('settingsText').textContent = t(lang, 'settings');
+    if ($('btnSettings')) $('btnSettings').title = t(lang, 'settings');
     $('lpScribeT').textContent = t(lang, 'lpScribe');
     $('lpScribeS').textContent = t(lang, 'lpScribeSub');
     $('lpOffScribe').textContent = `${t(lang, 'lpScribe')} · ${t(lang, 'lpOffline')}`;

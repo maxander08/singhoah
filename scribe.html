@@ -111,7 +111,7 @@
 <script src="firebase-config.js"></script>
 <script type="module" src="auth.js"></script>
 <script type="module">
-  const { LANGS, t, langOf, ccFlag, makeLangPicker } = globalThis.__SING_LIB;
+  const { LANGS, STRINGS, t, langOf, ccFlag, makeLangPicker, langTitleOf } = globalThis.__SING_LIB;
   const $ = (id) => document.getElementById(id);
 
   /* spoken languages offered to the recognizer (BCP-47) */
@@ -224,6 +224,7 @@
   function stampsUI() { $('scrStamps').setAttribute('aria-pressed', String(stamps)); }
   function micUI() {
     $('scrMic').setAttribute('aria-pressed', String(listening));
+    $('scrMic').title = t(lang, listening ? 'scribeStop' : 'scribeStart');
     $('scrMicText').textContent = t(lang, listening ? 'scribeStop' : 'scribeStart');
     $('scrListen').textContent = listening ? t(lang, 'scribeListening') : '';
   }
@@ -412,6 +413,23 @@
     document.documentElement.dir = L.dir;
     $('langFlag').src = ccFlag(L.flag);
     $('langLabel').textContent = lang === 'zh-Hant' ? '繁中' : lang.toUpperCase();
+    $('langBtn').title = langTitleOf(lang);
+    $('langList').setAttribute('aria-label', t(lang, 'language'));
+    $('btnNight').title = t(lang, 'nightTitle');
+    $('scrFindIn').setAttribute('aria-label', t(lang, 'scribeFind'));
+    $('scrFindPrev').setAttribute('aria-label', t(lang, 'prevMatch'));
+    $('scrFindNext').setAttribute('aria-label', t(lang, 'nextMatch'));
+    $('scrReplIn').setAttribute('aria-label', t(lang, 'scribeReplace'));
+    $('scrReplOne').title = t(lang, 'scribeReplace');
+    $('scrReplAll').title = t(lang, 'scribeReplaceAll');
+    $('scrFindX').setAttribute('aria-label', t(lang, 'closeFind'));
+    $('scrDoc').setAttribute('aria-label', t(lang, 'scrDocAria'));
+    $('scrTitle').setAttribute('aria-label', t(lang, 'docTitle'));
+    {
+      const cur = $('scrTitle').value;
+      const isDefault = !cur.trim() || Object.values(STRINGS).some((tb) => tb.untitled === cur);
+      if (isDefault) $('scrTitle').value = t(lang, 'untitled');
+    }
     $('lblIn').textContent = t(lang, 'scribeIn');
     $('lblOut').textContent = t(lang, 'scribeOut');
     $('scrIn').title = t(lang, 'scribeIn');

@@ -230,6 +230,8 @@ src/           editable sources (build.py copies them to the folder root)
 test/          app.test.mjs (node:test) · browser.smoke.mjs (Playwright)
                sync.e2e.mjs + fbstore.mjs: two stubbed-Firebase "devices"
                prove push/adopt/no-clobber/live-pull (node test/sync.e2e.mjs)
+               i18n.audit.mjs: every language × every page, flags any
+               untranslated UI chrome (node test/i18n.audit.mjs)
 fonts/         SaansVF.woff2 · SerrifVF.woff2, fetched from displaay.net
 flags/         compact SVG flag cache used by build_flags.py
 fonts.css      generated: the two faces as base64 data URIs

@@ -93,7 +93,7 @@
 <script type="module" src="auth.js"></script>
 <script type="module">
   const { LANGS, t, langOf, ccFlag, makeLangPicker, allTimeZones, cityOf, flagSrc, zoneInfo,
-          CURRENCIES, curSymbol, curName, curFlag, curAlias, clampPop } = globalThis.__SING_LIB;
+          CURRENCIES, curSymbol, curName, curFlag, curAlias, clampPop, langTitleOf } = globalThis.__SING_LIB;
   const $ = (id) => document.getElementById(id);
   let lang = 'en';
 
@@ -230,6 +230,11 @@
     document.documentElement.dir = L.dir;
     $('langFlag').src = ccFlag(L.flag);
     $('langLabel').textContent = lang === 'zh-Hant' ? '繁中' : lang.toUpperCase();
+    $('langBtn').title = langTitleOf(lang);
+    $('langList').setAttribute('aria-label', t(lang, 'language'));
+    $('btnNight').title = t(lang, 'nightTitle');
+    $('citySearch').setAttribute('aria-label', t(lang, 'search'));
+    $('curSearch').setAttribute('aria-label', t(lang, 'walCurSearch'));
     $('hLang').textContent = t(lang, 'language');
     $('hTheme').textContent = t(lang, 'appearance');
     $('hCity').textContent = t(lang, 'homeCity');

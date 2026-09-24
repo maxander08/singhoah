@@ -8,7 +8,7 @@ const {
   LANGS, t, langOf, pad, ccFlag,
   curSymbol, curName, curFlag, CURRENCIES, curAlias,
   walBalance, walByDay, walMonthStats, walWeekSeries,
-  makeLangPicker,
+  makeLangPicker, langTitleOf,
 } = LIB;
 
 const els = {};
@@ -323,6 +323,9 @@ function applyLang(id, persist = true) {
   document.documentElement.dir = L.dir;
   els.langFlag.src = ccFlag(L.flag);
   els.langLabel.textContent = lang === 'zh-Hant' ? '繁中' : lang.toUpperCase();
+  els.langBtn.title = langTitleOf(lang);
+  els.langList.setAttribute('aria-label', t(lang, 'language'));
+  els.btnNight.title = t(lang, 'nightTitle');
   els.walBalLabel.textContent = t(lang, 'walBalance');
   els.walTypeOut.textContent = t(lang, 'walExpense');
   els.walTypeIn.textContent = t(lang, 'walIncome');
