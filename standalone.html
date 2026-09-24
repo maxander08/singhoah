@@ -611,6 +611,32 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
 }
 .wal-body-page { max-height: none; }
+.wal-main { display: flex; flex-direction: column; min-width: 0; }
+
+/* wide screens: entry rail on the left, days/reports on the right */
+@media (min-width: 900px) {
+  .wallet-app { padding: 24px 20px 32px; align-items: stretch; }
+  .wal-panel {
+    align-self: stretch;
+    width: min(1240px, 100%);
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "head head" "form main";
+  }
+  .wal-head { grid-area: head; }
+  .wal-form {
+    grid-area: form;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+  }
+  .wal-field-add { margin-top: auto; }
+  .wal-main { grid-area: main; }
+  .wal-bal { font-size: clamp(27px, 2.4vw, 38px); }
+  .wal-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
 
 /* ---------- SinghoLaunch launchpad ---------- */
 .launch {
