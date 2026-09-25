@@ -1158,8 +1158,8 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
 .scr-lbl { color: var(--pigeon); font-size: 12px; }
 .scr-sel { height: var(--h-ctl); padding: 0 8px; max-width: 190px; border: 0; font-weight: 650; font-variation-settings: "wght" 650; }
 .scr-mic[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }
-.scr-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0; }
-.scr-mic[aria-pressed="true"] .scr-dot { opacity: 1; animation: scrPulse 1.2s infinite; }
+.scr-dot { display: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.scr-mic[aria-pressed="true"] .scr-dot { display: inline-block; opacity: 1; animation: scrPulse 1.2s infinite; }
 @keyframes scrPulse { 50% { opacity: .25; } }
 .scr-scroll {
   flex: 1; overflow-y: auto; background: var(--paper-2);

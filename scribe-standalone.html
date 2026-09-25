@@ -1148,8 +1148,8 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
 .scr-lbl { color: var(--pigeon); font-size: 12px; }
 .scr-sel { height: var(--h-ctl); padding: 0 8px; max-width: 190px; border: 0; font-weight: 650; font-variation-settings: "wght" 650; }
 .scr-mic[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }
-.scr-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0; }
-.scr-mic[aria-pressed="true"] .scr-dot { opacity: 1; animation: scrPulse 1.2s infinite; }
+.scr-dot { display: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.scr-mic[aria-pressed="true"] .scr-dot { display: inline-block; opacity: 1; animation: scrPulse 1.2s infinite; }
 @keyframes scrPulse { 50% { opacity: .25; } }
 .scr-scroll {
   flex: 1; overflow-y: auto; background: var(--paper-2);
@@ -3855,18 +3855,35 @@ if (typeof document !== 'undefined') {
     $('scrListen').textContent = listening ? t(lang, 'scribeListening') : '';
   }
   function startRec() {
-    if (!SR) { $('scrStatus').textContent = t(lang, 'scribeNo'); return; }
+    if (!SR) { $('scrListen').textContent = t(lang, 'scribeNo'); return; }
     if (listening) return;
     listening = true;
     micUI();
     listenSec = 0; fmtTime(); $('scrTime').hidden = false;
     clearInterval(tickT); tickT = setInterval(() => { listenSec += 1; fmtTime(); }, 1000);
+    let rapidEnds = 0;
     const loop = () => {
       rec = new SR();
       rec.lang = $('scrIn').value;
       rec.continuous = true;
       rec.interimResults = true;
+      const startedAt = Date.now();
+      const myRec = rec;
+      let alive = false;
+      /* some environments accept start() and then never deliver a single
+         event — the chip would stay blue forever. Watchdog: if the service
+         never comes alive, give up cleanly. */
+      setTimeout(() => {
+        if (listening && !alive && rec === myRec) {
+          listening = false; micUI();
+          $('scrListen').textContent = t(lang, 'scribeNo');
+          try { myRec.abort(); } catch { /* ignore */ }
+        }
+      }, 4000);
+      rec.onstart = () => { alive = true; };
       rec.onresult = (e) => {
+        alive = true;
+        rapidEnds = 0;
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
@@ -3880,11 +3897,21 @@ if (typeof document !== 'undefined') {
         }
         setInterim(interim.trim());
       };
-      rec.onend = () => { if (listening) { try { loop(); } catch { listening = false; micUI(); } } else setInterim(''); };
-      rec.onerror = (e) => {
-        if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+      rec.onend = () => {
+        if (!listening) { setInterim(''); return; }
+        /* a mic/service that dies instantly must not leave the button
+           stuck as a blue chip: three rapid ends = give up cleanly */
+        if (Date.now() - startedAt < 1500 && ++rapidEnds >= 3) {
           listening = false; micUI();
-          $('scrStatus').textContent = t(lang, 'scribeNo');
+          $('scrListen').textContent = t(lang, 'scribeNo');
+          return;
+        }
+        try { loop(); } catch { listening = false; micUI(); }
+      };
+      rec.onerror = (e) => {
+        if (['not-allowed', 'service-not-allowed', 'audio-capture', 'network'].includes(e.error)) {
+          listening = false; micUI();
+          $('scrListen').textContent = t(lang, 'scribeNo');
         }
       };
       try { rec.start(); } catch { listening = false; micUI(); }
