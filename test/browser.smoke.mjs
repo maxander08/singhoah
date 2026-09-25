@@ -1098,6 +1098,23 @@ ok('auto-sync keeps a drift history and a bounded drift rate', await page.evalua
   return Array.isArray(h) && h.length >= 1 && Number.isFinite(c.rate) && Math.abs(c.rate) <= 5e-4;
 }));
 
+/* --- print: always black text on white paper, night shift included --- */
+const prn = await browser.newContext({ viewport: { width: 900, height: 700 } });
+await prn.addInitScript(() => { localStorage.setItem('singhoah:night', '1'); localStorage.setItem('singhoah:visited', '1'); });
+for (const pg of ['wallet.html', 'scribe.html']) {
+  const pr = await prn.newPage();
+  await pr.goto(URL + pg, { waitUntil: 'load' });
+  await pr.waitForTimeout(250);
+  await pr.emulateMedia({ media: 'print' });
+  ok(`print renders black text on ${pg} even in night shift`, await pr.evaluate(() => {
+    const t = document.createElement('p'); t.textContent = 'print probe';
+    document.body.appendChild(t);
+    return getComputedStyle(t).color === 'rgb(0, 0, 0)';
+  }));
+  await pr.close();
+}
+await prn.close();
+
 await browser.close();
 
 if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);

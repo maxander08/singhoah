@@ -1175,6 +1175,24 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .scr-time { color: var(--pigeon); font-variant-numeric: tabular-nums; }
 
 @media print {
+  /* paper is always black-on-white, night shift included */
+  :root, .dark {
+    color-scheme: light;
+    --paper: #ffffff;
+    --paper-2: #ffffff;
+    --black: #000000;
+    --pigeon: #000000;
+    --border: #000000;
+    --notification: #000000;
+    --on-notification: #000000;
+  }
+  * {
+    color: #000000 !important;
+    background: transparent !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+  html, body { background: #ffffff !important; height: auto !important; overflow: visible !important; }
   body[data-app="scribe"] .topbar,
   body[data-app="scribe"] .scr-bar,
   body[data-app="scribe"] .scr-find,
