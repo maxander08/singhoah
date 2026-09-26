@@ -138,6 +138,7 @@
     side: [...words(['side']), 'side', '並排', 'lado', 'côte'],
     quad: [...words(['quad']), '2x2', '2 × 2', 'quad'],
     grid16: [...words(['grid16']), '4x4', '4×4'],
+    clearAll: [...words(['clearAll']), 'clear all', 'clear-all', 'reset window', '全部清除'],
     map: words(['map']),
     resync: [...words(['resync']), 'sync'],
     full: words(['full']),
@@ -327,7 +328,7 @@
   function helpText() {
     const bits = [t(curLang, 'timer'), t(curLang, 'stopwatch'), t(curLang, 'tzTitle'),
       t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
-      t(curLang, 'winTitle'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
+      t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
       t(curLang, 'wallet'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
     return `SMate · ${bits.join(' · ')}`;
   }
@@ -390,7 +391,17 @@
       note(setLang(lg) ? `${t(curLang, 'language')}: ${langOf(lg).name}` : null);
     }
 
-    /* window shape + zones, in the order spoken */
+    /* clear all: reset the clock window (from any page) */
+    if (has(text, KW.clearAll)) {
+      if (page === 'clock') { LIB.clearWindow(); note(t(curLang, 'done')); }
+      else {
+        try { localStorage.setItem('singhoah:pendingClear', '1'); } catch { /* ignore */ }
+        note(act.nav('clock'));
+      }
+      return outs.length ? outs.join(' · ') : null;
+    }
+
+        /* window shape + zones, in the order spoken */
     const lay = layoutIntent(text);
     const zones = findAllZones(text);
     const zoneGate = has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3;

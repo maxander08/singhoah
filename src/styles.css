@@ -1218,6 +1218,15 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 }
 
 /* ---------- SMate assistant ---------- */
+.win-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: flex-start;
+  border-top: 1px solid var(--border);
+}
+
 .smate-pop[hidden] { display: none; }
 .smate-pop {
   position: fixed;

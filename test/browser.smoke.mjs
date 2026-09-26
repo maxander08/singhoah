@@ -1280,6 +1280,98 @@ ok('SMate commands work on phones', await mp.evaluate(() => document.documentEle
 await mp.close();
 await mo.close();
 
+/* --- Clear all: Window menu + SMate, on clock and across pages --- */
+const cl = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+await cl.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const clp = await cl.newPage();
+await clp.goto(URL + 'index.html', { waitUntil: 'load' });
+await clp.waitForTimeout(400);
+await clp.click('#smateBtn');
+await clp.fill('#smateIn', 'zones Jakarta, Taipei, Singapore in 2 by 2');
+await clp.click('#smateSend');
+await clp.waitForTimeout(1600);
+ok('a busy window starts with four panes', await clp.evaluate(() =>
+  document.querySelectorAll('#grid .cell').length === 4));
+await clp.click('#smateX');
+await clp.click('#btnWindow');
+await clp.waitForTimeout(150);
+await clp.click('#winClear');
+await clp.waitForTimeout(250);
+ok('Window menu offers Clear all and it resets the window', await clp.evaluate(() =>
+  document.getElementById('grid').dataset.layout === '1' &&
+  document.querySelectorAll('#grid .cell').length === 1));
+await clp.click('#smateBtn');
+await clp.fill('#smateIn', '2 by 2');
+await clp.click('#smateSend');
+await clp.waitForTimeout(950);
+await clp.fill('#smateIn', 'clear all');
+await clp.click('#smateSend');
+await clp.waitForTimeout(950);
+ok('SMate clears the window on command', await clp.evaluate(() =>
+  document.getElementById('grid').dataset.layout === '1' &&
+  document.querySelectorAll('#grid .cell').length === 1));
+await clp.close();
+
+/* SMate clear-all from another page hops home and clears there */
+const cl2 = await cl.newPage();
+await cl2.goto(URL + 'wallet.html', { waitUntil: 'load' });
+await cl2.waitForTimeout(300);
+await cl2.evaluate(() => localStorage.setItem('singhoah:layout', '4'));
+await cl2.click('#smateBtn');
+await cl2.fill('#smateIn', 'clear all');
+await cl2.click('#smateSend');
+await cl2.waitForTimeout(900);
+await cl2.waitForURL(/index\.html/, { timeout: 5000 });
+await cl2.waitForTimeout(500);
+ok('SMate clear-all works from the wallet too', await cl2.evaluate(() =>
+  document.getElementById('grid').dataset.layout === '1' &&
+  document.querySelectorAll('#grid .cell').length === 1));
+await cl2.close();
+
+/* localized clear-all (Traditional Chinese) */
+const cl3 = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+await cl3.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); localStorage.setItem('singhoah:layout', '4'); });
+const cl3p = await cl3.newPage();
+await cl3p.goto(URL + 'index.html', { waitUntil: 'load' });
+await cl3p.waitForTimeout(300);
+await cl3p.click('#smateBtn');
+await cl3p.fill('#smateIn', '全部清除');
+await cl3p.click('#smateSend');
+await cl3p.waitForTimeout(950);
+ok('SMate clears the window in other languages', await cl3p.evaluate(() =>
+  document.getElementById('grid').dataset.layout === '1'));
+await cl3p.close();
+await cl3.close();
+await cl.close();
+
+/* --- standardized chrome: every app carries the same core topbar --- */
+for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html']) {
+  const sp = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+  await sp.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+  const q = await sp.newPage();
+  await q.goto(URL + pg, { waitUntil: 'load' });
+  await q.waitForTimeout(250);
+  ok(`${pg} topbar is standardized`, await q.evaluate(() =>
+    !!document.querySelector('.topbar .brand') &&
+    !!document.getElementById('langBtn') &&
+    !!document.getElementById('btnNight') &&
+    !!document.getElementById('authWrap') &&
+    !!document.getElementById('smateBtn') &&
+    getComputedStyle(document.getElementById('btnNight')).borderTopWidth === '0px'));
+  await q.close();
+  await sp.close();
+}
+for (const pg of ['launch.html', 'scribe.html', 'wallet.html', 'settings.html']) {
+  const sp = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+  await sp.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+  const q = await sp.newPage();
+  await q.goto(URL + pg, { waitUntil: 'load' });
+  await q.waitForTimeout(250);
+  ok(`${pg} links back to the clock`, await q.evaluate(() => !!document.getElementById('btnClock')));
+  await q.close();
+  await sp.close();
+}
+
 /* --- print: always black text on white paper, night shift included --- */
 const prn = await browser.newContext({ viewport: { width: 900, height: 700 } });
 await prn.addInitScript(() => { localStorage.setItem('singhoah:night', '1'); localStorage.setItem('singhoah:visited', '1'); });

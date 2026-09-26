@@ -25,6 +25,10 @@ Tuesday, 25 August 2026                       05:51 UTC
 - **HH:MM:SS:mmm**, driven by `requestAnimationFrame` so milliseconds really move.
 - **Date and time above the clock**, formatted with `Intl` (weekday, day, month, year ·
   HH:MM + zone abbreviation).
+- **One standardized chrome across all five apps**: the same topbar (language
+  picker, night shift, Launchpad, cross-app links, SMate, account chip), the
+  same borderless Mini-Metro buttons, anchored dropdowns and hidden
+  scrollbars on Clock, Wallet, Launchpad, Settings and Scribe.
 - **Real-clock sync**: three rounds of NTP-style samples against `timeapi.io`
   (`offset = server + rtt/2 − receive`), median of the fast ones, re-checked every
   5 minutes or on demand. If no millisecond-resolution API answers, a CORS CDN's
@@ -180,6 +184,9 @@ entries (`add 250 income`), switch Days/Reports or change the currency.
 Commands compose: one sentence can do several things at once —
 `set time zones to Jakarta, Taipei, and Singapore in a 2 by 2 window` —
 and city names work in any of the ten languages (`雅加達、台北、新加坡`).
+`clear all` (or the **Clear all** row in the clock's Window menu) resets the
+window to a single home clock; from any other page SMate hops home and
+clears there.
 The mic button answers in the app's current language where the browser
 supports speech recognition; the header line shows online / typing… /
 listening / unavailable like a chat app. `help` lists what it can do;
