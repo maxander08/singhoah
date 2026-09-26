@@ -1318,6 +1318,13 @@ await asSend('clear chat');
 ok('clear chat starts a fresh conversation', await asp.evaluate(() =>
   document.querySelectorAll('.smate-me').length === 0 &&
   !!document.querySelector('.smate-it')));
+await asp.evaluate(() => localStorage.setItem('singhoah:wallet', JSON.stringify({ cur: 'USD', tx: [
+  { id: 'a', type: 'in', amt: 500, note: 'pay', date: '2026-09-01', ts: 1 },
+  { id: 'b', type: 'out', amt: 250, note: 'food', date: '2026-09-02', ts: 2 },
+] })));
+await asSend('What is my balance?');
+ok('SMate answers balance questions on any page', await asp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('250')));
 await asp.close();
 await as.close();
 

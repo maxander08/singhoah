@@ -587,11 +587,23 @@
       const b = $('btnNight');
       if (b) { const dark = document.documentElement.classList.contains('dark'); const wantDark = has(text, KW.night); if (wantDark !== dark) b.click(); note(t(curLang, 'done')); }
     }
-    /* wallet */
+    /* wallet — the balance answers on every page, straight from the ledger */
     if (has(text, KW.income) && num(text) != null) note(act.walletAdd(text, 'in'));
     if (has(text, KW.expense) && num(text) != null) note(act.walletAdd(text, 'out'));
+    if (has(text, KW.balance)) {
+      if (page === 'wallet') {
+        note($('walBal').textContent);
+      } else {
+        let seed = null;
+        try { seed = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null'); } catch { /* ignore */ }
+        const tx = (seed && Array.isArray(seed.tx)) ? seed.tx : [];
+        const bal = LIB.walBalance(tx);
+        const cur = (seed && seed.cur) || 'USD';
+        const sym = LIB.curSymbol(cur);
+        note(`${t(curLang, 'walBalance')}: ${sym}${bal.toLocaleString(langOf(curLang).locale, { minimumFractionDigits: 2 })}`);
+      }
+    }
     if (page === 'wallet') {
-      if (has(text, KW.balance)) note($('walBal').textContent);
       if (has(text, KW.reports)) note(click($('walTabR')) ? t(curLang, 'done') : null);
       if (has(text, KW.days)) note(click($('walTabD')) ? t(curLang, 'done') : null);
       const cur = findCurrency(text);
