@@ -1271,6 +1271,49 @@ ok('the offline interpreter still answers when AI is unavailable', await a2p.eva
 await a2p.close();
 await ai2.close();
 
+/* a failing or stalling AI brain can never hang the chat */
+const ai3 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await ai3.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  window.__SMATE_AI_TIMEOUT = 1000;
+  window.__SMATE_AI_ENGINE = { chat: async () => { throw new Error('boom'); } };
+});
+const a3p = await ai3.newPage();
+await a3p.goto(URL + 'index.html', { waitUntil: 'load' });
+await a3p.waitForTimeout(300);
+await a3p.click('#smateBtn');
+await a3p.click('#smateAI');
+await a3p.waitForTimeout(150);
+await a3p.fill('#smateIn', 'blorp');
+await a3p.click('#smateSend');
+await a3p.waitForTimeout(1400);
+ok('a failing AI brain never hangs the chat', await a3p.evaluate(() =>
+  !document.querySelector('.smate-dots') &&
+  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+await a3p.close();
+await ai3.close();
+const ai4 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await ai4.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  window.__SMATE_AI_TIMEOUT = 1000;
+  window.__SMATE_AI_ENGINE = { chat: async () => new Promise((r) => setTimeout(() => r('late answer'), 5000)) };
+});
+const a4p = await ai4.newPage();
+await a4p.goto(URL + 'index.html', { waitUntil: 'load' });
+await a4p.waitForTimeout(300);
+await a4p.click('#smateBtn');
+await a4p.click('#smateAI');
+await a4p.fill('#smateIn', 'blorp');
+await a4p.click('#smateSend');
+await a4p.waitForTimeout(900);
+const midStatus = await a4p.evaluate(() => document.getElementById('smateStatus').textContent);
+await a4p.waitForTimeout(1200);
+ok('slow AI shows an AI status and is capped', await a4p.evaluate((mid) =>
+  mid.includes('AI') && !document.querySelector('.smate-dots') &&
+  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help'), midStatus));
+await a4p.close();
+await ai4.close();
+
 /* --- SMate as a proper assistant: suggestions, time answers, reminders,
        math, memory, voice-out toggle, Ctrl+K --- */
 const as = await browser.newContext({ viewport: { width: 1280, height: 850 } });
