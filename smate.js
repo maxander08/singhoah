@@ -31,11 +31,15 @@
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', 'SMate');
   pop.innerHTML = `
-      <div class="smate-head"><strong>SMate</strong>
+      <div class="smate-head">
+        <div class="smate-id"><strong>SMate</strong><span class="smate-status" id="smateStatus"></span></div>
         <button type="button" class="btn smate-x" id="smateX" aria-label="×">×</button></div>
       <div class="smate-msgs" id="smateMsgs"></div>
       <form class="smate-inrow" id="smateForm">
         <input id="smateIn" type="text" autocomplete="off" aria-label="SMate">
+        <button type="button" class="btn smate-mic" id="smateMic" aria-pressed="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
         <button type="submit" class="btn smate-send" id="smateSend" aria-label="➤">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 11.5 21 3l-8.5 18-2.4-7.1L3 11.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </button>
@@ -49,15 +53,17 @@
     const r = btn.getBoundingClientRect();
     const w = Math.min(360, innerWidth - 16);
     const top = Math.min(r.bottom + 6, innerHeight - 96);
-    const h = Math.min(480, innerHeight - top - 10);
     pop.style.width = `${w}px`;
-    pop.style.height = `${h}px`;
+    pop.style.height = 'auto';
+    pop.style.maxHeight = `${Math.min(480, innerHeight - top - 10)}px`;
     pop.style.left = `${Math.min(Math.max(8, r.right - w), innerWidth - w - 8)}px`;
     pop.style.top = `${top}px`;
   }
   addEventListener('resize', place);
   addEventListener('scroll', place, true);
 
+  const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+  const setStatus = (key) => { const s = $('smateStatus'); if (s) s.textContent = t(curLang, key); };
   function chrome() {
     btn.title = t(curLang, 'smateTip');
     btn.setAttribute('aria-label', t(curLang, 'smateTip'));
@@ -66,6 +72,11 @@
     $('smateX').title = t(curLang, 'clear');
     input.placeholder = t(curLang, 'smatePh');
     input.setAttribute('aria-label', t(curLang, 'smateTip'));
+    const mic = $('smateMic');
+    mic.title = t(curLang, 'smateVoice');
+    mic.setAttribute('aria-label', t(curLang, 'smateVoice'));
+    if (!SR) mic.style.display = 'none';
+    if (!mic.getAttribute('aria-pressed') || mic.getAttribute('aria-pressed') === 'false') setStatus('smateOnline');
   }
   chrome();
   document.addEventListener('singhoah:lang', () => {
@@ -374,13 +385,67 @@
     return null;
   }
 
-  $('smateForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const raw = input.value.trim();
+  /* WhatsApp-style flow: my line -> typing dots + status -> answer */
+  function handle(raw) {
     if (!raw) return;
     say(raw, true);
     input.value = '';
-    const out = run(raw);
-    say(out || t(curLang, 'smateUnknown'));
+    setStatus('smateTyping');
+    const dots = document.createElement('p');
+    dots.className = 'smate-it smate-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    msgs.appendChild(dots);
+    msgs.scrollTop = msgs.scrollHeight;
+    const wait = 420 + Math.min(700, raw.length * 18);
+    setTimeout(() => {
+      if (dots.isConnected) dots.remove();
+      const out = run(raw);
+      say(out || t(curLang, 'smateUnknown'));
+      setStatus('smateOnline');
+    }, wait);
+  }
+
+  $('smateForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handle(input.value.trim());
+  });
+
+  /* voice mode — one tap, speaks in the app's current language */
+  const mic = $('smateMic');
+  let vrec = null, vlistening = false, vfinal = '';
+  mic.addEventListener('click', () => {
+    if (!SR) { setStatus('smateUnavailable'); return; }
+    if (vlistening && vrec) { vrec.stop(); return; }
+    try {
+      vrec = new SR();
+    } catch { setStatus('smateUnavailable'); return; }
+    vfinal = '';
+    vrec.lang = langOf(curLang).locale;
+    vrec.interimResults = true;
+    vrec.continuous = false;
+    vrec.onstart = () => {
+      vlistening = true;
+      mic.setAttribute('aria-pressed', 'true');
+      setStatus('scribeListening');
+    };
+    vrec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i += 1) {
+        const r = e.results[i];
+        if (r.isFinal) vfinal += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      input.value = vfinal + interim;
+    };
+    vrec.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setStatus('smateUnavailable'); };
+    vrec.onend = () => {
+      vlistening = false;
+      mic.setAttribute('aria-pressed', 'false');
+      setStatus('smateOnline');
+      const text = (vfinal || input.value).trim();
+      if (text) { input.value = ''; handle(text); }
+    };
+    try { vrec.start(); } catch { setStatus('smateUnavailable'); }
   });
 })();

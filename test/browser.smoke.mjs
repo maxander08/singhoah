@@ -1113,13 +1113,30 @@ ok('SMate lives on every Singho page', smateEverywhere);
 const sq = await sm.newPage();
 await sq.goto(URL + 'index.html', { waitUntil: 'load' });
 await sq.waitForTimeout(300);
+ok('Launchpad is an icon-only topbar button', await sq.evaluate(() => {
+  const b = document.getElementById('btnLaunch');
+  return !!b && !b.textContent.trim() && !!b.title && !!b.querySelector('svg');
+}));
 await sq.click('#smateBtn');
 await sq.waitForTimeout(150);
 ok('SMate greets in the UI language', await sq.evaluate(() =>
   !!document.querySelector('.smate-it') && document.querySelector('.smate-it').textContent.includes('SMate')));
-const smSend = async (txt) => { await sq.fill('#smateIn', txt); await sq.click('#smateSend'); await sq.waitForTimeout(200); };
-await smSend('timer 5');
-ok('SMate sets a 5-minute timer from plain text', await sq.evaluate(() => !!document.querySelector('.cell.timer')));
+ok('SMate shows a WhatsApp-style status line', await sq.evaluate(() =>
+  (document.getElementById('smateStatus').textContent || '').trim().length > 0));
+const smSend = async (txt) => { await sq.fill('#smateIn', txt); await sq.click('#smateSend'); await sq.waitForTimeout(950); };
+const statusIdle = await sq.evaluate(() => document.getElementById('smateStatus').textContent);
+await sq.fill('#smateIn', 'timer 5');
+await sq.click('#smateSend');
+await sq.waitForTimeout(180);
+ok('SMate shows an animated typing indicator while it thinks', await sq.evaluate((idle) => {
+  const dots = document.querySelector('.smate-dots');
+  const st = document.getElementById('smateStatus').textContent;
+  return !!dots && dots.children.length === 3 && st && st !== idle;
+}, statusIdle));
+await sq.waitForTimeout(900);
+ok('the typing indicator gives way to the real answer', await sq.evaluate((idle) =>
+  !document.querySelector('.smate-dots') && !!document.querySelector('.cell.timer') &&
+  document.getElementById('smateStatus').textContent === idle, statusIdle));
 await smSend('計時器 5');
 ok('SMate understands the same command in Traditional Chinese', await sq.evaluate(() =>
   document.querySelectorAll('.cell.timer').length === 2));
@@ -1138,11 +1155,66 @@ await swq.waitForTimeout(300);
 await swq.click('#smateBtn');
 await swq.fill('#smateIn', 'add 250 income');
 await swq.click('#smateSend');
-await swq.waitForTimeout(250);
+await swq.waitForTimeout(950);
 ok('SMate adds wallet entries from a sentence', await swq.evaluate(() =>
   document.getElementById('walBal').textContent.includes('250')));
 await swq.close();
 await sm.close();
+
+/* --- SMate voice mode: fake the Web Speech API so the mic path runs end-to-end --- */
+const fakeSR = () => {
+  window.SpeechRecognition = class {
+    start() {
+      window.__srLang = this.lang;
+      setTimeout(() => { this.onstart && this.onstart(); }, 30);
+      setTimeout(() => {
+        this.onresult && this.onresult({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: 'timer 5' } }] });
+        this.onend && this.onend();
+      }, 900);
+    }
+    stop() {} abort() {}
+  };
+};
+const vm = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await vm.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); });
+await vm.addInitScript(fakeSR);
+const vp = await vm.newPage();
+await vp.goto(URL + 'index.html', { waitUntil: 'load' });
+await vp.waitForTimeout(300);
+await vp.click('#smateBtn');
+await vp.waitForTimeout(150);
+ok('SMate offers a voice button when speech recognition exists', await vp.evaluate(() => {
+  const m = document.getElementById('smateMic');
+  return !!m && m.style.display !== 'none' && m.getBoundingClientRect().width > 0;
+}));
+await vp.click('#smateMic');
+await vp.waitForTimeout(250);
+ok('the mic listens and reports the listening status', await vp.evaluate(() =>
+  document.getElementById('smateMic').getAttribute('aria-pressed') === 'true' &&
+  document.getElementById('smateStatus').textContent.toLowerCase().includes('listen')));
+await vp.waitForTimeout(2300);
+ok('spoken words become a real command', await vp.evaluate(() =>
+  document.getElementById('smateMic').getAttribute('aria-pressed') === 'false' &&
+  !!document.querySelector('.cell.timer') &&
+  [...document.querySelectorAll('.smate-me')].pop().textContent.includes('timer 5')));
+await vp.close();
+const v2 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await v2.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  localStorage.setItem('singhoah:lang', 'zh-Hant');
+});
+await v2.addInitScript(fakeSR);
+const v2p = await v2.newPage();
+await v2p.goto(URL + 'index.html', { waitUntil: 'load' });
+await v2p.waitForTimeout(300);
+await v2p.click('#smateBtn');
+await v2p.click('#smateMic');
+await v2p.waitForTimeout(250);
+ok('voice mode follows the UI language (all ten supported)', await v2p.evaluate(() =>
+  window.__srLang === 'zh-Hant-TW'));
+await v2p.close();
+await v2.close();
+await vm.close();
 
 /* --- print: always black text on white paper, night shift included --- */
 const prn = await browser.newContext({ viewport: { width: 900, height: 700 } });

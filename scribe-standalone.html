@@ -125,6 +125,20 @@ button { font: inherit; color: inherit; }
 
 .controls { display: flex; gap: var(--gap); flex-wrap: wrap; justify-content: flex-end; }
 
+/* tight desktop widths: secondary controls go icon-only so the account chip
+   never wraps out of view */
+@media (max-width: 1499px) {
+  .topbar #timerText,
+  .topbar #stopText,
+  .topbar #ipText,
+  .topbar #mapText,
+  .topbar #resyncText,
+  .topbar #settingsText,
+  .topbar #nightText,
+  .topbar #btnNight > span,
+  .topbar #btnMode > span { display: none; }
+}
+
 .tz, .lang { position: relative; }
 
 .lang-pop { width: 210px; max-width: calc(100vw - 28px); }
@@ -1242,6 +1256,15 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
   border-bottom: 1px solid var(--border);
 }
 .smate-head strong { font-size: 13px; font-weight: 750; letter-spacing: -.01em; }
+.smate-id { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.smate-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pigeon);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .smate-msgs {
   flex: 1;
   min-height: 0;
@@ -1271,7 +1294,25 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
   outline: none;
 }
 .smate-inrow input:focus { border-color: var(--pigeon); }
-.smate-send { justify-content: center; min-width: var(--h-field); }
+.smate-send, .smate-mic { justify-content: center; min-width: var(--h-field); flex: none; }
+.smate-mic[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }
+.smate-dots { display: flex; align-items: center; gap: 5px; padding: 11px 12px; }
+.smate-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pigeon);
+  animation: smateBlink 1.1s infinite ease-in-out;
+}
+.smate-dots span:nth-child(2) { animation-delay: .15s; }
+.smate-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes smateBlink {
+  0%, 60%, 100% { opacity: .22; }
+  30% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .smate-dots span { animation: none; }
+}
 
 /* ---------- map usability: zoom / pan / tooltip ---------- */
 .map-ui {
@@ -1313,7 +1354,6 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
     </button>
     <a class="btn" id="btnLaunch" href="launch.html" title="Launchpad">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
-      <span id="launchText">Launchpad</span>
     </a>
     <a class="btn" id="btnSettings" href="settings.html" title="Settings">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -1894,7 +1934,7 @@ export const STRINGS = {
     drift: 'device drift {mag} — corrected{res}',
     offLabel: 'System clock — reference unavailable', offDetail: 'no drift correction applied',
     lastCheck: 'last check {t}', syncing: 'syncing…', secondRes: ' · second resolution', checking: 'checking…',
-    nightTitle: 'Toggle night shift (N)', tzTitle: 'Time zone', modeTitle: 'Analog / digital (A)', resyncTitle: 'Re-check the reference time (R)', fullTitle: 'Full screen (F)', full: 'Full screen', tzSearchPh: 'Search time zones…', tzListAria: 'Time zones', prevMatch: 'Previous match', nextMatch: 'Next match', closeFind: 'Close find bar', scrDocAria: 'Transcript document', docTitle: 'Document title', untitled: 'Untitled document', smatePh: 'Type a command…', smateTip: 'SMate assistant', smateSend: 'Send', smateHi: 'Hi, I’m SMate. Try “timer 5”, “zone Taipei”, “open wallet”, “night shift” or “help”.', smateUnknown: 'Sorry, I didn’t catch that. Type “help” to see what I can do.',
+    nightTitle: 'Toggle night shift (N)', tzTitle: 'Time zone', modeTitle: 'Analog / digital (A)', resyncTitle: 'Re-check the reference time (R)', fullTitle: 'Full screen (F)', full: 'Full screen', tzSearchPh: 'Search time zones…', tzListAria: 'Time zones', prevMatch: 'Previous match', nextMatch: 'Next match', closeFind: 'Close find bar', scrDocAria: 'Transcript document', docTitle: 'Document title', untitled: 'Untitled document', smatePh: 'Type a command…', smateTip: 'SMate assistant', smateSend: 'Send', smateOnline: 'Online', smateTyping: 'typing…', smateUnavailable: 'unavailable', smateVoice: 'Voice input', smateHi: 'Hi, I’m SMate. Try “timer 5”, “zone Taipei”, “open wallet”, “night shift” or “help”.', smateUnknown: 'Sorry, I didn’t catch that. Type “help” to see what I can do.',
   },
   'zh-Hant': {
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
@@ -1913,7 +1953,7 @@ export const STRINGS = {
     drift: '裝置漂移 {mag} — 已校正{res}',
     offLabel: '系統時鐘 — 無可用時間來源', offDetail: '未套用漂移校正',
     lastCheck: '上次檢查 {t}', syncing: '同步中…', secondRes: ' · 秒級解析度', checking: '檢查中…',
-    nightTitle: '切換夜間模式（N）', tzTitle: '時區', modeTitle: '類比／數位（A）', resyncTitle: '重新檢查參考時間（R）', fullTitle: '全螢幕（F）', full: '全螢幕', tzSearchPh: '搜尋時區…', tzListAria: '時區', prevMatch: '上一個符合項', nextMatch: '下一個符合項', closeFind: '關閉尋找列', scrDocAria: '轉寫文件', docTitle: '文件標題', untitled: '未命名文件', smatePh: '輸入指令…', smateTip: 'SMate 助理', smateSend: '傳送', smateHi: '嗨，我是 SMate。試試「計時器 5」、「時區 台北」、「開啟錢包」、「夜間模式」或「help」。', smateUnknown: '抱歉，我沒聽懂。輸入「help」看看我能做什麼。',
+    nightTitle: '切換夜間模式（N）', tzTitle: '時區', modeTitle: '類比／數位（A）', resyncTitle: '重新檢查參考時間（R）', fullTitle: '全螢幕（F）', full: '全螢幕', tzSearchPh: '搜尋時區…', tzListAria: '時區', prevMatch: '上一個符合項', nextMatch: '下一個符合項', closeFind: '關閉尋找列', scrDocAria: '轉寫文件', docTitle: '文件標題', untitled: '未命名文件', smatePh: '輸入指令…', smateTip: 'SMate 助理', smateSend: '傳送', smateOnline: '線上', smateTyping: '輸入中…', smateUnavailable: '無法使用', smateVoice: '語音輸入', smateHi: '嗨，我是 SMate。試試「計時器 5」、「時區 台北」、「開啟錢包」、「夜間模式」或「help」。', smateUnknown: '抱歉，我沒聽懂。輸入「help」看看我能做什麼。',
   },
   hi: {
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
@@ -1932,7 +1972,7 @@ export const STRINGS = {
     drift: 'डिवाइस ड्रिफ्ट {mag} — समायोजित{res}',
     offLabel: 'सिस्टम घड़ी — संदर्भ अनुपलब्ध', offDetail: 'कोई ड्रिफ्ट सुधार लागू नहीं',
     lastCheck: 'अंतिम जाँच {t}', syncing: 'सिंक हो रहा है…', secondRes: ' · सेकंड रिज़ॉल्यूशन', checking: 'जाँच हो रही है…',
-    nightTitle: 'नाइट शिफ्ट चालू/बंद करें (N)', tzTitle: 'समय क्षेत्र', modeTitle: 'एनालॉग / डिजिटल (A)', resyncTitle: 'संदर्भ समय दोबारा जाँचें (R)', fullTitle: 'फ़ुल स्क्रीन (F)', full: 'फ़ुल स्क्रीन', tzSearchPh: 'समय क्षेत्र खोजें…', tzListAria: 'समय क्षेत्र', prevMatch: 'पिछला मिलान', nextMatch: 'अगला मिलान', closeFind: 'खोज पट्टी बंद करें', scrDocAria: 'लेख दस्तावेज़', docTitle: 'दस्तावेज़ शीर्षक', untitled: 'बिना शीर्षक दस्तावेज़', smatePh: 'कमांड लिखें…', smateTip: 'SMate सहायक', smateSend: 'भेजें', smateHi: 'नमस्ते, मैं SMate हूँ। "टाइमर 5", "ज़ोन ताइपे", "वॉलेट खोलें", "नाइट शिफ्ट" या "help" आज़माएँ।', smateUnknown: 'क्षमा करें, समझ नहीं आया। "help" लिखें।',
+    nightTitle: 'नाइट शिफ्ट चालू/बंद करें (N)', tzTitle: 'समय क्षेत्र', modeTitle: 'एनालॉग / डिजिटल (A)', resyncTitle: 'संदर्भ समय दोबारा जाँचें (R)', fullTitle: 'फ़ुल स्क्रीन (F)', full: 'फ़ुल स्क्रीन', tzSearchPh: 'समय क्षेत्र खोजें…', tzListAria: 'समय क्षेत्र', prevMatch: 'पिछला मिलान', nextMatch: 'अगला मिलान', closeFind: 'खोज पट्टी बंद करें', scrDocAria: 'लेख दस्तावेज़', docTitle: 'दस्तावेज़ शीर्षक', untitled: 'बिना शीर्षक दस्तावेज़', smatePh: 'कमांड लिखें…', smateTip: 'SMate सहायक', smateSend: 'भेजें', smateOnline: 'ऑनलाइन', smateTyping: 'टाइप कर रहा है…', smateUnavailable: 'अनुपलब्ध', smateVoice: 'बोलकर लिखें', smateHi: 'नमस्ते, मैं SMate हूँ। "टाइमर 5", "ज़ोन ताइपे", "वॉलेट खोलें", "नाइट शिफ्ट" या "help" आज़माएँ।', smateUnknown: 'क्षमा करें, समझ नहीं आया। "help" लिखें।',
   },
   es: {
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
@@ -1951,7 +1991,7 @@ export const STRINGS = {
     drift: 'deriva del dispositivo {mag} — corregida{res}',
     offLabel: 'Reloj del sistema — referencia no disponible', offDetail: 'sin corrección de deriva',
     lastCheck: 'última comprobación {t}', syncing: 'sincronizando…', secondRes: ' · resolución de segundos', checking: 'comprobando…',
-    nightTitle: 'Alternar turno de noche (N)', tzTitle: 'Zona horaria', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Volver a comprobar la hora de referencia (R)', fullTitle: 'Pantalla completa (F)', full: 'Pantalla completa', tzSearchPh: 'Buscar zonas horarias…', tzListAria: 'Zonas horarias', prevMatch: 'Coincidencia anterior', nextMatch: 'Siguiente coincidencia', closeFind: 'Cerrar barra de búsqueda', scrDocAria: 'Documento de transcripción', docTitle: 'Título del documento', untitled: 'Documento sin título', smatePh: 'Escribe una orden…', smateTip: 'Asistente SMate', smateSend: 'Enviar', smateHi: 'Hola, soy SMate. Prueba "temporizador 5", "zona Taipéi", "abrir cartera", "turno de noche" o "help".', smateUnknown: 'No te entendí. Escribe "help" para ver qué puedo hacer.',
+    nightTitle: 'Alternar turno de noche (N)', tzTitle: 'Zona horaria', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Volver a comprobar la hora de referencia (R)', fullTitle: 'Pantalla completa (F)', full: 'Pantalla completa', tzSearchPh: 'Buscar zonas horarias…', tzListAria: 'Zonas horarias', prevMatch: 'Coincidencia anterior', nextMatch: 'Siguiente coincidencia', closeFind: 'Cerrar barra de búsqueda', scrDocAria: 'Documento de transcripción', docTitle: 'Título del documento', untitled: 'Documento sin título', smatePh: 'Escribe una orden…', smateTip: 'Asistente SMate', smateSend: 'Enviar', smateOnline: 'en línea', smateTyping: 'escribiendo…', smateUnavailable: 'no disponible', smateVoice: 'Entrada de voz', smateHi: 'Hola, soy SMate. Prueba "temporizador 5", "zona Taipéi", "abrir cartera", "turno de noche" o "help".', smateUnknown: 'No te entendí. Escribe "help" para ver qué puedo hacer.',
   },
   fr: {
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
@@ -1970,7 +2010,7 @@ export const STRINGS = {
     drift: 'dérive de l’appareil {mag} — corrigée{res}',
     offLabel: 'Horloge système — référence indisponible', offDetail: 'aucune correction de dérive',
     lastCheck: 'dernier contrôle {t}', syncing: 'synchronisation…', secondRes: ' · résolution à la seconde', checking: 'contrôle…',
-    nightTitle: 'Basculer le mode nuit (N)', tzTitle: 'Fuseau horaire', modeTitle: 'Analogique / numérique (A)', resyncTitle: 'Revérifier l’heure de référence (R)', fullTitle: 'Plein écran (F)', full: 'Plein écran', tzSearchPh: 'Rechercher un fuseau…', tzListAria: 'Fuseaux horaires', prevMatch: 'Occurrence précédente', nextMatch: 'Occurrence suivante', closeFind: 'Fermer la barre de recherche', scrDocAria: 'Document de transcription', docTitle: 'Titre du document', untitled: 'Document sans titre', smatePh: 'Écrivez une commande…', smateTip: 'Assistant SMate', smateSend: 'Envoyer', smateHi: 'Bonjour, je suis SMate. Essayez « minuteur 5 », « fuseau Taipei », « ouvrir portefeuille », « mode nuit » ou « help ».', smateUnknown: 'Désolé, je n’ai pas compris. Tapez « help ».',
+    nightTitle: 'Basculer le mode nuit (N)', tzTitle: 'Fuseau horaire', modeTitle: 'Analogique / numérique (A)', resyncTitle: 'Revérifier l’heure de référence (R)', fullTitle: 'Plein écran (F)', full: 'Plein écran', tzSearchPh: 'Rechercher un fuseau…', tzListAria: 'Fuseaux horaires', prevMatch: 'Occurrence précédente', nextMatch: 'Occurrence suivante', closeFind: 'Fermer la barre de recherche', scrDocAria: 'Document de transcription', docTitle: 'Titre du document', untitled: 'Document sans titre', smatePh: 'Écrivez une commande…', smateTip: 'Assistant SMate', smateSend: 'Envoyer', smateOnline: 'en ligne', smateTyping: 'écrit…', smateUnavailable: 'indisponible', smateVoice: 'Saisie vocale', smateHi: 'Bonjour, je suis SMate. Essayez « minuteur 5 », « fuseau Taipei », « ouvrir portefeuille », « mode nuit » ou « help ».', smateUnknown: 'Désolé, je n’ai pas compris. Tapez « help ».',
   },
   ar: {
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
@@ -1989,7 +2029,7 @@ export const STRINGS = {
     drift: 'انحراف الجهاز {mag} — مصحَّح{res}',
     offLabel: 'ساعة النظام — لا مرجع متاح', offDetail: 'دون تصحيح للانحراف',
     lastCheck: 'آخر فحص {t}', syncing: 'جارٍ المزامنة…', secondRes: ' · دقة بالثواني', checking: 'جارٍ الفحص…',
-    nightTitle: 'تبديل الوضع الليلي (N)', tzTitle: 'المنطقة الزمنية', modeTitle: 'تناظري / رقمي (A)', resyncTitle: 'إعادة فحص الوقت المرجعي (R)', fullTitle: 'ملء الشاشة (F)', full: 'ملء الشاشة', tzSearchPh: 'ابحث عن المناطق الزمنية…', tzListAria: 'المناطق الزمنية', prevMatch: 'التطابق السابق', nextMatch: 'التطابق التالي', closeFind: 'إغلاق شريط البحث', scrDocAria: 'مستند النص', docTitle: 'عنوان المستند', untitled: 'مستند بدون عنوان', smatePh: 'اكتب أمراً…', smateTip: 'مساعد SMate', smateSend: 'إرسال', smateHi: 'مرحباً، أنا SMate. جرّب "مؤقت 5" أو "المنطقة تايبيه" أو "افتح المحفظة" أو "الوضع الليلي" أو "help".', smateUnknown: 'عذراً، لم أفهم. اكتب "help".',
+    nightTitle: 'تبديل الوضع الليلي (N)', tzTitle: 'المنطقة الزمنية', modeTitle: 'تناظري / رقمي (A)', resyncTitle: 'إعادة فحص الوقت المرجعي (R)', fullTitle: 'ملء الشاشة (F)', full: 'ملء الشاشة', tzSearchPh: 'ابحث عن المناطق الزمنية…', tzListAria: 'المناطق الزمنية', prevMatch: 'التطابق السابق', nextMatch: 'التطابق التالي', closeFind: 'إغلاق شريط البحث', scrDocAria: 'مستند النص', docTitle: 'عنوان المستند', untitled: 'مستند بدون عنوان', smatePh: 'اكتب أمراً…', smateTip: 'مساعد SMate', smateSend: 'إرسال', smateOnline: 'متصل', smateTyping: 'يكتب…', smateUnavailable: 'غير متاح', smateVoice: 'إدخال صوتي', smateHi: 'مرحباً، أنا SMate. جرّب "مؤقت 5" أو "المنطقة تايبيه" أو "افتح المحفظة" أو "الوضع الليلي" أو "help".', smateUnknown: 'عذراً، لم أفهم. اكتب "help".',
   },
   bn: {
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
@@ -2008,7 +2048,7 @@ export const STRINGS = {
     drift: 'ডিভাইস ড্রিফ্ট {mag} — সংশোধিত{res}',
     offLabel: 'সিস্টেম ঘড়ি — রেফারেন্স নেই', offDetail: 'ড্রিফ্ট সংশোধন প্রযোজ্য নয়',
     lastCheck: 'সর্বশেষ যাচাই {t}', syncing: 'সিঙ্ক হচ্ছে…', secondRes: ' · সেকেন্ড রেজোলিউশন', checking: 'যাচাই হচ্ছে…',
-    nightTitle: 'নাইট শিফ্ট টগল করুন (N)', tzTitle: 'টাইমজোন', modeTitle: 'অ্যানালগ / ডিজিটাল (A)', resyncTitle: 'রেফারেন্স সময় আবার যাচাই করুন (R)', fullTitle: 'ফুল স্ক্রিন (F)', full: 'ফুল স্ক্রিন', tzSearchPh: 'টাইমজোন খুঁজুন…', tzListAria: 'টাইমজোন', prevMatch: 'আগের মিল', nextMatch: 'পরের মিল', closeFind: 'ফাইন্ড বার বন্ধ করুন', scrDocAria: 'লিপি নথি', docTitle: 'নথির শিরোনাম', untitled: 'শিরোনামহীন নথি', smatePh: 'কমান্ড লিখুন…', smateTip: 'SMate সহায়ক', smateSend: 'পাঠান', smateHi: 'হ্যালো, আমি SMate। "টাইমার 5", "টাইমজোন তাইপেই", "ওয়ালেট খুলুন", "নাইট শিফট" বা "help" লিখে দেখুন।', smateUnknown: 'দুঃখিত, বুঝিনি। "help" লিখুন।',
+    nightTitle: 'নাইট শিফ্ট টগল করুন (N)', tzTitle: 'টাইমজোন', modeTitle: 'অ্যানালগ / ডিজিটাল (A)', resyncTitle: 'রেফারেন্স সময় আবার যাচাই করুন (R)', fullTitle: 'ফুল স্ক্রিন (F)', full: 'ফুল স্ক্রিন', tzSearchPh: 'টাইমজোন খুঁজুন…', tzListAria: 'টাইমজোন', prevMatch: 'আগের মিল', nextMatch: 'পরের মিল', closeFind: 'ফাইন্ড বার বন্ধ করুন', scrDocAria: 'লিপি নথি', docTitle: 'নথির শিরোনাম', untitled: 'শিরোনামহীন নথি', smatePh: 'কমান্ড লিখুন…', smateTip: 'SMate সহায়ক', smateSend: 'পাঠান', smateOnline: 'অনলাইন', smateTyping: 'লিখছে…', smateUnavailable: 'অনুপলব্ধ', smateVoice: 'ভয়েস ইনপুট', smateHi: 'হ্যালো, আমি SMate। "টাইমার 5", "টাইমজোন তাইপেই", "ওয়ালেট খুলুন", "নাইট শিফট" বা "help" লিখে দেখুন।', smateUnknown: 'দুঃখিত, বুঝিনি। "help" লিখুন।',
   },
   ru: {
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
@@ -2027,7 +2067,7 @@ export const STRINGS = {
     drift: 'дрейф устройства {mag} — скорректировано{res}',
     offLabel: 'Системные часы — эталон недоступен', offDetail: 'коррекция дрейфа не применяется',
     lastCheck: 'последняя проверка {t}', syncing: 'синхронизация…', secondRes: ' · точность до секунды', checking: 'проверка…',
-    nightTitle: 'Переключить ночной режим (N)', tzTitle: 'Часовой пояс', modeTitle: 'Аналоговый / цифровой (A)', resyncTitle: 'Проверить эталонное время (R)', fullTitle: 'Полный экран (F)', full: 'Полный экран', tzSearchPh: 'Поиск часового пояса…', tzListAria: 'Часовые пояса', prevMatch: 'Предыдущее совпадение', nextMatch: 'Следующее совпадение', closeFind: 'Закрыть панель поиска', scrDocAria: 'Документ транскрипции', docTitle: 'Название документа', untitled: 'Документ без названия', smatePh: 'Введите команду…', smateTip: 'Ассистент SMate', smateSend: 'Отправить', smateHi: 'Привет, я SMate. Попробуйте «таймер 5», «пояс Тайбэй», «открыть кошелёк», «ночной режим» или "help".', smateUnknown: 'Не понял. Наберите "help".',
+    nightTitle: 'Переключить ночной режим (N)', tzTitle: 'Часовой пояс', modeTitle: 'Аналоговый / цифровой (A)', resyncTitle: 'Проверить эталонное время (R)', fullTitle: 'Полный экран (F)', full: 'Полный экран', tzSearchPh: 'Поиск часового пояса…', tzListAria: 'Часовые пояса', prevMatch: 'Предыдущее совпадение', nextMatch: 'Следующее совпадение', closeFind: 'Закрыть панель поиска', scrDocAria: 'Документ транскрипции', docTitle: 'Название документа', untitled: 'Документ без названия', smatePh: 'Введите команду…', smateTip: 'Ассистент SMate', smateSend: 'Отправить', smateOnline: 'в сети', smateTyping: 'печатает…', smateUnavailable: 'недоступно', smateVoice: 'Голосовой ввод', smateHi: 'Привет, я SMate. Попробуйте «таймер 5», «пояс Тайбэй», «открыть кошелёк», «ночной режим» или "help".', smateUnknown: 'Не понял. Наберите "help".',
   },
   pt: {
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
@@ -2046,7 +2086,7 @@ export const STRINGS = {
     drift: 'deriva do dispositivo {mag} — corrigida{res}',
     offLabel: 'Relógio do sistema — referência indisponível', offDetail: 'sem correção de deriva',
     lastCheck: 'última verificação {t}', syncing: 'sincronizando…', secondRes: ' · resolução de segundos', checking: 'verificando…',
-    nightTitle: 'Alternar modo noturno (N)', tzTitle: 'Fuso horário', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Verificar novamente a hora de referência (R)', fullTitle: 'Tela cheia (F)', full: 'Tela cheia', tzSearchPh: 'Buscar fusos horários…', tzListAria: 'Fusos horários', prevMatch: 'Ocorrência anterior', nextMatch: 'Próxima ocorrência', closeFind: 'Fechar barra de localizar', scrDocAria: 'Documento de transcrição', docTitle: 'Título do documento', untitled: 'Documento sem título', smatePh: 'Digite um comando…', smateTip: 'Assistente SMate', smateSend: 'Enviar', smateHi: 'Oi, eu sou o SMate. Experimente "timer 5", "fuso Taipei", "abrir carteira", "modo noturno" ou "help".', smateUnknown: 'Não entendi. Digite "help".',
+    nightTitle: 'Alternar modo noturno (N)', tzTitle: 'Fuso horário', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Verificar novamente a hora de referência (R)', fullTitle: 'Tela cheia (F)', full: 'Tela cheia', tzSearchPh: 'Buscar fusos horários…', tzListAria: 'Fusos horários', prevMatch: 'Ocorrência anterior', nextMatch: 'Próxima ocorrência', closeFind: 'Fechar barra de localizar', scrDocAria: 'Documento de transcrição', docTitle: 'Título do documento', untitled: 'Documento sem título', smatePh: 'Digite um comando…', smateTip: 'Assistente SMate', smateSend: 'Enviar', smateOnline: 'on-line', smateTyping: 'digitando…', smateUnavailable: 'indisponível', smateVoice: 'Entrada de voz', smateHi: 'Oi, eu sou o SMate. Experimente "timer 5", "fuso Taipei", "abrir carteira", "modo noturno" ou "help".', smateUnknown: 'Não entendi. Digite "help".',
   },
   ur: {
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
@@ -2065,7 +2105,7 @@ export const STRINGS = {
     drift: 'ڈیوائس ڈرفٹ {mag} — درست{res}',
     offLabel: 'سسٹم گھڑی — ماخذ دستیاب نہیں', offDetail: 'کوئی ڈرفٹ اصلاح لاگو نہیں',
     lastCheck: 'آخری معائنہ {t}', syncing: 'سنک ہو رہا ہے…', secondRes: ' · سیکنڈ ریزولیوشن', checking: 'معائنہ ہو رہا ہے…',
-    nightTitle: 'نائٹ موڈ تبدیل کریں (N)', tzTitle: 'ٹائم زون', modeTitle: 'انالاگ / ڈیجیٹل (A)', resyncTitle: 'حوالہ وقت دوبارہ جانچیں (R)', fullTitle: 'فل اسکرین (F)', full: 'فل اسکرین', tzSearchPh: 'ٹائم زون تلاش کریں…', tzListAria: 'ٹائم زون', prevMatch: 'پچھلا میل', nextMatch: 'اگلا میل', closeFind: 'تلاش بار بند کریں', scrDocAria: 'نقل کی دستاویز', docTitle: 'دستاویز کا عنوان', untitled: 'بے عنوان دستاویز', smatePh: 'کمانڈ لکھیں…', smateTip: 'SMate معاون', smateSend: 'بھیجیں', smateHi: 'ہیلو، میں SMate ہوں۔ "ٹائمر 5"، "ٹائم زون تائپے"، "والٹ کھولیں"، "نائٹ موڈ" یا "help" آزمائیں۔', smateUnknown: 'معذرت، سمجھ نہیں آیا۔ "help" لکھیں۔',
+    nightTitle: 'نائٹ موڈ تبدیل کریں (N)', tzTitle: 'ٹائم زون', modeTitle: 'انالاگ / ڈیجیٹل (A)', resyncTitle: 'حوالہ وقت دوبارہ جانچیں (R)', fullTitle: 'فل اسکرین (F)', full: 'فل اسکرین', tzSearchPh: 'ٹائم زون تلاش کریں…', tzListAria: 'ٹائم زون', prevMatch: 'پچھلا میل', nextMatch: 'اگلا میل', closeFind: 'تلاش بار بند کریں', scrDocAria: 'نقل کی دستاویز', docTitle: 'دستاویز کا عنوان', untitled: 'بے عنوان دستاویز', smatePh: 'کمانڈ لکھیں…', smateTip: 'SMate معاون', smateSend: 'بھیجیں', smateOnline: 'آن لائن', smateTyping: 'تحریر کر رہا ہے…', smateUnavailable: 'دستیاب نہیں', smateVoice: 'صوتی ان پٹ', smateHi: 'ہیلو، میں SMate ہوں۔ "ٹائمر 5"، "ٹائم زون تائپے"، "والٹ کھولیں"، "نائٹ موڈ" یا "help" آزمائیں۔', smateUnknown: 'معذرت، سمجھ نہیں آیا۔ "help" لکھیں۔',
   },
 };
 
@@ -3031,7 +3071,7 @@ function applyLang(id, persist = true) {
   if (!els.ipPop.hidden) { els.ipMac.textContent = t(lang, 'macNA'); renderIpPop(); }
   els.mapText.textContent = t(lang, 'map');
   els.btnMap.title = t(lang, 'map');
-  els.launchText.textContent = t(lang, 'launchpad');
+  if (els.launchText) els.launchText.textContent = t(lang, 'launchpad');
   els.btnLaunch.title = t(lang, 'launchpad');
   if (els.settingsText) els.settingsText.textContent = t(lang, 'settings');
   if (els.btnSettings) els.btnSettings.title = t(lang, 'settings');
@@ -3433,7 +3473,7 @@ function placeMapUi() {
   const tb = document.querySelector('.topbar');
   if (mu && tb) mu.style.top = `${Math.round(tb.getBoundingClientRect().bottom + 12)}px`;
 }
-addEventListener('resize', placeMapUi);
+if (typeof addEventListener === 'function') addEventListener('resize', placeMapUi);
 function closeMap() {
   if (els.mapWrap.hidden) return;
   els.mapWrap.hidden = true;
@@ -3847,11 +3887,15 @@ if (typeof document !== 'undefined') {
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', 'SMate');
   pop.innerHTML = `
-      <div class="smate-head"><strong>SMate</strong>
+      <div class="smate-head">
+        <div class="smate-id"><strong>SMate</strong><span class="smate-status" id="smateStatus"></span></div>
         <button type="button" class="btn smate-x" id="smateX" aria-label="×">×</button></div>
       <div class="smate-msgs" id="smateMsgs"></div>
       <form class="smate-inrow" id="smateForm">
         <input id="smateIn" type="text" autocomplete="off" aria-label="SMate">
+        <button type="button" class="btn smate-mic" id="smateMic" aria-pressed="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
         <button type="submit" class="btn smate-send" id="smateSend" aria-label="➤">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 11.5 21 3l-8.5 18-2.4-7.1L3 11.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </button>
@@ -3865,15 +3909,17 @@ if (typeof document !== 'undefined') {
     const r = btn.getBoundingClientRect();
     const w = Math.min(360, innerWidth - 16);
     const top = Math.min(r.bottom + 6, innerHeight - 96);
-    const h = Math.min(480, innerHeight - top - 10);
     pop.style.width = `${w}px`;
-    pop.style.height = `${h}px`;
+    pop.style.height = 'auto';
+    pop.style.maxHeight = `${Math.min(480, innerHeight - top - 10)}px`;
     pop.style.left = `${Math.min(Math.max(8, r.right - w), innerWidth - w - 8)}px`;
     pop.style.top = `${top}px`;
   }
   addEventListener('resize', place);
   addEventListener('scroll', place, true);
 
+  const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+  const setStatus = (key) => { const s = $('smateStatus'); if (s) s.textContent = t(curLang, key); };
   function chrome() {
     btn.title = t(curLang, 'smateTip');
     btn.setAttribute('aria-label', t(curLang, 'smateTip'));
@@ -3882,6 +3928,11 @@ if (typeof document !== 'undefined') {
     $('smateX').title = t(curLang, 'clear');
     input.placeholder = t(curLang, 'smatePh');
     input.setAttribute('aria-label', t(curLang, 'smateTip'));
+    const mic = $('smateMic');
+    mic.title = t(curLang, 'smateVoice');
+    mic.setAttribute('aria-label', t(curLang, 'smateVoice'));
+    if (!SR) mic.style.display = 'none';
+    if (!mic.getAttribute('aria-pressed') || mic.getAttribute('aria-pressed') === 'false') setStatus('smateOnline');
   }
   chrome();
   document.addEventListener('singhoah:lang', () => {
@@ -4190,14 +4241,68 @@ if (typeof document !== 'undefined') {
     return null;
   }
 
-  $('smateForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const raw = input.value.trim();
+  /* WhatsApp-style flow: my line -> typing dots + status -> answer */
+  function handle(raw) {
     if (!raw) return;
     say(raw, true);
     input.value = '';
-    const out = run(raw);
-    say(out || t(curLang, 'smateUnknown'));
+    setStatus('smateTyping');
+    const dots = document.createElement('p');
+    dots.className = 'smate-it smate-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    msgs.appendChild(dots);
+    msgs.scrollTop = msgs.scrollHeight;
+    const wait = 420 + Math.min(700, raw.length * 18);
+    setTimeout(() => {
+      if (dots.isConnected) dots.remove();
+      const out = run(raw);
+      say(out || t(curLang, 'smateUnknown'));
+      setStatus('smateOnline');
+    }, wait);
+  }
+
+  $('smateForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handle(input.value.trim());
+  });
+
+  /* voice mode — one tap, speaks in the app's current language */
+  const mic = $('smateMic');
+  let vrec = null, vlistening = false, vfinal = '';
+  mic.addEventListener('click', () => {
+    if (!SR) { setStatus('smateUnavailable'); return; }
+    if (vlistening && vrec) { vrec.stop(); return; }
+    try {
+      vrec = new SR();
+    } catch { setStatus('smateUnavailable'); return; }
+    vfinal = '';
+    vrec.lang = langOf(curLang).locale;
+    vrec.interimResults = true;
+    vrec.continuous = false;
+    vrec.onstart = () => {
+      vlistening = true;
+      mic.setAttribute('aria-pressed', 'true');
+      setStatus('scribeListening');
+    };
+    vrec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i += 1) {
+        const r = e.results[i];
+        if (r.isFinal) vfinal += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      input.value = vfinal + interim;
+    };
+    vrec.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setStatus('smateUnavailable'); };
+    vrec.onend = () => {
+      vlistening = false;
+      mic.setAttribute('aria-pressed', 'false');
+      setStatus('smateOnline');
+      const text = (vfinal || input.value).trim();
+      if (text) { input.value = ''; handle(text); }
+    };
+    try { vrec.start(); } catch { setStatus('smateUnavailable'); }
   });
 })();
 
@@ -4569,7 +4674,7 @@ if (typeof document !== 'undefined') {
     $('scrReplIn').placeholder = t(lang, 'scribeReplace');
     $('scrReplOne').textContent = t(lang, 'scribeReplace');
     $('scrReplAll').textContent = t(lang, 'scribeReplaceAll');
-    $('launchText').textContent = t(lang, 'launchpad');
+    if ($('launchText')) $('launchText').textContent = t(lang, 'launchpad');
     $('settingsText').textContent = t(lang, 'settings');
     $('btnLaunch').title = t(lang, 'launchpad');
     $('btnSettings').title = t(lang, 'settings');

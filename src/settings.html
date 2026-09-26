@@ -25,7 +25,6 @@
     </button>
     <a class="btn" id="btnLaunch" href="launch.html" title="Launchpad">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
-      <span id="launchText">Launchpad</span>
     </a>
     <a class="btn" id="btnClock" href="index.html" title="Clock">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.5l3.1 1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -246,7 +245,7 @@
     $('btnReset').textContent = t(lang, 'resetData');
     $('citySearch').placeholder = t(lang, 'search');
     $('curSearch').placeholder = t(lang, 'walCurSearch');
-    $('launchText').textContent = t(lang, 'launchpad');
+    if ($('launchText')) $('launchText').textContent = t(lang, 'launchpad');
     $('clockText').textContent = t(lang, 'lpClock');
     $('walletText').textContent = t(lang, 'wallet');
     $('btnLaunch').title = t(lang, 'launchpad');

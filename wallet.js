@@ -337,7 +337,7 @@ function applyLang(id, persist = true) {
   els.walTabR.textContent = t(lang, 'walReports');
   els.walCurBtn.title = t(lang, 'walCurrency');
   els.walCurBtn.setAttribute('aria-label', t(lang, 'walCurrency'));
-  els.launchText.textContent = t(lang, 'launchpad');
+  if (els.launchText) els.launchText.textContent = t(lang, 'launchpad');
   els.btnLaunch.title = t(lang, 'launchpad');
   els.clockText.textContent = t(lang, 'lpClock');
   els.btnClock.title = t(lang, 'lpClock');
