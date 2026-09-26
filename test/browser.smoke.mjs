@@ -1098,6 +1098,52 @@ ok('auto-sync keeps a drift history and a bounded drift rate', await page.evalua
   return Array.isArray(h) && h.length >= 1 && Number.isFinite(c.rate) && Math.abs(c.rate) <= 5e-4;
 }));
 
+/* --- SMate: the multilingual command assistant --- */
+const sm = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await sm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+let smateEverywhere = true;
+for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html']) {
+  const q = await sm.newPage();
+  await q.goto(URL + pg, { waitUntil: 'load' });
+  await q.waitForTimeout(200);
+  if (!(await q.evaluate(() => !!document.getElementById('smateBtn')))) smateEverywhere = false;
+  await q.close();
+}
+ok('SMate lives on every Singho page', smateEverywhere);
+const sq = await sm.newPage();
+await sq.goto(URL + 'index.html', { waitUntil: 'load' });
+await sq.waitForTimeout(300);
+await sq.click('#smateBtn');
+await sq.waitForTimeout(150);
+ok('SMate greets in the UI language', await sq.evaluate(() =>
+  !!document.querySelector('.smate-it') && document.querySelector('.smate-it').textContent.includes('SMate')));
+const smSend = async (txt) => { await sq.fill('#smateIn', txt); await sq.click('#smateSend'); await sq.waitForTimeout(200); };
+await smSend('timer 5');
+ok('SMate sets a 5-minute timer from plain text', await sq.evaluate(() => !!document.querySelector('.cell.timer')));
+await smSend('計時器 5');
+ok('SMate understands the same command in Traditional Chinese', await sq.evaluate(() =>
+  document.querySelectorAll('.cell.timer').length === 2));
+await smSend('side');
+ok('SMate switches the window layout', await sq.evaluate(() => document.getElementById('grid').dataset.layout === '2'));
+await smSend('zone Taipei');
+await sq.waitForTimeout(250);
+ok('SMate changes the home time zone', await sq.evaluate(() => document.getElementById('tzLabel').textContent === 'Taipei'));
+await smSend('blorp');
+ok('SMate admits when it does not understand', await sq.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+await sq.close();
+const swq = await sm.newPage();
+await swq.goto(URL + 'wallet.html', { waitUntil: 'load' });
+await swq.waitForTimeout(300);
+await swq.click('#smateBtn');
+await swq.fill('#smateIn', 'add 250 income');
+await swq.click('#smateSend');
+await swq.waitForTimeout(250);
+ok('SMate adds wallet entries from a sentence', await swq.evaluate(() =>
+  document.getElementById('walBal').textContent.includes('250')));
+await swq.close();
+await sm.close();
+
 /* --- print: always black text on white paper, night shift included --- */
 const prn = await browser.newContext({ viewport: { width: 900, height: 700 } });
 await prn.addInitScript(() => { localStorage.setItem('singhoah:night', '1'); localStorage.setItem('singhoah:visited', '1'); });

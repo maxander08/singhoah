@@ -166,6 +166,20 @@ Taiwan dollar appears), the account note, and a *Reset local data* action that c
 preferences and per-account snapshots while keeping wallet transactions. Gear buttons
 in the clock / wallet / launchpad headers and a launchpad card link to it.
 
+## SMate — the chat assistant
+
+Every page carries a small **SMate** button (bottom-right) that opens a chat
+panel. Type commands in any of the ten languages and SMate drives the app
+through its real controls, fully offline: set timers (`timer 5`, `計時器 5`),
+pause/resume/reset them, add a stopwatch, change the home time zone
+(`zone Taipei`), switch window layout (`single` / `side` / `2x2`), flip
+analog/digital, night shift, re-sync, full screen, map, change the language,
+navigate between the apps (`open wallet`), and in SinghoWallet add entries
+(`add 250 income`), switch Days/Reports or change the currency. `help` lists
+what it can do; unknown input gets an honest apology in the UI language.
+The interpreter matches against the app's own translated vocabulary in all
+ten languages, so a Spanish command works while the UI is in Urdu.
+
 ## Optional Google sign-in (portal)
 
 Clock / wallet / launchpad each carry a small **optional** sign-in portal in the header

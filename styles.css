@@ -1201,6 +1201,66 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
   body[data-app="scribe"] .scr-page { max-width: none; margin: 0; padding: 0; box-shadow: none; border: 0; }
 }
 
+/* ---------- SMate assistant ---------- */
+.smate-wrap {
+  position: fixed;
+  inset-inline-end: 16px;
+  bottom: 16px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.smate-pop[hidden] { display: none; }
+.smate-pop {
+  width: min(360px, calc(100vw - 24px));
+  height: min(480px, 70vh);
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+}
+.smate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.smate-head strong { font-size: 13px; font-weight: 750; letter-spacing: -.01em; }
+.smate-msgs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: none;
+}
+.smate-msgs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.smate-msgs p { margin: 0; font-size: 13px; line-height: 1.45; max-width: 92%; padding: 6px 9px; overflow-wrap: anywhere; }
+.smate-me { align-self: flex-end; background: var(--notification); color: var(--on-notification); }
+.smate-it { align-self: flex-start; }
+.smate-inrow { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+.smate-inrow input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--h-field);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 10px;
+  outline: none;
+}
+.smate-inrow input:focus { border-color: var(--pigeon); }
+.smate-send { justify-content: center; min-width: var(--h-field); }
+
 /* ---------- map usability: zoom / pan / tooltip ---------- */
 .map-ui {
   position: fixed; top: 92px; right: calc(var(--gap) * 2);   /* below the map header readout */

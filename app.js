@@ -249,7 +249,7 @@ export const STRINGS = {
     drift: 'device drift {mag} — corrected{res}',
     offLabel: 'System clock — reference unavailable', offDetail: 'no drift correction applied',
     lastCheck: 'last check {t}', syncing: 'syncing…', secondRes: ' · second resolution', checking: 'checking…',
-    nightTitle: 'Toggle night shift (N)', tzTitle: 'Time zone', modeTitle: 'Analog / digital (A)', resyncTitle: 'Re-check the reference time (R)', fullTitle: 'Full screen (F)', full: 'Full screen', tzSearchPh: 'Search time zones…', tzListAria: 'Time zones', prevMatch: 'Previous match', nextMatch: 'Next match', closeFind: 'Close find bar', scrDocAria: 'Transcript document', docTitle: 'Document title', untitled: 'Untitled document',
+    nightTitle: 'Toggle night shift (N)', tzTitle: 'Time zone', modeTitle: 'Analog / digital (A)', resyncTitle: 'Re-check the reference time (R)', fullTitle: 'Full screen (F)', full: 'Full screen', tzSearchPh: 'Search time zones…', tzListAria: 'Time zones', prevMatch: 'Previous match', nextMatch: 'Next match', closeFind: 'Close find bar', scrDocAria: 'Transcript document', docTitle: 'Document title', untitled: 'Untitled document', smatePh: 'Type a command…', smateTip: 'SMate assistant', smateSend: 'Send', smateHi: 'Hi, I’m SMate. Try “timer 5”, “zone Taipei”, “open wallet”, “night shift” or “help”.', smateUnknown: 'Sorry, I didn’t catch that. Type “help” to see what I can do.',
   },
   'zh-Hant': {
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
@@ -268,7 +268,7 @@ export const STRINGS = {
     drift: '裝置漂移 {mag} — 已校正{res}',
     offLabel: '系統時鐘 — 無可用時間來源', offDetail: '未套用漂移校正',
     lastCheck: '上次檢查 {t}', syncing: '同步中…', secondRes: ' · 秒級解析度', checking: '檢查中…',
-    nightTitle: '切換夜間模式（N）', tzTitle: '時區', modeTitle: '類比／數位（A）', resyncTitle: '重新檢查參考時間（R）', fullTitle: '全螢幕（F）', full: '全螢幕', tzSearchPh: '搜尋時區…', tzListAria: '時區', prevMatch: '上一個符合項', nextMatch: '下一個符合項', closeFind: '關閉尋找列', scrDocAria: '轉寫文件', docTitle: '文件標題', untitled: '未命名文件',
+    nightTitle: '切換夜間模式（N）', tzTitle: '時區', modeTitle: '類比／數位（A）', resyncTitle: '重新檢查參考時間（R）', fullTitle: '全螢幕（F）', full: '全螢幕', tzSearchPh: '搜尋時區…', tzListAria: '時區', prevMatch: '上一個符合項', nextMatch: '下一個符合項', closeFind: '關閉尋找列', scrDocAria: '轉寫文件', docTitle: '文件標題', untitled: '未命名文件', smatePh: '輸入指令…', smateTip: 'SMate 助理', smateSend: '傳送', smateHi: '嗨，我是 SMate。試試「計時器 5」、「時區 台北」、「開啟錢包」、「夜間模式」或「help」。', smateUnknown: '抱歉，我沒聽懂。輸入「help」看看我能做什麼。',
   },
   hi: {
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
@@ -287,7 +287,7 @@ export const STRINGS = {
     drift: 'डिवाइस ड्रिफ्ट {mag} — समायोजित{res}',
     offLabel: 'सिस्टम घड़ी — संदर्भ अनुपलब्ध', offDetail: 'कोई ड्रिफ्ट सुधार लागू नहीं',
     lastCheck: 'अंतिम जाँच {t}', syncing: 'सिंक हो रहा है…', secondRes: ' · सेकंड रिज़ॉल्यूशन', checking: 'जाँच हो रही है…',
-    nightTitle: 'नाइट शिफ्ट चालू/बंद करें (N)', tzTitle: 'समय क्षेत्र', modeTitle: 'एनालॉग / डिजिटल (A)', resyncTitle: 'संदर्भ समय दोबारा जाँचें (R)', fullTitle: 'फ़ुल स्क्रीन (F)', full: 'फ़ुल स्क्रीन', tzSearchPh: 'समय क्षेत्र खोजें…', tzListAria: 'समय क्षेत्र', prevMatch: 'पिछला मिलान', nextMatch: 'अगला मिलान', closeFind: 'खोज पट्टी बंद करें', scrDocAria: 'लेख दस्तावेज़', docTitle: 'दस्तावेज़ शीर्षक', untitled: 'बिना शीर्षक दस्तावेज़',
+    nightTitle: 'नाइट शिफ्ट चालू/बंद करें (N)', tzTitle: 'समय क्षेत्र', modeTitle: 'एनालॉग / डिजिटल (A)', resyncTitle: 'संदर्भ समय दोबारा जाँचें (R)', fullTitle: 'फ़ुल स्क्रीन (F)', full: 'फ़ुल स्क्रीन', tzSearchPh: 'समय क्षेत्र खोजें…', tzListAria: 'समय क्षेत्र', prevMatch: 'पिछला मिलान', nextMatch: 'अगला मिलान', closeFind: 'खोज पट्टी बंद करें', scrDocAria: 'लेख दस्तावेज़', docTitle: 'दस्तावेज़ शीर्षक', untitled: 'बिना शीर्षक दस्तावेज़', smatePh: 'कमांड लिखें…', smateTip: 'SMate सहायक', smateSend: 'भेजें', smateHi: 'नमस्ते, मैं SMate हूँ। "टाइमर 5", "ज़ोन ताइपे", "वॉलेट खोलें", "नाइट शिफ्ट" या "help" आज़माएँ।', smateUnknown: 'क्षमा करें, समझ नहीं आया। "help" लिखें।',
   },
   es: {
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
@@ -306,7 +306,7 @@ export const STRINGS = {
     drift: 'deriva del dispositivo {mag} — corregida{res}',
     offLabel: 'Reloj del sistema — referencia no disponible', offDetail: 'sin corrección de deriva',
     lastCheck: 'última comprobación {t}', syncing: 'sincronizando…', secondRes: ' · resolución de segundos', checking: 'comprobando…',
-    nightTitle: 'Alternar turno de noche (N)', tzTitle: 'Zona horaria', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Volver a comprobar la hora de referencia (R)', fullTitle: 'Pantalla completa (F)', full: 'Pantalla completa', tzSearchPh: 'Buscar zonas horarias…', tzListAria: 'Zonas horarias', prevMatch: 'Coincidencia anterior', nextMatch: 'Siguiente coincidencia', closeFind: 'Cerrar barra de búsqueda', scrDocAria: 'Documento de transcripción', docTitle: 'Título del documento', untitled: 'Documento sin título',
+    nightTitle: 'Alternar turno de noche (N)', tzTitle: 'Zona horaria', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Volver a comprobar la hora de referencia (R)', fullTitle: 'Pantalla completa (F)', full: 'Pantalla completa', tzSearchPh: 'Buscar zonas horarias…', tzListAria: 'Zonas horarias', prevMatch: 'Coincidencia anterior', nextMatch: 'Siguiente coincidencia', closeFind: 'Cerrar barra de búsqueda', scrDocAria: 'Documento de transcripción', docTitle: 'Título del documento', untitled: 'Documento sin título', smatePh: 'Escribe una orden…', smateTip: 'Asistente SMate', smateSend: 'Enviar', smateHi: 'Hola, soy SMate. Prueba "temporizador 5", "zona Taipéi", "abrir cartera", "turno de noche" o "help".', smateUnknown: 'No te entendí. Escribe "help" para ver qué puedo hacer.',
   },
   fr: {
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
@@ -325,7 +325,7 @@ export const STRINGS = {
     drift: 'dérive de l’appareil {mag} — corrigée{res}',
     offLabel: 'Horloge système — référence indisponible', offDetail: 'aucune correction de dérive',
     lastCheck: 'dernier contrôle {t}', syncing: 'synchronisation…', secondRes: ' · résolution à la seconde', checking: 'contrôle…',
-    nightTitle: 'Basculer le mode nuit (N)', tzTitle: 'Fuseau horaire', modeTitle: 'Analogique / numérique (A)', resyncTitle: 'Revérifier l’heure de référence (R)', fullTitle: 'Plein écran (F)', full: 'Plein écran', tzSearchPh: 'Rechercher un fuseau…', tzListAria: 'Fuseaux horaires', prevMatch: 'Occurrence précédente', nextMatch: 'Occurrence suivante', closeFind: 'Fermer la barre de recherche', scrDocAria: 'Document de transcription', docTitle: 'Titre du document', untitled: 'Document sans titre',
+    nightTitle: 'Basculer le mode nuit (N)', tzTitle: 'Fuseau horaire', modeTitle: 'Analogique / numérique (A)', resyncTitle: 'Revérifier l’heure de référence (R)', fullTitle: 'Plein écran (F)', full: 'Plein écran', tzSearchPh: 'Rechercher un fuseau…', tzListAria: 'Fuseaux horaires', prevMatch: 'Occurrence précédente', nextMatch: 'Occurrence suivante', closeFind: 'Fermer la barre de recherche', scrDocAria: 'Document de transcription', docTitle: 'Titre du document', untitled: 'Document sans titre', smatePh: 'Écrivez une commande…', smateTip: 'Assistant SMate', smateSend: 'Envoyer', smateHi: 'Bonjour, je suis SMate. Essayez « minuteur 5 », « fuseau Taipei », « ouvrir portefeuille », « mode nuit » ou « help ».', smateUnknown: 'Désolé, je n’ai pas compris. Tapez « help ».',
   },
   ar: {
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
@@ -344,7 +344,7 @@ export const STRINGS = {
     drift: 'انحراف الجهاز {mag} — مصحَّح{res}',
     offLabel: 'ساعة النظام — لا مرجع متاح', offDetail: 'دون تصحيح للانحراف',
     lastCheck: 'آخر فحص {t}', syncing: 'جارٍ المزامنة…', secondRes: ' · دقة بالثواني', checking: 'جارٍ الفحص…',
-    nightTitle: 'تبديل الوضع الليلي (N)', tzTitle: 'المنطقة الزمنية', modeTitle: 'تناظري / رقمي (A)', resyncTitle: 'إعادة فحص الوقت المرجعي (R)', fullTitle: 'ملء الشاشة (F)', full: 'ملء الشاشة', tzSearchPh: 'ابحث عن المناطق الزمنية…', tzListAria: 'المناطق الزمنية', prevMatch: 'التطابق السابق', nextMatch: 'التطابق التالي', closeFind: 'إغلاق شريط البحث', scrDocAria: 'مستند النص', docTitle: 'عنوان المستند', untitled: 'مستند بدون عنوان',
+    nightTitle: 'تبديل الوضع الليلي (N)', tzTitle: 'المنطقة الزمنية', modeTitle: 'تناظري / رقمي (A)', resyncTitle: 'إعادة فحص الوقت المرجعي (R)', fullTitle: 'ملء الشاشة (F)', full: 'ملء الشاشة', tzSearchPh: 'ابحث عن المناطق الزمنية…', tzListAria: 'المناطق الزمنية', prevMatch: 'التطابق السابق', nextMatch: 'التطابق التالي', closeFind: 'إغلاق شريط البحث', scrDocAria: 'مستند النص', docTitle: 'عنوان المستند', untitled: 'مستند بدون عنوان', smatePh: 'اكتب أمراً…', smateTip: 'مساعد SMate', smateSend: 'إرسال', smateHi: 'مرحباً، أنا SMate. جرّب "مؤقت 5" أو "المنطقة تايبيه" أو "افتح المحفظة" أو "الوضع الليلي" أو "help".', smateUnknown: 'عذراً، لم أفهم. اكتب "help".',
   },
   bn: {
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
@@ -363,7 +363,7 @@ export const STRINGS = {
     drift: 'ডিভাইস ড্রিফ্ট {mag} — সংশোধিত{res}',
     offLabel: 'সিস্টেম ঘড়ি — রেফারেন্স নেই', offDetail: 'ড্রিফ্ট সংশোধন প্রযোজ্য নয়',
     lastCheck: 'সর্বশেষ যাচাই {t}', syncing: 'সিঙ্ক হচ্ছে…', secondRes: ' · সেকেন্ড রেজোলিউশন', checking: 'যাচাই হচ্ছে…',
-    nightTitle: 'নাইট শিফ্ট টগল করুন (N)', tzTitle: 'টাইমজোন', modeTitle: 'অ্যানালগ / ডিজিটাল (A)', resyncTitle: 'রেফারেন্স সময় আবার যাচাই করুন (R)', fullTitle: 'ফুল স্ক্রিন (F)', full: 'ফুল স্ক্রিন', tzSearchPh: 'টাইমজোন খুঁজুন…', tzListAria: 'টাইমজোন', prevMatch: 'আগের মিল', nextMatch: 'পরের মিল', closeFind: 'ফাইন্ড বার বন্ধ করুন', scrDocAria: 'লিপি নথি', docTitle: 'নথির শিরোনাম', untitled: 'শিরোনামহীন নথি',
+    nightTitle: 'নাইট শিফ্ট টগল করুন (N)', tzTitle: 'টাইমজোন', modeTitle: 'অ্যানালগ / ডিজিটাল (A)', resyncTitle: 'রেফারেন্স সময় আবার যাচাই করুন (R)', fullTitle: 'ফুল স্ক্রিন (F)', full: 'ফুল স্ক্রিন', tzSearchPh: 'টাইমজোন খুঁজুন…', tzListAria: 'টাইমজোন', prevMatch: 'আগের মিল', nextMatch: 'পরের মিল', closeFind: 'ফাইন্ড বার বন্ধ করুন', scrDocAria: 'লিপি নথি', docTitle: 'নথির শিরোনাম', untitled: 'শিরোনামহীন নথি', smatePh: 'কমান্ড লিখুন…', smateTip: 'SMate সহায়ক', smateSend: 'পাঠান', smateHi: 'হ্যালো, আমি SMate। "টাইমার 5", "টাইমজোন তাইপেই", "ওয়ালেট খুলুন", "নাইট শিফট" বা "help" লিখে দেখুন।', smateUnknown: 'দুঃখিত, বুঝিনি। "help" লিখুন।',
   },
   ru: {
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
@@ -382,7 +382,7 @@ export const STRINGS = {
     drift: 'дрейф устройства {mag} — скорректировано{res}',
     offLabel: 'Системные часы — эталон недоступен', offDetail: 'коррекция дрейфа не применяется',
     lastCheck: 'последняя проверка {t}', syncing: 'синхронизация…', secondRes: ' · точность до секунды', checking: 'проверка…',
-    nightTitle: 'Переключить ночной режим (N)', tzTitle: 'Часовой пояс', modeTitle: 'Аналоговый / цифровой (A)', resyncTitle: 'Проверить эталонное время (R)', fullTitle: 'Полный экран (F)', full: 'Полный экран', tzSearchPh: 'Поиск часового пояса…', tzListAria: 'Часовые пояса', prevMatch: 'Предыдущее совпадение', nextMatch: 'Следующее совпадение', closeFind: 'Закрыть панель поиска', scrDocAria: 'Документ транскрипции', docTitle: 'Название документа', untitled: 'Документ без названия',
+    nightTitle: 'Переключить ночной режим (N)', tzTitle: 'Часовой пояс', modeTitle: 'Аналоговый / цифровой (A)', resyncTitle: 'Проверить эталонное время (R)', fullTitle: 'Полный экран (F)', full: 'Полный экран', tzSearchPh: 'Поиск часового пояса…', tzListAria: 'Часовые пояса', prevMatch: 'Предыдущее совпадение', nextMatch: 'Следующее совпадение', closeFind: 'Закрыть панель поиска', scrDocAria: 'Документ транскрипции', docTitle: 'Название документа', untitled: 'Документ без названия', smatePh: 'Введите команду…', smateTip: 'Ассистент SMate', smateSend: 'Отправить', smateHi: 'Привет, я SMate. Попробуйте «таймер 5», «пояс Тайбэй», «открыть кошелёк», «ночной режим» или "help".', smateUnknown: 'Не понял. Наберите "help".',
   },
   pt: {
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
@@ -401,7 +401,7 @@ export const STRINGS = {
     drift: 'deriva do dispositivo {mag} — corrigida{res}',
     offLabel: 'Relógio do sistema — referência indisponível', offDetail: 'sem correção de deriva',
     lastCheck: 'última verificação {t}', syncing: 'sincronizando…', secondRes: ' · resolução de segundos', checking: 'verificando…',
-    nightTitle: 'Alternar modo noturno (N)', tzTitle: 'Fuso horário', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Verificar novamente a hora de referência (R)', fullTitle: 'Tela cheia (F)', full: 'Tela cheia', tzSearchPh: 'Buscar fusos horários…', tzListAria: 'Fusos horários', prevMatch: 'Ocorrência anterior', nextMatch: 'Próxima ocorrência', closeFind: 'Fechar barra de localizar', scrDocAria: 'Documento de transcrição', docTitle: 'Título do documento', untitled: 'Documento sem título',
+    nightTitle: 'Alternar modo noturno (N)', tzTitle: 'Fuso horário', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Verificar novamente a hora de referência (R)', fullTitle: 'Tela cheia (F)', full: 'Tela cheia', tzSearchPh: 'Buscar fusos horários…', tzListAria: 'Fusos horários', prevMatch: 'Ocorrência anterior', nextMatch: 'Próxima ocorrência', closeFind: 'Fechar barra de localizar', scrDocAria: 'Documento de transcrição', docTitle: 'Título do documento', untitled: 'Documento sem título', smatePh: 'Digite um comando…', smateTip: 'Assistente SMate', smateSend: 'Enviar', smateHi: 'Oi, eu sou o SMate. Experimente "timer 5", "fuso Taipei", "abrir carteira", "modo noturno" ou "help".', smateUnknown: 'Não entendi. Digite "help".',
   },
   ur: {
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
@@ -420,7 +420,7 @@ export const STRINGS = {
     drift: 'ڈیوائس ڈرفٹ {mag} — درست{res}',
     offLabel: 'سسٹم گھڑی — ماخذ دستیاب نہیں', offDetail: 'کوئی ڈرفٹ اصلاح لاگو نہیں',
     lastCheck: 'آخری معائنہ {t}', syncing: 'سنک ہو رہا ہے…', secondRes: ' · سیکنڈ ریزولیوشن', checking: 'معائنہ ہو رہا ہے…',
-    nightTitle: 'نائٹ موڈ تبدیل کریں (N)', tzTitle: 'ٹائم زون', modeTitle: 'انالاگ / ڈیجیٹل (A)', resyncTitle: 'حوالہ وقت دوبارہ جانچیں (R)', fullTitle: 'فل اسکرین (F)', full: 'فل اسکرین', tzSearchPh: 'ٹائم زون تلاش کریں…', tzListAria: 'ٹائم زون', prevMatch: 'پچھلا میل', nextMatch: 'اگلا میل', closeFind: 'تلاش بار بند کریں', scrDocAria: 'نقل کی دستاویز', docTitle: 'دستاویز کا عنوان', untitled: 'بے عنوان دستاویز',
+    nightTitle: 'نائٹ موڈ تبدیل کریں (N)', tzTitle: 'ٹائم زون', modeTitle: 'انالاگ / ڈیجیٹل (A)', resyncTitle: 'حوالہ وقت دوبارہ جانچیں (R)', fullTitle: 'فل اسکرین (F)', full: 'فل اسکرین', tzSearchPh: 'ٹائم زون تلاش کریں…', tzListAria: 'ٹائم زون', prevMatch: 'پچھلا میل', nextMatch: 'اگلا میل', closeFind: 'تلاش بار بند کریں', scrDocAria: 'نقل کی دستاویز', docTitle: 'دستاویز کا عنوان', untitled: 'بے عنوان دستاویز', smatePh: 'کمانڈ لکھیں…', smateTip: 'SMate معاون', smateSend: 'بھیجیں', smateHi: 'ہیلو، میں SMate ہوں۔ "ٹائمر 5"، "ٹائم زون تائپے"، "والٹ کھولیں"، "نائٹ موڈ" یا "help" آزمائیں۔', smateUnknown: 'معذرت، سمجھ نہیں آیا۔ "help" لکھیں۔',
   },
 };
 

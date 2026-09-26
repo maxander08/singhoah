@@ -36,7 +36,7 @@ const enValKeys = {};
 for (const [k, v] of Object.entries(LIB.tables.en)) (enValKeys[v] ||= []).push(k);
 
 const LATIN = new Set(['en', 'es', 'fr', 'pt']);
-const ALLOW = /Singhoah|SinghoWallet|SinghoLaunch|SinghoSettings|SinghoScribe|Google|Language|Scribe\b|IP|MAC|UTC|BTC|ETH|[A-Z]{2,4}/g;
+const ALLOW = /Singhoah|SinghoWallet|SinghoLaunch|SinghoSettings|SinghoScribe|SMate|Google|Language|Scribe\b|IP|MAC|UTC|BTC|ETH|[A-Z]{2,4}|[a-z0-9-]+(\.[a-z0-9-]+)+/g;
 
 for (const id of LIB.langs) {
   if (id === 'en') continue;
@@ -59,7 +59,7 @@ for (const id of LIB.langs) {
     await p.goto(URL + page, { waitUntil: 'load' });
     await p.waitForTimeout(450);
     const found = await p.evaluate(() => {
-      const SKIP = '.tz-list, .cur-row, #walDaysBox, #scrDoc, .lp-clock, .lp-clock-zone, .wordmark, .wordmark-zh, .flag, select, .wal-note, .map-tip, #lpZone, .tz-city, .tz-off, .tz-group, #tzLabel, #ipLoc';
+      const SKIP = '.tz-list, .cur-row, #walDaysBox, #scrDoc, .lp-clock, .lp-clock-zone, .wordmark, .wordmark-zh, .flag, select, .wal-note, .map-tip, #lpZone, .tz-city, .tz-off, .tz-group, #tzLabel, #ipLoc, .smate-msgs, .smate-head';
       const out = [];
       const vis = (el) => !!(el.offsetParent || el.getClientRects().length);
       const push = (s, src) => { const v = (s || '').trim(); if (v) out.push([v, src]); };
