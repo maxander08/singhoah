@@ -168,17 +168,24 @@ in the clock / wallet / launchpad headers and a launchpad card link to it.
 
 ## SMate — the chat assistant
 
-Every page carries a small **SMate** button (bottom-right) that opens a chat
-panel. Type commands in any of the ten languages and SMate drives the app
-through its real controls, fully offline: set timers (`timer 5`, `計時器 5`),
-pause/resume/reset them, add a stopwatch, change the home time zone
-(`zone Taipei`), switch window layout (`single` / `side` / `2x2`), flip
-analog/digital, night shift, re-sync, full screen, map, change the language,
-navigate between the apps (`open wallet`), and in SinghoWallet add entries
-(`add 250 income`), switch Days/Reports or change the currency. `help` lists
-what it can do; unknown input gets an honest apology in the UI language.
-The interpreter matches against the app's own translated vocabulary in all
-ten languages, so a Spanish command works while the UI is in Urdu.
+Every page carries a small **SMate** button in the topbar, next to the
+account chip, that opens a chat panel. Type commands in any of the ten
+languages and SMate drives the app through its real controls, fully offline:
+set timers (`timer 5`, `計時器 5`), pause/resume/reset them, add a stopwatch,
+change the home time zone (`zone Taipei`), switch window layout (`single` /
+`side` / `2x2` / `4x4`, including spoken shapes like `2 by 2` or `4 by 4`),
+flip analog/digital, night shift, re-sync, full screen, map, change the
+language, navigate between the apps (`open wallet`), and in SinghoWallet add
+entries (`add 250 income`), switch Days/Reports or change the currency.
+Commands compose: one sentence can do several things at once —
+`set time zones to Jakarta, Taipei, and Singapore in a 2 by 2 window` —
+and city names work in any of the ten languages (`雅加達、台北、新加坡`).
+The mic button answers in the app's current language where the browser
+supports speech recognition; the header line shows online / typing… /
+listening / unavailable like a chat app. `help` lists what it can do;
+unknown input gets an honest apology in the UI language. The interpreter
+matches against the app's own translated vocabulary in all ten languages,
+so a Spanish command works while the UI is in Urdu.
 
 ## Optional Google sign-in (portal)
 

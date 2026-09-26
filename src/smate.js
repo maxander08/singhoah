@@ -51,13 +51,23 @@
 
   function place() {
     const r = btn.getBoundingClientRect();
-    const w = Math.min(360, innerWidth - 16);
-    const top = Math.min(r.bottom + 6, innerHeight - 96);
-    pop.style.width = `${w}px`;
     pop.style.height = 'auto';
-    pop.style.maxHeight = `${Math.min(480, innerHeight - top - 10)}px`;
-    pop.style.left = `${Math.min(Math.max(8, r.right - w), innerWidth - w - 8)}px`;
-    pop.style.top = `${top}px`;
+    if (innerWidth <= 560) {
+      /* bottom sheet on phones: full width, thumb-reachable input */
+      pop.style.width = `${innerWidth - 16}px`;
+      pop.style.left = '8px';
+      pop.style.top = 'auto';
+      pop.style.bottom = '8px';
+      pop.style.maxHeight = `${Math.min(520, innerHeight - 16)}px`;
+    } else {
+      const w = Math.min(360, innerWidth - 16);
+      const top = Math.min(r.bottom + 6, innerHeight - 96);
+      pop.style.width = `${w}px`;
+      pop.style.top = `${top}px`;
+      pop.style.bottom = 'auto';
+      pop.style.maxHeight = `${Math.min(480, innerHeight - top - 10)}px`;
+      pop.style.left = `${Math.min(Math.max(8, r.right - w), innerWidth - w - 8)}px`;
+    }
   }
   addEventListener('resize', place);
   addEventListener('scroll', place, true);
@@ -127,6 +137,7 @@
     single: words(['single']),
     side: [...words(['side']), 'side', '並排', 'lado', 'côte'],
     quad: [...words(['quad']), '2x2', '2 × 2', 'quad'],
+    grid16: [...words(['grid16']), '4x4', '4×4'],
     map: words(['map']),
     resync: [...words(['resync']), 'sync'],
     full: words(['full']),
@@ -321,68 +332,118 @@
     return `SMate · ${bits.join(' · ')}`;
   }
 
+  /* localized city names so zones can be spoken in any of the ten languages */
+  const CITY_ALIASES = {
+    'Asia/Taipei': ['台北', 'ताइपे', 'taipéi', 'تايبيه', 'তাইপেই', 'тайбэй', 'taipé', 'تائپے'],
+    'Asia/Jakarta': ['雅加達', 'जकार्ता', 'yakarta', 'جاكرتا', 'জাকার্তা', 'джакарта', 'jacarta', 'جکارتہ'],
+    'Asia/Singapore': ['新加坡', 'सिंगापुर', 'singapur', 'سنغافورة', 'সিঙ্গাপুর', 'сингапур', 'singapura', 'سنگاپور'],
+    'Asia/Tokyo': ['東京', 'टोक्यो', 'tokio', 'طوكيو', 'টোকিও', 'токио', 'tóquio', 'ٹوکیو'],
+    'Europe/London': ['倫敦', '伦敦', 'लंदन', 'londres', 'لندن', 'লন্ডন', 'лондон'],
+    'America/New_York': ['紐約', '纽约', 'न्यू यॉर्क', 'nueva york', 'نيويورك', 'নিউ ইয়র্ক', 'нью-йорк', 'nova york', 'نیو یارک'],
+    'Europe/Paris': ['巴黎', 'पेरिस', 'parís', 'باريس', 'প্যারিস', 'париж', 'پیرس'],
+    'Asia/Bangkok': ['曼谷', 'बैंकॉक', 'بانكوك', 'ব্যাংকক', 'бангкок', 'bangcoc', 'بینکاک'],
+    'Asia/Seoul': ['首爾', '首尔', 'सियोल', 'seúl', 'séoul', 'سيول', 'সিউল', 'сеул', 'seul', 'سیؤل'],
+    'Asia/Shanghai': ['上海', 'शंघाई', 'shanghái', 'شنغهاي', 'সাংহাই', 'шанхай', 'xangai', 'شنگھائی'],
+    'Asia/Hong_Kong': ['香港', 'हांग कांग', 'هونغ كونغ', 'হংকং', 'гонконг', 'ہانگ کانگ'],
+    'Asia/Kuala_Lumpur': ['吉隆坡', 'कुआलालंपुर', 'كوالالمبور', 'কুয়ালালামপুর', 'куала-лумпур', 'کوالالمپور'],
+    'Asia/Kolkata': ['德里', 'दिल्ली', 'delhi', 'دلهي', 'দিল্লি', 'дели', 'deli', 'دہلی'],
+    'Asia/Dubai': ['杜拜', 'दुबई', 'dubái', 'dubaï', 'دبي', 'দুবাই', 'дубай', 'دبئی'],
+    'Australia/Sydney': ['雪梨', 'सिडनी', 'sídney', 'سيدني', 'সিডনি', 'сидней', 'سڈنی'],
+    'America/Los_Angeles': ['洛杉磯', '洛杉矶', 'लॉस एंजिल्स', 'los ángeles', 'لوس أنجلوس', 'লস অ্যাঞ্জেলেস', 'лос-анджелес', 'لاس اینجلس'],
+  };
+  const findAllZones = (t2) => {
+    const found = [];
+    const push = (idx, z) => { if (!found.some((f) => f.z === z)) found.push({ idx, z }); };
+    for (const [z, names] of Object.entries(CITY_ALIASES)) {
+      for (const n of names) { const i = t2.indexOf(n); if (i >= 0) { push(i, z); break; } }
+    }
+    for (const z of zoneList()) {
+      const c = cityOf(z).toLowerCase();
+      if (c && c.length > 2) { const i = t2.indexOf(c); if (i >= 0) push(i, z); }
+    }
+    found.sort((a, b) => a.idx - b.idx);
+    return found.map((f) => f.z);
+  };
+  const BYW = [' by ', ' × ', '乘', ' por ', ' par ', ' на ', ' في ', ' গুণ ', ' ضرب ', ' गुणा ', ' per '];
+  const layoutIntent = (text) => {
+    if (has(text, KW.grid16)) return 16;
+    let s2 = ` ${latinDigits(text)} `;
+    for (const w of BYW) s2 = s2.split(w).join(' x ');
+    const m = s2.match(/(\d+)\s*x\s*(\d+)/);
+    if (m) { const p = Number(m[1]) * Number(m[2]); return p <= 1 ? 1 : p <= 2 ? 2 : p <= 4 ? 4 : 16; }
+    if (has(text, KW.quad)) return 4;
+    if (has(text, KW.side)) return 2;
+    if (has(text, KW.single)) return 1;
+    return null;
+  };
+
+  /* every detectable intent runs, in one pass — compound sentences work */
   function run(raw) {
     const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
-    /* 1 help */
     if (has(text, KW.help)) return helpText();
-    /* 2 language */
+    const outs = [];
+    const note = (v) => { if (v) outs.push(v); };
+
+    /* language switch */
     const lg = findLang(text);
     if (lg && (has(text, KW.lang) || (LANG_NAMES[lg] || []).some((n) => text.includes(n.toLowerCase())) || text.includes(LANGS.find((l) => l.id === lg).name.toLowerCase()))) {
-      return setLang(lg) ? `${t(curLang, 'language')}: ${langOf(lg).name}` : null;
+      note(setLang(lg) ? `${t(curLang, 'language')}: ${langOf(lg).name}` : null);
     }
-    /* 3 timer with number */
-    if (has(text, KW.timer) && num(text) != null) return act.timerSet(num(text));
-    /* 4 timer control */
-    if (has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) return act.timerCtl(text);
-    if (has(text, KW.timer) && page === 'clock') return act.timerCtl(text + ' start');
-    /* 5 stopwatch */
-    if (has(text, KW.stopwatch)) return act.stopwatch(text);
-    /* 6 display mode */
+
+    /* window shape + zones, in the order spoken */
+    const lay = layoutIntent(text);
+    const zones = findAllZones(text);
+    const zoneGate = has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3;
+    if (lay != null || (zones.length && zoneGate)) {
+      if (page === 'clock') {
+        LIB.smateWindow(zoneGate ? zones : [], lay);
+        const bits = [];
+        if (lay != null) bits.push(lay === 16 ? t(curLang, 'grid16') : lay === 4 ? t(curLang, 'quad') : lay === 2 ? t(curLang, 'side') : t(curLang, 'single'));
+        if (zoneGate && zones.length) bits.push(zones.map((z) => cityOf(z)).join(', '));
+        note(`${t(curLang, 'winTitle')}: ${bits.join(' · ')}`);
+      } else if (page === 'settings' && zones.length) {
+        note(setTz(zones[0]) ? `${t(curLang, 'tzTitle')}: ${cityOf(zones[0])}` : null);
+      } else {
+        note(act.nav('clock'));
+      }
+    }
+
+    /* timer */
+    if (has(text, KW.timer) && num(text) != null) note(act.timerSet(num(text)));
+    else if (has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) note(act.timerCtl(text));
+    else if (has(text, KW.timer) && page === 'clock') note(act.timerCtl(text + ' start'));
+    /* stopwatch */
+    if (has(text, KW.stopwatch)) note(act.stopwatch(text));
+    /* display mode */
     if (has(text, KW.analog) || has(text, KW.digital)) {
       const b = $('btnMode');
-      if (b) { const wantAnalog = has(text, KW.analog); const isAnalog = b.getAttribute('aria-pressed') === 'true'; if (wantAnalog !== isAnalog) b.click(); return t(curLang, 'done'); }
-      return null;
+      if (b) { const wantAnalog = has(text, KW.analog); const isAnalog = b.getAttribute('aria-pressed') === 'true'; if (wantAnalog !== isAnalog) b.click(); note(t(curLang, 'done')); }
     }
-    /* 7 layout */
-    if (has(text, KW.quad)) return click(document.querySelector('.lay-btn[data-layout="4"]')) ? t(curLang, 'done') : null;
-    if (has(text, KW.side)) return click(document.querySelector('.lay-btn[data-layout="2"]')) ? t(curLang, 'done') : null;
-    if (has(text, KW.single)) return click(document.querySelector('.lay-btn[data-layout="1"]')) ? t(curLang, 'done') : null;
-    /* 8 resync / full / map / night */
-    if (has(text, KW.resync)) return click($('btnSync')) ? t(curLang, 'done') : null;
-    if (has(text, KW.full)) return click($('btnFull')) ? t(curLang, 'done') : null;
-    if (has(text, KW.map)) return click($('btnMap')) ? t(curLang, 'done') : null;
+    /* resync / full / map / theme */
+    if (has(text, KW.resync)) note(click($('btnSync')) ? t(curLang, 'done') : null);
+    if (has(text, KW.full)) note(click($('btnFull')) ? t(curLang, 'done') : null);
+    if (has(text, KW.map)) note(click($('btnMap')) ? t(curLang, 'done') : null);
     if (has(text, KW.night) || has(text, KW.light)) {
       const b = $('btnNight');
-      if (b) {
-        const dark = document.documentElement.classList.contains('dark');
-        const wantDark = has(text, KW.night);
-        if (wantDark !== dark) b.click();
-        return t(curLang, 'done');
-      }
-      return null;
+      if (b) { const dark = document.documentElement.classList.contains('dark'); const wantDark = has(text, KW.night); if (wantDark !== dark) b.click(); note(t(curLang, 'done')); }
     }
-    /* 9 wallet intents (on wallet) / wallet add anywhere */
-    if (has(text, KW.income) && num(text) != null) return act.walletAdd(text, 'in');
-    if (has(text, KW.expense) && num(text) != null) return act.walletAdd(text, 'out');
+    /* wallet */
+    if (has(text, KW.income) && num(text) != null) note(act.walletAdd(text, 'in'));
+    if (has(text, KW.expense) && num(text) != null) note(act.walletAdd(text, 'out'));
     if (page === 'wallet') {
-      if (has(text, KW.balance)) return $('walBal').textContent;
-      if (has(text, KW.reports)) return click($('walTabR')) ? t(curLang, 'done') : null;
-      if (has(text, KW.days)) return click($('walTabD')) ? t(curLang, 'done') : null;
+      if (has(text, KW.balance)) note($('walBal').textContent);
+      if (has(text, KW.reports)) note(click($('walTabR')) ? t(curLang, 'done') : null);
+      if (has(text, KW.days)) note(click($('walTabD')) ? t(curLang, 'done') : null);
       const cur = findCurrency(text);
-      if (cur && (has(text, KW.currency) || /\b[a-z]{3}\b/.test(text))) return act.walletCur(cur);
+      if (cur && (has(text, KW.currency) || /\b[a-z]{3}\b/.test(text))) note(act.walletCur(cur));
     }
-    /* 10 time zone */
-    const z = findZone(text);
-    if (z && (has(text, KW.tz) || has(text, OPEN_VERBS) || text.split(' ').length <= 3)) {
-      return setTz(z) ? `${t(curLang, 'tzTitle')}: ${cityOf(z)}` : null;
-    }
-    /* 11 scribe controls */
-    if (page === 'scribe' && (has(text, KW.start) || has(text, KW.pause))) return act.scribeCtl(text);
-    /* 12 navigation */
+    /* scribe */
+    if (page === 'scribe' && (has(text, KW.start) || has(text, KW.pause))) note(act.scribeCtl(text));
+    /* navigation last — it leaves the page */
     for (const [where, keys] of [['wallet', KW.wallet], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
-      if (has(text, keys)) return act.nav(where);
+      if (has(text, keys)) { note(act.nav(where)); break; }
     }
-    return null;
+    return outs.length ? outs.join(' · ') : null;
   }
 
   /* WhatsApp-style flow: my line -> typing dots + status -> answer */

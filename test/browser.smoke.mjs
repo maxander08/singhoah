@@ -311,7 +311,7 @@ await page.keyboard.press('Escape');
 /* --- the Window menu reflows the current window: 2x2, side by side, single --- */
 await page.locator('#btnWindow').click();
 await page.waitForTimeout(120);
-ok('window button offers three formats', await page.locator('#winList .tz-row').count() === 3);
+ok('window button offers four formats', await page.locator('#winList .tz-row').count() === 4);
 await page.locator('#winList .tz-row[data-layout="4"]').click();
 await page.waitForTimeout(400);
 const m1 = await page.evaluate(() => ({
@@ -390,7 +390,7 @@ const z1 = await zen.evaluate(() => ({
   fits: document.documentElement.scrollWidth <= window.innerWidth + 1,
 }));
 ok('?zen=1 still gives a chrome-less window by URL',
-  z1.zen && z1.zone === 'Asia/Jakarta' && z1.flag && z1.meta === 'none' && z1.layBtns === 3 && z1.fits,
+  z1.zen && z1.zone === 'Asia/Jakarta' && z1.flag && z1.meta === 'none' && z1.layBtns === 4 && z1.fits,
   JSON.stringify(z1));
 ok('the zen window clocks HH:MM:SS:mmm', /^\d{2}:\d{2}:\d{2}:\d{3}$/.test(z1.clock), z1.clock);
 await zen.screenshot({ path: 'shot-window.png' });
@@ -1215,6 +1215,70 @@ ok('voice mode follows the UI language (all ten supported)', await v2p.evaluate(
 await v2p.close();
 await v2.close();
 await vm.close();
+
+/* --- SMate compound commands: zones + window shape + extras in one sentence --- */
+const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+await cm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const cp = await cm.newPage();
+await cp.goto(URL + 'index.html', { waitUntil: 'load' });
+await cp.waitForTimeout(300);
+await cp.click('#smateBtn');
+const cmSend = async (txt) => { await cp.fill('#smateIn', txt); await cp.click('#smateSend'); await cp.waitForTimeout(1600); };
+await cmSend('set time zones to Jakarta, Taipei, and Singapore in a 2 by 2 window');
+ok('SMate parses zones + window shape from one sentence', await cp.evaluate(() => {
+  const g = document.getElementById('grid');
+  return g.dataset.layout === '2x2' && g.textContent.includes('Jakarta') &&
+    g.textContent.includes('Taipei') && g.textContent.includes('Singapore');
+}));
+await cmSend('4 by 4');
+ok('SMate opens a 4 by 4 window', await cp.evaluate(() =>
+  document.getElementById('grid').dataset.layout === '4x4' &&
+  document.querySelectorAll('#grid .cell').length === 16));
+await cmSend('night shift, analog, and zone Tokyo in a single window');
+ok('SMate stacks several actions in one message', await cp.evaluate(() =>
+  document.documentElement.classList.contains('dark') &&
+  document.documentElement.classList.contains('analog') &&
+  document.getElementById('grid').dataset.layout === '1' &&
+  document.getElementById('grid').textContent.includes('Tokyo')));
+await cp.close();
+await cm.close();
+
+/* the same compound command in Traditional Chinese */
+const cz = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+await cz.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); });
+const zp = await cz.newPage();
+await zp.goto(URL + 'index.html', { waitUntil: 'load' });
+await zp.waitForTimeout(300);
+await zp.click('#smateBtn');
+await zp.fill('#smateIn', '視窗 2x2，時區設為雅加達、台北、新加坡');
+await zp.click('#smateSend');
+await zp.waitForTimeout(950);
+ok('SMate understands compound commands in other languages', await zp.evaluate(() => {
+  const g = document.getElementById('grid');
+  return g.dataset.layout === '2x2' && g.textContent.includes('Jakarta') &&
+    g.textContent.includes('Taipei') && g.textContent.includes('Singapore');
+}));
+await zp.close();
+await cz.close();
+
+/* SMate on a phone: bottom sheet, commands work */
+const mo = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true });
+await mo.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const mp = await mo.newPage();
+await mp.goto(URL + 'index.html', { waitUntil: 'load' });
+await mp.waitForTimeout(300);
+await mp.click('#smateBtn');
+await mp.waitForTimeout(200);
+ok('SMate becomes a bottom sheet on phones', await mp.evaluate(() => {
+  const r = document.getElementById('smatePop').getBoundingClientRect();
+  return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight && r.width >= innerWidth - 20;
+}));
+await mp.fill('#smateIn', 'night shift');
+await mp.click('#smateSend');
+await mp.waitForTimeout(950);
+ok('SMate commands work on phones', await mp.evaluate(() => document.documentElement.classList.contains('dark')));
+await mp.close();
+await mo.close();
 
 /* --- print: always black text on white paper, night shift included --- */
 const prn = await browser.newContext({ viewport: { width: 900, height: 700 } });

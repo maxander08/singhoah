@@ -753,6 +753,7 @@ button { font: inherit; color: inherit; }
 .grid[data-layout="1"] { grid-template: 1fr / 1fr; gap: 0; background: transparent; }
 .grid[data-layout="2"] { grid-template: 1fr / 1fr 1fr; }
 .grid[data-layout="2x2"] { grid-template: 1fr 1fr / 1fr 1fr; }
+.grid[data-layout="4x4"] { grid-template: repeat(4, 1fr) / repeat(4, 1fr); }
 
 .cell {
   background: var(--paper);
@@ -1042,6 +1043,7 @@ button { font: inherit; color: inherit; }
   .wal-cal-nav { width: 40px; height: 40px; }
   .scr-ic { width: 40px; }
   .grid[data-layout="2"] { grid-template: 1fr 1fr / 1fr; }  /* stack on phones */
+  .grid[data-layout="4x4"] { grid-template: repeat(4, 1fr) / 1fr 1fr; } /* 2-up on phones */
   .cell-cap { font-size: 11px; gap: 6px; }
   .clock .sep { animation-duration: 1s; }
 }
@@ -1290,6 +1292,10 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 }
 @media (prefers-reduced-motion: reduce) {
   .smate-dots span { animation: none; }
+}
+@media (pointer: coarse) {
+  .smate-send, .smate-mic { min-width: 44px; min-height: 44px; }
+  .smate-inrow input { min-height: 44px; font-size: 16px; }
 }
 
 /* ---------- map usability: zoom / pan / tooltip ---------- */
