@@ -1411,6 +1411,7 @@ function applyLang(id, persist = true) {
   if (els.btnMode) els.btnMode.title = t(lang, 'modeTitle');
   if (els.btnSync) els.btnSync.title = t(lang, 'resyncTitle');
   if (els.btnFull) { els.btnFull.title = t(lang, 'fullTitle'); els.btnFull.setAttribute('aria-label', t(lang, 'full')); }
+  placeMapUi();
   document.querySelectorAll('.lay-btn').forEach((b) => {
     b.title = t(lang, Number(b.dataset.layout) === 2 ? 'side' : Number(b.dataset.layout) === 4 ? 'quad' : 'single');
   });
@@ -1778,8 +1779,16 @@ function openMap() {
   els.ipPop.hidden = true;
   els.mapWrap.hidden = false;
   els.btnMap.setAttribute('aria-pressed', 'true');
+  placeMapUi();
   markMapSel();
 }
+/* keep the zoom/pan stack clear of the topbar even when it wraps to two rows */
+function placeMapUi() {
+  const mu = document.querySelector('.map-ui');
+  const tb = document.querySelector('.topbar');
+  if (mu && tb) mu.style.top = `${Math.round(tb.getBoundingClientRect().bottom + 12)}px`;
+}
+addEventListener('resize', placeMapUi);
 function closeMap() {
   if (els.mapWrap.hidden) return;
   els.mapWrap.hidden = true;

@@ -13,10 +13,24 @@
   if (!LANGS.some((l) => l.id === curLang)) curLang = 'en';
 
   /* ---------------- chrome ---------------- */
-  const wrap = document.createElement('div');
-  wrap.className = 'smate-wrap';
-  wrap.innerHTML = `
-    <div class="smate-pop" id="smatePop" hidden role="dialog" aria-label="SMate">
+  /* the launcher sits in the topbar, right next to the account chip;
+     the panel anchors below it like every other dropdown */
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn smate-btn';
+  btn.id = 'smateBtn';
+  btn.setAttribute('aria-haspopup', 'dialog');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    <span>SMate</span>`;
+  const pop = document.createElement('div');
+  pop.className = 'smate-pop';
+  pop.id = 'smatePop';
+  pop.hidden = true;
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'SMate');
+  pop.innerHTML = `
       <div class="smate-head"><strong>SMate</strong>
         <button type="button" class="btn smate-x" id="smateX" aria-label="×">×</button></div>
       <div class="smate-msgs" id="smateMsgs"></div>
@@ -25,14 +39,24 @@
         <button type="submit" class="btn smate-send" id="smateSend" aria-label="➤">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 11.5 21 3l-8.5 18-2.4-7.1L3 11.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </button>
-      </form>
-    </div>
-    <button type="button" class="btn smate-btn" id="smateBtn" aria-haspopup="dialog" aria-expanded="false">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-      <span>SMate</span>
-    </button>`;
-  document.body.appendChild(wrap);
-  const pop = $('smatePop'), msgs = $('smateMsgs'), input = $('smateIn'), btn = $('smateBtn');
+      </form>`;
+  const anchor = $('authWrap');
+  (anchor ? anchor.parentElement : document.body).insertBefore(btn, anchor || null);
+  document.body.appendChild(pop);
+  const msgs = $('smateMsgs'), input = $('smateIn');
+
+  function place() {
+    const r = btn.getBoundingClientRect();
+    const w = Math.min(360, innerWidth - 16);
+    const top = Math.min(r.bottom + 6, innerHeight - 96);
+    const h = Math.min(480, innerHeight - top - 10);
+    pop.style.width = `${w}px`;
+    pop.style.height = `${h}px`;
+    pop.style.left = `${Math.min(Math.max(8, r.right - w), innerWidth - w - 8)}px`;
+    pop.style.top = `${top}px`;
+  }
+  addEventListener('resize', place);
+  addEventListener('scroll', place, true);
 
   function chrome() {
     btn.title = t(curLang, 'smateTip');
@@ -57,6 +81,7 @@
     msgs.scrollTop = msgs.scrollHeight;
   }
   function toggle(open) {
+    if (open) place();
     pop.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
     if (open) {
