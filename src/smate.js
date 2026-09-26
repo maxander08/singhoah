@@ -34,6 +34,9 @@
       <div class="smate-head">
         <div class="smate-id"><strong>SMate</strong><span class="smate-status" id="smateStatus"></span></div>
         <button type="button" class="btn smate-ai" id="smateAI" aria-pressed="false">AI</button>
+        <button type="button" class="btn smate-ai smate-speak" id="smateSpeak" aria-pressed="false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
         <button type="button" class="btn smate-x" id="smateX" aria-label="×">×</button></div>
       <div class="smate-msgs" id="smateMsgs"></div>
       <form class="smate-inrow" id="smateForm">
@@ -87,6 +90,10 @@
     mic.title = t(curLang, 'smateVoice');
     mic.setAttribute('aria-label', t(curLang, 'smateVoice'));
     if (!SR) mic.style.display = 'none';
+    const sp = $('smateSpeak');
+    sp.title = t(curLang, 'voiceTip');
+    sp.setAttribute('aria-label', t(curLang, 'voiceTip'));
+    if (!('speechSynthesis' in window)) sp.style.display = 'none';
     const ai = $('smateAI');
     ai.title = t(curLang, 'aiTip');
     ai.setAttribute('aria-label', t(curLang, 'aiTip'));
@@ -98,24 +105,128 @@
     chrome();
   });
 
+  /* -------- assistant memory + voice output -------- */
+  let LOG = [];
+  try { LOG = JSON.parse(localStorage.getItem('singhoah:smateLog') || '[]'); } catch { LOG = []; }
+  if (!Array.isArray(LOG)) LOG = [];
+  const saveLog = () => { try { localStorage.setItem('singhoah:smateLog', JSON.stringify(LOG.slice(-60))); } catch { /* ignore */ } };
+  let voicePref = 'off';
+  try { voicePref = localStorage.getItem('singhoah:smateSpeak') || 'off'; } catch { /* ignore */ }
+  const speakOut = (text) => {
+    if (!('speechSynthesis' in window) || voicePref !== 'on') return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = langOf(curLang).locale;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    } catch { /* ignore */ }
+  };
+  const reminders = [];
+  let flashT = null;
+  const flashTitle = () => {
+    const old = document.title;
+    document.title = `⏰ ${old}`;
+    clearTimeout(flashT);
+    flashT = setTimeout(() => { document.title = old; }, 5000);
+  };
+  setInterval(() => {
+    const now = Date.now();
+    for (let i = reminders.length - 1; i >= 0; i -= 1) {
+      if (reminders[i].at <= now) {
+        reminders.splice(i, 1);
+        say(`⏰ ${t(curLang, 'remindNow')}`);
+        flashTitle();
+      }
+    }
+  }, 1000);
+
   function say(text, me = false) {
     const p = document.createElement('p');
     p.className = me ? 'smate-me' : 'smate-it';
     p.textContent = text;
     msgs.appendChild(p);
     msgs.scrollTop = msgs.scrollHeight;
+    LOG.push({ me, text });
+    saveLog();
+    if (!me) speakOut(text);
   }
+  /* a safe little calculator: digits and + - * / % ( ) only */
+  const safeMath = (src) => {
+    let i = 0;
+    const peek = () => src[i];
+    const expr = () => {
+      let v = term();
+      while (peek() === '+' || peek() === '-') { const o = src[i++]; const r = term(); v = o === '+' ? v + r : v - r; }
+      return v;
+    };
+    const term = () => {
+      let v = fact();
+      while (peek() === '*' || peek() === '/' || peek() === '%') { const o = src[i++]; const r = fact(); v = o === '*' ? v * r : o === '/' ? v / r : v % r; }
+      return v;
+    };
+    const fact = () => {
+      while (peek() === ' ') i += 1;
+      let neg = false;
+      if (peek() === '-') { neg = true; i += 1; }
+      let v;
+      if (peek() === '(') { i += 1; v = expr(); if (peek() === ')') i += 1; else return NaN; }
+      else {
+        const m = src.slice(i).match(/^\d+(?:\.\d+)?/);
+        if (!m) return NaN;
+        v = parseFloat(m[0]); i += m[0].length;
+      }
+      while (peek() === ' ') i += 1;
+      return neg ? -v : v;
+    };
+    const v = expr();
+    return i === src.length && Number.isFinite(v) ? v : null;
+  };
+
   function toggle(open) {
     if (open) place();
     pop.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
+    if (!open && 'speechSynthesis' in window) speechSynthesis.cancel();
     if (open) {
       if (!msgs.children.length) say(t(curLang, 'smateHi'));
+      if (!msgs.querySelector('.smate-chip')) addChips();
       input.focus();
     }
   }
+  const CHIPS = () => [`${t(curLang, 'timer')} 5`, t(curLang, 'night'), `${t(curLang, 'tzTitle')} Taipei`];
+  function addChips() {
+    const wrap = document.createElement('div');
+    wrap.className = 'smate-chips';
+    for (const c of CHIPS()) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn smate-chip';
+      b.textContent = c;
+      b.addEventListener('click', () => { wrap.remove(); handle(c); });
+      wrap.appendChild(b);
+    }
+    msgs.appendChild(wrap);
+  }
   btn.addEventListener('click', () => toggle(pop.hidden));
   $('smateX').addEventListener('click', () => toggle(false));
+  /* conversation continues across pages and reloads */
+  for (const m of LOG) {
+    const p = document.createElement('p');
+    p.className = m.me ? 'smate-me' : 'smate-it';
+    p.textContent = m.text;
+    msgs.appendChild(p);
+  }
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); toggle(pop.hidden); }
+    else if (e.key === 'Escape' && !pop.hidden) toggle(false);
+  });
+  $('smateSpeak').addEventListener('click', () => {
+    voicePref = voicePref === 'on' ? 'off' : 'on';
+    try { localStorage.setItem('singhoah:smateSpeak', voicePref); } catch { /* ignore */ }
+    $('smateSpeak').setAttribute('aria-pressed', String(voicePref === 'on'));
+    if (voicePref !== 'on' && 'speechSynthesis' in window) speechSynthesis.cancel();
+  });
+  $('smateSpeak').setAttribute('aria-pressed', String(voicePref === 'on'));
 
   /* ---------------- the interpreter ---------------- */
 
@@ -143,6 +254,9 @@
     quad: [...words(['quad']), '2x2', '2 × 2', 'quad'],
     grid16: [...words(['grid16']), '4x4', '4×4'],
     clearAll: [...words(['clearAll']), 'clear all', 'clear-all', 'reset window', '全部清除'],
+    timeQ: ['what time', 'time in', 'current time', 'how late', '幾點', '几点', 'क्या बजा', 'कितने बजे', 'qué hora', 'hora en', 'quelle heure', 'heure à', 'كم الساعة', 'কটা বাজে', 'который час', 'сколько времени', 'время в', 'que horas', 'hora em', 'کتنا بجہ'],
+    remind: ['remind', 'reminder', '提醒', 'याद दिला', 'recuérdame', 'recuerdame', 'rappelle', 'ذكرني', 'মনে করিয়ে', 'напомни', 'lembre', 'یاد دہانی'],
+    clearChat: [...words(['clearChat']), 'clear chat', 'clear conversation', '清除對話'],
     map: words(['map']),
     resync: [...words(['resync']), 'sync'],
     full: words(['full']),
@@ -423,7 +537,38 @@
       }
     }
 
-    /* timer */
+    /* assistant: what time is it in <City>? */
+    if (has(text, KW.timeQ)) {
+      const zq = findAllZones(text)[0];
+      if (zq) {
+        const tf = new Intl.DateTimeFormat(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', timeZone: zq });
+        return t(curLang, 'timeIn').replace('{t}', tf.format(new Date())).replace('{c}', cityOf(zq));
+      }
+    }
+    /* assistant: reminders */
+    if (has(text, KW.remind) && num(text) != null) {
+      const m = num(text);
+      reminders.push({ at: Date.now() + m * 60000 });
+      return t(curLang, 'remindSet').replace('{n}', String(m));
+    }
+    /* assistant: quick math (only when nothing else is meant) */
+    if (lay == null && !zones.length) {
+      const ms = latinDigits(text).replace(/×/g, '*').replace(/÷/g, '/').trim();
+      if (/^[\d\s+\-*/().%]+$/.test(ms) && /\d/.test(ms) && /[+\-*/%]/.test(ms)) {
+        const v = safeMath(ms);
+        if (v != null) return String(Math.round(v * 10000) / 10000);
+      }
+    }
+    /* assistant: clear the conversation */
+    if (has(text, KW.clearChat)) {
+      msgs.textContent = '';
+      LOG.length = 0;
+      saveLog();
+      say(t(curLang, 'smateHi'));
+      addChips();
+      return t(curLang, 'done');
+    }
+        /* timer */
     if (has(text, KW.timer) && num(text) != null) note(act.timerSet(num(text)));
     else if (has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) note(act.timerCtl(text));
     else if (has(text, KW.timer) && page === 'clock') note(act.timerCtl(text + ' start'));
@@ -464,6 +609,8 @@
   /* WhatsApp-style flow: my line -> typing dots + status -> answer */
   function handle(raw) {
     if (!raw) return;
+    const cw = msgs.querySelector('.smate-chips');
+    if (cw) cw.remove();
     say(raw, true);
     input.value = '';
     setStatus('smateTyping');
@@ -511,6 +658,11 @@
       vlistening = true;
       mic.setAttribute('aria-pressed', 'true');
       setStatus('scribeListening');
+      /* you talked to it — it talks back */
+      if (voicePref !== 'on' && 'speechSynthesis' in window) {
+        voicePref = 'on';
+        $('smateSpeak').setAttribute('aria-pressed', 'true');
+      }
     };
     vrec.onresult = (e) => {
       let interim = '';

@@ -1271,6 +1271,56 @@ ok('the offline interpreter still answers when AI is unavailable', await a2p.eva
 await a2p.close();
 await ai2.close();
 
+/* --- SMate as a proper assistant: suggestions, time answers, reminders,
+       math, memory, voice-out toggle, Ctrl+K --- */
+const as = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await as.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const asp = await as.newPage();
+await asp.goto(URL + 'index.html', { waitUntil: 'load' });
+await asp.waitForTimeout(300);
+await asp.keyboard.press('Control+k');
+await asp.waitForTimeout(200);
+ok('Ctrl+K summons SMate from anywhere', await asp.evaluate(() => !document.getElementById('smatePop').hidden));
+ok('SMate greets with tappable suggestions', await asp.evaluate(() =>
+  document.querySelectorAll('.smate-chip').length === 3));
+await asp.click('.smate-chip');
+await asp.waitForTimeout(1200);
+ok('suggestion chips run real commands', await asp.evaluate(() => !!document.querySelector('.cell.timer')));
+const asSend = async (txt) => { await asp.fill('#smateIn', txt); await asp.click('#smateSend'); await asp.waitForTimeout(950); };
+const tzBefore = await asp.evaluate(() => document.getElementById('tzLabel').textContent);
+await asSend('what time is it in Tokyo?');
+ok('SMate answers “what time is it in …” without changing your zone', await asp.evaluate((tz) =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('Tokyo') &&
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes(':') &&
+  document.getElementById('tzLabel').textContent === tz, tzBefore));
+await asSend('25 * 4');
+ok('SMate does quick math', await asp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent === '100'));
+await asSend('remind me in 0.05');
+ok('SMate accepts reminders', await asp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('0.05')));
+await asp.waitForTimeout(4200);
+ok('reminders fire with a chat message', await asp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].some((p) => p.textContent.includes('⏰'))));
+ok('voice-out toggle speaks replies', await asp.evaluate(() => {
+  const b = document.getElementById('smateSpeak');
+  if (!('speechSynthesis' in window)) return b.style.display === 'none';
+  b.click();
+  return b.getAttribute('aria-pressed') === 'true';
+}));
+await asp.reload({ waitUntil: 'load' });
+await asp.waitForTimeout(400);
+await asp.keyboard.press('Control+k');
+await asp.waitForTimeout(200);
+ok('the conversation survives reloads', await asp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].some((p) => p.textContent === '100')));
+await asSend('clear chat');
+ok('clear chat starts a fresh conversation', await asp.evaluate(() =>
+  document.querySelectorAll('.smate-me').length === 0 &&
+  !!document.querySelector('.smate-it')));
+await asp.close();
+await as.close();
+
 /* --- SMate compound commands: zones + window shape + extras in one sentence --- */
 const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
