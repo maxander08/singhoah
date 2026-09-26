@@ -189,7 +189,17 @@ window to a single home clock; from any other page SMate hops home and
 clears there.
 The mic button answers in the app's current language where the browser
 supports speech recognition; the header line shows online / typing… /
-listening / unavailable like a chat app. `help` lists what it can do;
+listening / unavailable like a chat app.
+
+**Optional on-device AI.** The `AI` chip in the panel header loads a small
+open model (Qwen2.5-0.5B / SmolLM2-360M) through WebLLM/WebGPU — free,
+serverless, private: weights download once (~200-300 MB), cache in
+IndexedDB, and inference never leaves the machine. The deterministic
+interpreter always gets first crack; whatever it misses goes to the model,
+which either replies `CMD: …` (executed through the same interpreter, so
+loose phrasings like *"the room is too bright"* become real actions) or
+answers light questions in your language. No WebGPU or no network on first
+run? The chip shows unavailable and the offline brain keeps working. `help` lists what it can do;
 unknown input gets an honest apology in the UI language. The interpreter
 matches against the app's own translated vocabulary in all ten languages,
 so a Spanish command works while the UI is in Urdu.

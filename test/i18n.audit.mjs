@@ -36,7 +36,7 @@ const enValKeys = {};
 for (const [k, v] of Object.entries(LIB.tables.en)) (enValKeys[v] ||= []).push(k);
 
 const LATIN = new Set(['en', 'es', 'fr', 'pt']);
-const ALLOW = /Singhoah|SinghoWallet|SinghoLaunch|SinghoSettings|SinghoScribe|SMate|Google|Language|Scribe\b|IP|MAC|UTC|BTC|ETH|[A-Z]{2,4}|[a-z0-9-]+(\.[a-z0-9-]+)+/g;
+const ALLOW = /Singhoah|SinghoWallet|SinghoLaunch|SinghoSettings|SinghoScribe|SMate|Google|Language|Scribe\b|IP|MAC|UTC|BTC|ETH|AI( \d+%)?|[A-Z]{2,4}|[a-z0-9-]+(\.[a-z0-9-]+)+/g;
 
 for (const id of LIB.langs) {
   if (id === 'en') continue;

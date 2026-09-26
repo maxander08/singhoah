@@ -33,6 +33,7 @@
   pop.innerHTML = `
       <div class="smate-head">
         <div class="smate-id"><strong>SMate</strong><span class="smate-status" id="smateStatus"></span></div>
+        <button type="button" class="btn smate-ai" id="smateAI" aria-pressed="false">AI</button>
         <button type="button" class="btn smate-x" id="smateX" aria-label="×">×</button></div>
       <div class="smate-msgs" id="smateMsgs"></div>
       <form class="smate-inrow" id="smateForm">
@@ -86,6 +87,9 @@
     mic.title = t(curLang, 'smateVoice');
     mic.setAttribute('aria-label', t(curLang, 'smateVoice'));
     if (!SR) mic.style.display = 'none';
+    const ai = $('smateAI');
+    ai.title = t(curLang, 'aiTip');
+    ai.setAttribute('aria-label', t(curLang, 'aiTip'));
     if (!mic.getAttribute('aria-pressed') || mic.getAttribute('aria-pressed') === 'false') setStatus('smateOnline');
   }
   chrome();
@@ -158,7 +162,7 @@
     reports: words(['walReports']),
     currency: [...words(['currency']), 'currency'],
     add: [...words(['walAdd']), 'add', 'add'],
-    help: ['help', '？', '?', '幫助', '説明', 'ayuda', 'aide', 'مساعدة', 'সাহায্য', 'помощь', 'ajuda', 'مدد'],
+    help: ['help', '幫助', '説明', 'ayuda', 'aide', 'مساعدة', 'সাহায্য', 'помощь', 'ajuda', 'مدد'],
   };
   const OPEN_VERBS = ['open', 'go to', 'goto', 'show', 'open', '打开', '開啟', '開', '去', 'खोलें',
     'abrir', 'ir a', 'ouvrir', 'aller à', 'افتح', 'اذهب إلى', 'খুলুন', 'открыть', 'открой', 'перейти',
@@ -381,7 +385,7 @@
   /* every detectable intent runs, in one pass — compound sentences work */
   function run(raw) {
     const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
-    if (has(text, KW.help)) return helpText();
+    if (has(text, KW.help) || text === '?' || text === '؟' || text === '？') return helpText();
     const outs = [];
     const note = (v) => { if (v) outs.push(v); };
 
@@ -470,9 +474,16 @@
     msgs.appendChild(dots);
     msgs.scrollTop = msgs.scrollHeight;
     const wait = 420 + Math.min(700, raw.length * 18);
-    setTimeout(() => {
+    setTimeout(async () => {
+      let out = run(raw);
+      if (!out && aiState === 'on' && aiEngine) {
+        try {
+          const r = await askAI(raw);
+          if (/^\s*CMD:/i.test(r)) out = run(r.replace(/^\s*CMD:/i, '').trim());
+          else if (r) out = r;
+        } catch { /* the offline brain stays the fallback */ }
+      }
       if (dots.isConnected) dots.remove();
-      const out = run(raw);
       say(out || t(curLang, 'smateUnknown'));
       setStatus('smateOnline');
     }, wait);
@@ -520,4 +531,75 @@
     };
     try { vrec.start(); } catch { setStatus('smateUnavailable'); }
   });
+
+  /* --------- on-device AI (WebLLM): fuzzy commands + light questions -------
+     Free, serverless, private: a small open model runs in the browser on
+     WebGPU, cached in IndexedDB after the first download. The deterministic
+     interpreter always gets first crack; the model only sees what it misses,
+     and either translates it into a canonical command or answers outright. */
+  const aiBtn = $('smateAI');
+  let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
+  const AI_MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1', 'SmolLM2-360M-Instruct-q4f16_1', 'Qwen2.5-0.5B-Instruct-q4f32_1'];
+  const aiUI = () => {
+    aiBtn.setAttribute('aria-pressed', String(aiState === 'on'));
+    aiBtn.classList.toggle('loading', aiState === 'loading');
+    aiBtn.classList.toggle('err', aiState === 'err');
+  };
+  async function aiInit() {
+    if (aiState === 'loading') return;
+    aiState = 'loading';
+    aiUI();
+    try {
+      if (globalThis.__SMATE_AI_ENGINE) {
+        aiEngine = globalThis.__SMATE_AI_ENGINE; /* test/extension hook */
+      } else {
+        const mod = await import('https://esm.run/@mlc-ai/web-llm');
+        let lastErr = null;
+        for (const id of AI_MODELS) {
+          try {
+            aiEngine = await mod.CreateMLCEngine(id, {
+              initProgressCallback: (r) => {
+                const st = $('smateStatus');
+                if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
+              },
+            });
+            lastErr = null;
+            break;
+          } catch (e) { lastErr = e; }
+        }
+        if (!aiEngine) throw lastErr || new Error('no model');
+      }
+      aiState = 'on';
+      try { localStorage.setItem('singhoah:smateAI', '1'); } catch { /* ignore */ }
+    } catch {
+      aiState = 'err';
+      aiEngine = null;
+      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
+    }
+    aiUI();
+    setStatus('smateOnline');
+  }
+  aiBtn.addEventListener('click', () => { if (aiState === 'on') { aiState = 'off'; aiEngine = null; aiUI(); try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ } setStatus('smateOnline'); } else aiInit(); });
+  try { if (localStorage.getItem('singhoah:smateAI') === '1') aiInit(); } catch { /* ignore */ }
+
+  const AI_SYS = [
+    'You are SMate, the assistant inside a world-clock web app.',
+    'If the user wants the app to DO something, reply exactly: CMD: <command>',
+    'using this grammar (combine freely with commas):',
+    'timer <n> | timer pause|resume|reset | stopwatch | stopwatch pause|resume|reset |',
+    'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
+    'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
+    're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
+    'add <n> income|expense | currency <CODE> | clear all | help.',
+    'Otherwise answer the user briefly and kindly, in the language they used.',
+  ].join(' ');
+  async function askAI(raw) {
+    if (typeof aiEngine.chat === 'function' && !aiEngine.chat.completions) return String(await aiEngine.chat(raw));
+    const r = await aiEngine.chat.completions.create({
+      messages: [{ role: 'system', content: AI_SYS }, { role: 'user', content: raw }],
+      max_tokens: 180,
+      temperature: 0.2,
+    });
+    return String(r.choices[0].message.content || '').trim();
+  }
 })();

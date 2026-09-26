@@ -1216,6 +1216,61 @@ await v2p.close();
 await v2.close();
 await vm.close();
 
+/* --- SMate on-device AI: fuzzy commands + light Q&A (stub engine) --- */
+const ai = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await ai.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  window.__SMATE_AI_ENGINE = {
+    chat: async (q) => {
+      const s = q.toLowerCase();
+      if (s.includes('bright')) return 'CMD: night shift';
+      if (s.includes('sky')) return 'The sky is blue because air scatters short blue wavelengths of sunlight more than red.';
+      return 'CMD: help';
+    },
+  };
+});
+const ap = await ai.newPage();
+await ap.goto(URL + 'index.html', { waitUntil: 'load' });
+await ap.waitForTimeout(300);
+await ap.click('#smateBtn');
+await ap.click('#smateAI');
+await ap.waitForTimeout(200);
+ok('SMate offers an on-device AI toggle', await ap.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'));
+await ap.fill('#smateIn', 'the room is too bright for my eyes');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1400);
+ok('AI translates fuzzy phrasing into a real command', await ap.evaluate(() =>
+  document.documentElement.classList.contains('dark')));
+await ap.fill('#smateIn', 'why is the sky blue?');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1400);
+ok('AI answers light questions', await ap.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('scatters')));
+await ap.close();
+await ai.close();
+
+/* no WebGPU / blocked CDN: degrade silently to the offline brain */
+const ai2 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await ai2.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await ai2.route(/esm\.run|mlc/, (r) => r.abort());
+const a2p = await ai2.newPage();
+await a2p.goto(URL + 'index.html', { waitUntil: 'load' });
+await a2p.waitForTimeout(300);
+await a2p.click('#smateBtn');
+await a2p.click('#smateAI');
+await a2p.waitForTimeout(600);
+ok('AI degrades gracefully when the runtime cannot load', await a2p.evaluate(() =>
+  document.getElementById('smateAI').classList.contains('err') &&
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
+await a2p.fill('#smateIn', 'blorp');
+await a2p.click('#smateSend');
+await a2p.waitForTimeout(900);
+ok('the offline interpreter still answers when AI is unavailable', await a2p.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+await a2p.close();
+await ai2.close();
+
 /* --- SMate compound commands: zones + window shape + extras in one sentence --- */
 const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
