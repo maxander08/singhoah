@@ -1982,6 +1982,44 @@ for (const pg of ['wallet.html', 'scribe.html']) {
 }
 await prn.close();
 
+/* --- metro: lazy basemap files, zoom labels, SMate metro intents --- */
+{
+  const mp = await browser.newPage();
+  const mbReq = [];
+  mp.on('request', (r) => { if (/mb_(trtc|ks|tc)\.js/.test(r.url())) mbReq.push(r.url().split('/').pop()); });
+  await mp.goto(URL + 'metro.html', { waitUntil: 'load' });
+  await mp.waitForSelector('#metroSvg path.metro-line');
+  await mp.waitForTimeout(1400);
+  ok('metro.html no longer ships the monolithic metrobase.js', !(await mp.content()).includes('metrobase.js'));
+  ok('basemap streams from a lazy per-system module', mbReq.includes('mb_trtc.js'));
+  const box = await mp.locator('#metroSvg').boundingBox();
+  await mp.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let i = 0; i < 14; i++) { await mp.mouse.wheel(0, -120); await mp.waitForTimeout(25); }
+  await mp.waitForTimeout(1600);
+  const zl = await mp.evaluate(() => {
+    const svg = document.getElementById('metroSvg');
+    const sr = svg.getBoundingClientRect();
+    let inView = 0, named = 0;
+    for (const t of document.querySelectorAll('#metroSvg text.metro-label')) {
+      const m = t.getScreenCTM(), bb = t.getBBox();
+      const x = m.a * bb.x + m.e, y = m.d * bb.y + m.f;
+      if (x > 0 && x < sr.width && y > 0 && y < sr.height) { inView++; if (t.style.display !== 'none') named++; }
+    }
+    return { inView, named };
+  });
+  ok('zoomed-in map names the stations on screen', zl.inView > 0 && zl.named >= Math.min(zl.inView, 3) && zl.named > 0);
+  await mp.click('#smateBtn');
+  await mp.fill('#smateIn', '台北車站 到 動物園 票價');
+  await mp.press('#smateIn', 'Enter');
+  await mp.waitForTimeout(2200);
+  const reply = await mp.evaluate(() => {
+    const m = [...document.querySelectorAll('#smateMsgs p')];
+    return m.length ? m[m.length - 1].textContent : '';
+  });
+  ok('SMate answers a metro fare query on the metro page', /NT\$\d+/.test(reply));
+  await mp.close();
+}
+
 await browser.close();
 
 if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);

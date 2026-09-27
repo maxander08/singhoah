@@ -6,7 +6,6 @@
    (English over the original script), pan / zoom / pinch.
    ============================================================ */
 import { METRO } from './metrodata.js';
-import { MAJ, MIN, WATF, WATS, BASEMAP } from './metrobase.js';
 import { TRACKS } from './metrotracks.js';
 
 const LIB = globalThis.__SING_LIB;
@@ -90,8 +89,21 @@ for (const sys of SYSS) {
    attached to the DOM — re-culled whenever a gesture settles. Zoomed in,
    the paint tree holds a fraction of the city instead of all of it. */
 function baseArrays(sysId) {
-  const bm = (typeof BASEMAP === 'object' && BASEMAP && BASEMAP[sysId]) || null;
-  return bm || { maj: MAJ, min: MIN, watf: WATF, wats: WATS };
+  const key = (sysId === 'KS' || sysId === 'TC') ? sysId : 'TRTC';
+  return MB_CACHE[key] || null;
+}
+/* Basemap data lives in per-system modules (mb_trtc.js / mb_ks.js / mb_tc.js)
+   fetched only when that system is first shown — the page itself stays light. */
+const MB_CACHE = {}, MB_LOAD = {};
+function loadBase(sysId) {
+  const key = (sysId === 'KS' || sysId === 'TC') ? sysId : 'TRTC';
+  if (MB_CACHE[key]) return Promise.resolve(MB_CACHE[key]);
+  if (!MB_LOAD[key]) {
+    MB_LOAD[key] = import('./mb_' + key.toLowerCase() + '.js')
+      .then((m) => { MB_CACHE[key] = m.default || m; return MB_CACHE[key]; })
+      .catch(() => { MB_LOAD[key] = null; return null; });
+  }
+  return MB_LOAD[key];
 }
 function decodeArr(sysId, cls, a) {
   const P = PROJ[sysId];
@@ -112,14 +124,14 @@ function decodeArr(sysId, cls, a) {
 const BASE = {};
 function ensureBase(sysId) {
   if (BASE[sysId]) return BASE[sysId];
-  const src = baseArrays(sysId);
-  BASE[sysId] = { src, dec: { maj: [], min: [], watf: [], wats: [] }, qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false };
-  pumpBase(sysId);
-  return BASE[sysId];
+  const B = BASE[sysId] = { src: baseArrays(sysId), dec: { maj: [], min: [], watf: [], wats: [] }, qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false };
+  if (B.src) pumpBase(sysId);
+  else loadBase(sysId).then(() => { B.src = baseArrays(sysId); if (B.src) pumpBase(sysId); });
+  return B;
 }
 function pumpBase(sysId) {
   const B = BASE[sysId];
-  if (!B || B.done) return;
+  if (!B || B.done || !B.src) return;
   const t0 = performance.now();
   while (performance.now() - t0 < 6) { /* ~6 ms budget per slice */
     let progressed = false;
@@ -375,7 +387,6 @@ function buildScene(sysId) {
   }
   const groups = [], byId = {};
   const base = 11; /* label px at screen scale */
-  const placed = [];
   const cands = Object.values(ST).filter((s) => s.sys === sysId)
     .sort((a, b) => (b.xf - a.xf) || a.id.localeCompare(b.id));
   for (const s of cands) {
@@ -385,33 +396,26 @@ function buildScene(sysId) {
     c.setAttribute('class', 'metro-st');
     c.dataset.st = s.id;
     g.appendChild(c);
-    /* collision-culled bilingual label, built once, in marker-local px */
-    if (placed.length < 80) {
-      const wEst = Math.max(s.en.length, s.zh.length) * base * 0.62 + base;
-      const hEst = base * 2.6;
-      const lx = Math.min(VB.w - wEst / 2 - 4, Math.max(wEst / 2 + 4, s.x));
-      const rx = lx - wEst / 2, ry = s.y + base * 0.5;
-      let hit = false;
-      for (const q of placed) if (rx < q.x + q.w && rx + wEst > q.x && ry < q.y + q.h && ry + hEst > q.y) { hit = true; break; }
-      if (!hit) {
-        placed.push({ x: rx, y: ry, w: wEst, h: hEst });
-        const tx = document.createElementNS(NS, 'text');
-        tx.setAttribute('x', (lx - s.x).toFixed(1)); tx.setAttribute('y', '0');
-        tx.setAttribute('text-anchor', 'middle');
-        tx.setAttribute('class', 'metro-label');
-        tx.style.fontSize = `${base}px`;
-        const t1 = document.createElementNS(NS, 'tspan');
-        t1.setAttribute('x', (lx - s.x).toFixed(1)); t1.setAttribute('dy', (base * 1.5).toFixed(2));
-        t1.textContent = s.en;
-        const t2 = document.createElementNS(NS, 'tspan');
-        t2.setAttribute('x', (lx - s.x).toFixed(1)); t2.setAttribute('dy', (base * 0.95).toFixed(2));
-        t2.setAttribute('class', 'metro-label-zh');
-        t2.textContent = s.zh;
-        tx.append(t1, t2);
-        g.appendChild(tx);
-      }
-    }
-    groups.push([g, s]);
+    /* bilingual label, built for EVERY station; whether it is shown is
+       decided in screen space per zoom level by cullLabels(), so zooming
+       in always reveals more names instead of a fixed overview subset */
+    const tx = document.createElementNS(NS, 'text');
+    tx.setAttribute('x', '0'); tx.setAttribute('y', '0');
+    tx.setAttribute('text-anchor', 'middle');
+    tx.setAttribute('class', 'metro-label');
+    tx.style.fontSize = `${base}px`;
+    const t1 = document.createElementNS(NS, 'tspan');
+    t1.setAttribute('x', '0'); t1.setAttribute('dy', (base * 1.5).toFixed(2));
+    t1.textContent = s.en;
+    const t2 = document.createElementNS(NS, 'tspan');
+    t2.setAttribute('x', '0'); t2.setAttribute('dy', (base * 0.95).toFixed(2));
+    t2.setAttribute('class', 'metro-label-zh');
+    t2.textContent = s.zh;
+    tx.append(t1, t2);
+    g.appendChild(tx);
+    s._lw = Math.max(s.en.length, s.zh.length) * base * 0.62 + base;
+    s._lh = base * 2.6;
+    groups.push([g, s, tx]);
     byId[s.id] = c;
   }
   els.metroLines.textContent = '';
@@ -449,6 +453,26 @@ function updateRoute() {
   }
 }
 
+/* Zoom-dependent label culling: labels are constant-screen-px markers, so
+   visibility is recomputed in screen space on every baked frame — transfers
+   win first, then remaining stations, and zooming in progressively reveals
+   the names that were too dense to show at the overview zoom. */
+function cullLabels(sc, v, g) {
+  const vx0 = v.cx - g.w / 2, vy0 = v.cy - g.h / 2;
+  const placed = [];
+  let shown = 0;
+  for (const [, s, tx] of sc.groups) {
+    const sx = (s.x - vx0) * g.s + g.ox, sy = (s.y - vy0) * g.s + g.oy;
+    let on = shown < 160 && sx > -30 && sx < g.rect.width + 30 && sy > -30 && sy < g.rect.height + 30;
+    if (on) {
+      const rx = sx - s._lw / 2, ry = sy - 2;
+      for (const q of placed) if (rx < q.x + q.w && rx + s._lw > q.x && ry < q.y + q.h && ry + s._lh > q.y) { on = false; break; }
+      if (on) { placed.push({ x: rx, y: ry, w: s._lw, h: s._lh }); shown++; }
+    }
+    tx.style.display = on ? '' : 'none';
+  }
+}
+
 function draw() {
   const v = view[sys];
   const g = vGeom();
@@ -482,6 +506,7 @@ function draw() {
         grp.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)}) scale(${upx.toFixed(4)})`);
       }
     }
+    cullLabels(sc, v, g);
   }
   /* selection highlight + route overlay only when the pair changed */
   const sc2 = SCENE[sys];
@@ -755,4 +780,25 @@ initWorld();
 applyLang(lang, false);
 fitContent();
 
-globalThis.__METRO = { route, fare, ST, get sys() { return sys; } };
+globalThis.__METRO = {
+  route, fare, ST,
+  get sys() { return sys; },
+  setSys(id) {
+    if (!SYSS.includes(id) || id === sys) return id === sys;
+    sys = id; from = to = null;
+    try { localStorage.setItem('singhoah:metroSys', id); } catch { /* ignore */ }
+    buildSysTabs(); renderBar(); fitContent();
+    return true;
+  },
+  /* same selection path a real tap takes */
+  pick(id) {
+    const s = ST[id];
+    if (!s || s.sys !== sys) return false;
+    if (!from || (from && to)) { from = id; to = null; }
+    else if (id !== from) to = id;
+    renderBar(); requestDraw();
+    return true;
+  },
+  zoomBy(f) { const v = view[sys]; beginGesture(); setView(v.cx, v.cy, v.k * f); requestDraw(); pokeSettle(80); return view[sys].k; },
+  resetView() { fitContent(); return true; },
+};

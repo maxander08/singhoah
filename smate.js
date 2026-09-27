@@ -283,6 +283,15 @@
     theme: ['theme', '主題', 'थीम', 'tema', 'thème', 'সময', 'থিম', 'теما', 'تھیم', 'tema', '테마', 'テーマ', 'thema', 'design', 'motyw', 'temat', 'teema', 'θέμα'],
     clearDoc: ['clear', 'wipe'],
     map: words(['map']),
+    metro: ['metro', 'métro', 'subway', 'mrt', 'underground', 'u-bahn', '捷運', '捷運', '地铁', '地鐵', 'метро', 'مترو', 'میٹرو', 'মেট্রো', 'मेट्रो', '지하철', '地下鉄', 'รถไฟฟ้า', 'tàu điện'],
+    sysTaipei: ['taipei', 'trtc', '台北', '臺北', '타이베이', 'ไทเป', 'ताइपे', 'تايبيه', 'تایپه', 'тайбэй', 'তাইপে'],
+    sysKaohsiung: ['kaohsiung', 'krtc', '高雄', '가오슝', '카오슝'],
+    sysTaichung: ['taichung', '台中', '臺中', '타이중', 'ไถจง'],
+    sysTaoyuan: ['taoyuan', '桃園', '桃園', '桃园', '机场捷运', '機場捷運', '机场捷运', 'airport mrt', 'airport line', '타오위안', 'เถาหยวน'],
+    zoomIn: ['zoom in', 'zoom closer', '放大', '放大', '拡大', 'acercar', 'más cerca', 'zoom avant', 'приблизь', 'укрупни', 'تكبير', 'ज़ूम इन', 'जूम इन', 'inzoomen', 'vergrößern', 'powiększ', 'ingrandisci', '확대', 'besarkan', 'μεγέθυνση'],
+    zoomOut: ['zoom out', '縮小', '縮小', '縮小', 'alejar', 'dézoom', 'отдали', 'уменьши', 'تصغير', 'ज़ूम आउट', 'छोटा', 'uitzoomen', 'verkleinern', 'pomniejsz', 'rimpicciolisci', '축소', 'perkecil', 'σμίκρυνση'],
+    zoomReset: ['reset zoom', 'zoom reset', 'show all', 'overview', 'fit', '全部顯示', '顯示全部', '全圖', '全图', '重設縮放', '重置缩放', 'restablecer', 'réinitialiser', 'сброс масштаба', 'сбросить масштаб', 'रीसेट ज़ूम', 'zoom zurücksetzen', 'alle anzeigen', '전체 보기', '全体表示', 'tampilkan semua'],
+    fareW: ['fare', '票價', '票价', '요금', '운임', '運賃', 'tarifa', 'tarif', 'tariffa', 'prix', 'preis', 'цена', 'тариф', 'سعر', 'قیمت', 'कीमत', 'দাম', 'harga'],
     resync: [...words(['resync']), 'sync'],
     full: words(['full']),
     night: [...words(['night']), 'dark'],
@@ -433,7 +442,7 @@
       return t(curLang, 'done');
     },
     nav(where) {
-      const map = { wallet: 'wallet.html', clock: 'index.html', settings: 'settings.html', scribe: 'scribe.html', launch: 'launch.html' };
+      const map = { wallet: 'wallet.html', clock: 'index.html', settings: 'settings.html', scribe: 'scribe.html', launch: 'launch.html', metro: 'metro.html' };
       const target = map[where];
       if (!target) return null;
       if (target === `${page}.html` || (page === 'clock' && where === 'clock')) return t(curLang, 'done');
@@ -473,6 +482,7 @@
       t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
       t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
       t(curLang, 'wallet'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
+    if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'));
     return `SMate · ${bits.join(' · ')}`;
   }
 
@@ -521,6 +531,31 @@
     return null;
   };
 
+  /* station aliases for fare lookups (longest names first so
+     "Taipei Main Station" wins over "Taipei"); built lazily because
+     smate.js loads before metro.js has exposed __METRO */
+  let ST_ALIAS = null;
+  const stAlias = () => {
+    if (!ST_ALIAS) {
+      ST_ALIAS = [];
+      for (const s of Object.values(globalThis.__METRO.ST)) {
+        ST_ALIAS.push({ id: s.id, sys: s.sys, en: s.en.toLowerCase(), zh: s.zh, len: Math.max(s.en.length, s.zh.length) });
+      }
+      ST_ALIAS.sort((a, b) => b.len - a.len);
+    }
+    return ST_ALIAS;
+  };
+  const findStations = (tl, sysNow) => {
+    const hits = [];
+    for (const s of stAlias()) {
+      if (s.sys !== sysNow) continue;
+      const i = Math.min(tl.includes(s.en) ? tl.indexOf(s.en) : 1e9, s.zh && tl.includes(s.zh) ? tl.indexOf(s.zh) : 1e9);
+      if (i < 1e9 && !hits.some((h) => h.i === i)) hits.push({ i, id: s.id });
+    }
+    hits.sort((a, b) => a.i - b.i);
+    return hits.map((h) => h.id);
+  };
+
   /* every detectable intent runs, in one pass — compound sentences work */
   function run(raw) {
     const text = LIB.brandFix(raw);
@@ -545,10 +580,39 @@
       return outs.length ? outs.join(' · ') : null;
     }
 
+    /* metro (SinghoMetro page): switch system, zoom, look up fares —
+       works in every tab and at every zoom level, in any language */
+    if (page === 'metro' && globalThis.__METRO) {
+      const M = globalThis.__METRO;
+      const tl = text.toLowerCase();
+      const wantSys = has(tl, KW.sysTaipei) ? 'TRTC'
+        : has(tl, KW.sysKaohsiung) ? 'KS'
+        : has(tl, KW.sysTaichung) ? 'TC'
+        : has(tl, KW.sysTaoyuan) ? 'TY' : null;
+      if (wantSys && M.setSys(wantSys)) note(`${t(curLang, 'done')}: ${t(curLang, 'm' + wantSys)}`);
+      if (has(tl, KW.zoomIn)) { M.zoomBy(1.7); note(t(curLang, 'done')); }
+      else if (has(tl, KW.zoomOut)) { M.zoomBy(1 / 1.7); note(t(curLang, 'done')); }
+      else if (has(tl, KW.zoomReset)) { M.resetView(); note(t(curLang, 'done')); }
+      const hits = findStations(tl, M.sys);
+      if (hits.length >= 2) {
+        M.pick(hits[0]); M.pick(hits[1]);
+        const r = M.route(hits[0], hits[1]);
+        if (r) {
+          const f = M.fare(M.sys, hits[0], hits[1], r);
+          const nm = (id) => `${M.ST[id].en} ${M.ST[id].zh}`;
+          note(`${t(curLang, 'mFare')}: ${nm(hits[0])} → ${nm(hits[1])} · NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`);
+        }
+      } else if (hits.length === 1) M.pick(hits[0]);
+    } else if (page !== 'metro' && has(text.toLowerCase(), KW.metro) && has(text.toLowerCase(), OPEN_VERBS)) note(act.nav('metro'));
+
         /* window shape + zones, in the order spoken */
     const lay = layoutIntent(text);
     const zones = findAllZones(text);
-    const zoneGate = has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3;
+    /* on the metro page city names belong to station/fare talk — only an
+       explicit timezone/clock phrase may leave for the clock window */
+    const zoneGate = page === 'metro'
+      ? (has(text, KW.tz) || has(text, KW.clock))
+      : (has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3);
     if (!has(text, KW.remove) && (lay != null || (zones.length && zoneGate))) {
       if (page === 'clock') {
         LIB.smateWindow(zoneGate ? zones : [], lay);
