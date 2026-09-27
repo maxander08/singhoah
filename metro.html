@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SinghoMetro — tap-tap fare calculator</title>
+<meta name="description" content="Tap a station, tap another: Taipei Metro & Taoyuan Airport MRT fares on an interactive map.">
+<meta name="color-scheme" content="dark light">
+<script>
+  try { if ((localStorage.getItem('singhoah:night') || '1') === '1') document.documentElement.classList.add('dark'); }
+  catch (e) { document.documentElement.classList.add('dark'); }
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2f0e6'/%3E%3Cpath d='M8 22V14l8-6 8 6v8' fill='none' stroke='%23000dff' stroke-width='2.4'/%3E%3Ccircle cx='12' cy='20' r='2.2' fill='%23000dff'/%3E%3Ccircle cx='20' cy='20' r='2.2' fill='%23000dff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-app="metro">
+
+<header class="topbar">
+  <div class="brand"><p class="wordmark">S<em>ingho</em>Metro</p><p class="wordmark-zh" lang="zh-Hant">捷運</p></div>
+  <div class="controls">
+    <div class="langwrap">
+      <button type="button" class="btn tz-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false" title="Language · 語言">
+        <img id="langFlag" class="flag" alt="" width="20" height="15">
+        <span id="langLabel">EN</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop lang-pop" id="langPop" hidden>
+        <div class="tz-list" id="langList" role="listbox" aria-label="Language"></div>
+      </div>
+    </div>
+    <button type="button" class="btn" id="btnNight" aria-pressed="false" title="Toggle night shift (N)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.8577 15.9125C20.4575 16.5686 18.8663 16.8635 17.2164 16.6901C12.3885 16.1826 8.88611 11.8575 9.39354 7.02959C9.56355 5.5038 10.1889 3.8875 11.1249 2.64375C7.31883 3.87875 4.64062 7.40498 4.64062 11.5489C4.64062 16.7938 8.88611 21.0489 14.1231 21.0489C17.1979 21.0489 19.9435 19.5845 21.8577 17.3065C21.1965 16.913 20.5529 16.409 21.8577 15.9125Z" fill="currentColor"/></svg>
+      <span id="nightText">Light</span>
+    </button>
+    <a class="btn" id="btnLaunch" href="launch.html" title="Launchpad">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
+    </a>
+    <a class="btn" id="btnClock" href="index.html" title="Clock">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.5l3.1 1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span id="clockText">Clock</span>
+    </a>
+    <a class="btn" id="btnSettings" href="settings.html" title="Settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0-.34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span id="settingsText">Settings</span>
+    </a>
+    <div class="authwrap" id="authWrap"></div>
+  </div>
+</header>
+
+<main class="metro-app">
+  <div class="metro-sys" id="metroSys" role="tablist" aria-label="System"></div>
+  <div class="metro-mapwrap">
+    <svg id="metroSvg" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Metro map">
+      <g id="metroLines"></g>
+      <g id="metroStations"></g>
+      <g id="metroLabels"></g>
+      <g id="metroRoute"></g>
+    </svg>
+    <div class="metro-zoom">
+      <button type="button" class="btn" id="metroIn" aria-label="+">+</button>
+      <button type="button" class="btn" id="metroOut" aria-label="−">−</button>
+      <button type="button" class="btn" id="metroFit" aria-label="⤢">⤢</button>
+    </div>
+  </div>
+  <div class="metro-bar" id="metroBar">
+    <div class="metro-pair">
+      <span class="metro-dot from" id="mFromDot"></span><span id="mFromName">—</span>
+      <span class="metro-arrow">→</span>
+      <span class="metro-dot to" id="mToDot"></span><span id="mToName">—</span>
+    </div>
+    <div class="metro-fare" id="mFareBox" hidden>
+      <strong id="mFareVal">NT$0</strong>
+      <span id="mFareMeta"></span>
+    </div>
+    <div class="metro-hint" id="mHint"></div>
+    <div class="metro-acts">
+      <button type="button" class="btn" id="mSwap"></button>
+      <button type="button" class="btn" id="mClear"></button>
+    </div>
+  </div>
+</main>
+
+<script src="flags.js"></script>
+<script type="module" src="app.js"></script>
+<script src="firebase-config.js"></script>
+<script type="module" src="auth.js"></script>
+<script type="module" src="smate.js"></script>
+<script type="module" src="metrodata.js"></script>
+<script type="module" src="metro.js"></script>
+</body>
+</html>

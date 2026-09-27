@@ -81,6 +81,11 @@
       <strong>SinghoScribe · <span id="lpScribeT">Scribe</span></strong>
       <span class="lp-sub" id="lpScribeS">Live lecture transcription</span>
     </a>
+    <a class="lp-card" id="cardMetro" href="metro.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="3" width="12" height="13" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="11" r="1.1" fill="currentColor"/><circle cx="15" cy="11" r="1.1" fill="currentColor"/><path d="M8.5 16 6.5 20.5M15.5 16l2 4.5M8 20.5h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <strong>SinghoMetro · <span id="lpMetroT">Metro</span></strong>
+      <span class="lp-sub" id="lpMetroS">Tap-tap fare calculator</span>
+    </a>
   </div>
 </main>
 
@@ -218,6 +223,8 @@
     if ($('btnSettings')) $('btnSettings').title = t(lang, 'settings');
     $('lpScribeT').textContent = t(lang, 'lpScribe');
     $('lpScribeS').textContent = t(lang, 'lpScribeSub');
+    $('lpMetroT').textContent = t(lang, 'lpMetro');
+    $('lpMetroS').textContent = t(lang, 'lpMetroSub');
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');
     lpTzSearch.placeholder = t(lang, 'search');
     lpTzSearch.setAttribute('aria-label', t(lang, 'search'));

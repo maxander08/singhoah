@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 
 const URL = 'http://127.0.0.1:4173/';
-const PAGES = ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html'];
+const PAGES = ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html', 'metro.html'];
 const browser = await chromium.launch();
 
 /* pull STRINGS/LANGS straight from the served module so the audit tests

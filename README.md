@@ -187,6 +187,26 @@ Uses the browser's Web Speech API (Chrome/Edge/Safari; a clear notice
 appears where unsupported). On phones the layout adapts: 16px page text
 (so iOS never zoom-jumps on focus), a thumb-sized mic, and a condensed bar.
 
+## SinghoMetro — tap-tap fare calculator
+
+A fifth app (`metro.html`): an interactive SVG map of the **Taipei Metro**
+(all current lines including the Xinbeitou, Xiaobitan, Xinzhuang and Luzhou
+branches) and the **Taoyuan Airport MRT**, drawn as coloured lines with
+every station as a dot labelled with its English name and the Chinese name
+below it — the same family look as the world map: pan, wheel/pinch zoom,
+fit-to-screen.
+
+Tap one station, then another: the route is computed (fewest transfers,
+shortest distance), the route lights up on the map and the bottom bar shows
+the fare. Taipei Metro fares use the officially published distance bands
+applied to the route distance; Airport MRT fares use the officially
+published station-to-station table. The bar also shows the station count,
+transfer count and an approximate travel time. **Swap** flips the pair,
+**Clear** resets, and the two system tabs switch maps (each remembers its
+own pan/zoom). The whole chrome — tabs, buttons, hints — is translated
+into all twenty-five languages, and the standard topbar (language, night
+shift, Launchpad, Clock, Settings, account chip, SMate) is on the page.
+
 ## SinghoSettings — the settings page
 
 A fourth app (`settings.html`) gathers every

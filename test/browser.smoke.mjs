@@ -437,7 +437,7 @@ for (const dl of ['de', 'el', 'ja']) {
   await dc.addInitScript(([l]) => { localStorage.setItem('singhoah:visited','1'); localStorage.setItem('singhoah:lang', l); }, [dl]);
   const dp = await dc.newPage();
   let over = 0;
-  for (const pg of ['index.html', 'wallet.html', 'scribe.html', 'settings.html', 'launch.html']) {
+  for (const pg of ['index.html', 'wallet.html', 'scribe.html', 'settings.html', 'launch.html', 'metro.html']) {
     await dp.goto(URL + pg, { waitUntil: 'load' });
     await dp.waitForTimeout(250);
     over += await dp.evaluate(() => (document.documentElement.scrollWidth > innerWidth + 1 ? 1 : 0));
@@ -1126,6 +1126,8 @@ ok('scribe footer counts words and characters', await scpg.evaluate(() =>
 await scpg.click('#scrFindX');
 ok('launchpad lists SinghoScribe', await lp2.evaluate(() =>
   (document.getElementById('cardScribe') || { getAttribute: () => null }).getAttribute('href') === 'scribe.html'));
+ok('launchpad lists SinghoMetro', await lp2.evaluate(() =>
+  (document.getElementById('cardMetro') || { getAttribute: () => null }).getAttribute('href') === 'metro.html'));
 ok('no page errors in the scribe app', scerrs.length === 0, scerrs.join('; '));
 
 
@@ -1182,7 +1184,7 @@ ok('auto-sync keeps a drift history and a bounded drift rate', await page.evalua
 const sm = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await sm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
 let smateEverywhere = true;
-for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html']) {
+for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html', 'metro.html']) {
   const q = await sm.newPage();
   await q.goto(URL + pg, { waitUntil: 'load' });
   await q.waitForTimeout(200);
@@ -1766,8 +1768,71 @@ await cl3p.close();
 await cl3.close();
 await cl.close();
 
+/* --- SinghoMetro: tap-tap fare calculator --- */
+const mtctx = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await mtctx.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const mt = await mtctx.newPage();
+const metroErrs = [];
+mt.on('pageerror', (e) => metroErrs.push(String(e)));
+await mt.goto(URL + 'metro.html', { waitUntil: 'load' });
+await mt.waitForTimeout(500);
+ok('metro draws every system line on the map', await mt.evaluate(() =>
+  document.getElementById('metroLines').querySelectorAll('path, polyline, line').length >= 10));
+ok('metro renders all Taipei stations as dots', await mt.evaluate(() =>
+  document.getElementById('metroStations').querySelectorAll('circle.metro-st').length >= 100));
+ok('metro labels show English over the Chinese name', await mt.evaluate(() => {
+  const texts = [...document.getElementById('metroLabels').querySelectorAll('text.metro-label')];
+  return texts.length >= 25 && texts.every((tx) => {
+    const ts = tx.querySelectorAll('tspan');
+    return ts.length === 2 && ts[1].classList.contains('metro-label-zh') && /[\u4e00-\u9fff]/.test(ts[1].textContent);
+  });
+}));
+const tapSt = async (id) => {
+  const box = await mt.evaluate((sid) => {
+    const c = document.querySelector(`.metro-st[data-st="${sid}"]`);
+    if (!c) return null;
+    const r = c.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  }, id);
+  ok(`metro station ${id} is on screen`, !!box);
+  await mt.mouse.click(box.x, box.y);
+  await mt.waitForTimeout(120);
+};
+await tapSt('R28');
+await tapSt('R10');
+ok('Tamsui -> Taipei Main Station fares at NT$45', await mt.evaluate(() =>
+  document.getElementById('mFareVal').textContent.trim() === 'NT$45'));
+ok('metro route meta reports stations and minutes', await mt.evaluate(() => {
+  const m = document.getElementById('mFareMeta').textContent;
+  return /\d+/.test(m) && m.includes('min');
+}));
+await mt.click('#mSwap');
+await mt.waitForTimeout(100);
+ok('swap reverses the chosen pair', await mt.evaluate(() =>
+  document.getElementById('mFromName').textContent.includes('Taipei Main')));
+await mt.click('#mClear');
+await mt.waitForTimeout(100);
+ok('clear hides the fare again', await mt.evaluate(() => document.getElementById('mFareBox').hidden));
+await mt.evaluate(() => document.querySelectorAll('#metroSys .metro-sysbtn')[1].click());
+await mt.waitForTimeout(200);
+await tapSt('A1');
+await tapSt('A13');
+ok('Airport MRT Taipei Main -> Terminal 2 fares at NT$160', await mt.evaluate(() =>
+  document.getElementById('mFareVal').textContent.trim() === 'NT$160'));
+ok('metro runs without page errors', metroErrs.length === 0);
+await mtctx.close();
+const mtz = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await mtz.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); });
+const mz = await mtz.newPage();
+await mz.goto(URL + 'metro.html', { waitUntil: 'load' });
+await mz.waitForTimeout(300);
+ok('metro chrome localizes to zh-Hant', await mz.evaluate(() =>
+  document.getElementById('mSwap').textContent === '交換' &&
+  document.getElementById('mClear').textContent === '清除'));
+await mtz.close();
+
 /* --- standardized chrome: every app carries the same core topbar --- */
-for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html']) {
+for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html', 'metro.html']) {
   const sp = await browser.newContext({ viewport: { width: 1440, height: 850 } });
   await sp.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
   const q = await sp.newPage();
@@ -1783,7 +1848,7 @@ for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', '
   await q.close();
   await sp.close();
 }
-for (const pg of ['launch.html', 'scribe.html', 'wallet.html', 'settings.html']) {
+for (const pg of ['launch.html', 'scribe.html', 'wallet.html', 'settings.html', 'metro.html']) {
   const sp = await browser.newContext({ viewport: { width: 1440, height: 850 } });
   await sp.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
   const q = await sp.newPage();

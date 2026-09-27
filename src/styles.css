@@ -1363,3 +1363,30 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .map-cc:not(.nozone):hover { stroke-width: calc(1 * var(--mapk, 1)); }
 .map-cc.sel { stroke-width: calc(1.4 * var(--mapk, 1)); }
 .map-grat { stroke-width: calc(0.5 * var(--mapk, 1)); }
+
+/* ---------------- SinghoMetro ---------------- */
+.metro-app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.metro-sys { display: flex; gap: var(--gap); padding: 10px var(--pad-side) 0; }
+.metro-sysbtn { padding: 6px 14px; font-weight: 700; }
+.metro-sysbtn[aria-selected="true"] { background: var(--notification); color: var(--on-notification); }
+.metro-mapwrap { position: relative; flex: 1; min-height: 0; }
+.metro-mapwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.metro-st { fill: var(--paper); stroke: var(--black); stroke-width: 1.4; cursor: pointer; }
+.metro-st.from, .metro-st.to { fill: var(--notification); stroke: var(--on-notification); }
+.metro-label { fill: var(--black); font-family: var(--font-sans); font-weight: 700; pointer-events: none; }
+.metro-label-zh { font-weight: 500; opacity: .72; }
+.metro-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.metro-zoom .btn { background: var(--paper-2); width: 34px; height: 34px; font-size: 17px; line-height: 1; }
+.metro-bar { border-top: 1px solid var(--border); padding: 10px var(--pad-side) 14px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; min-height: 64px; }
+.metro-pair { display: flex; align-items: center; gap: 8px; font-weight: 700; flex-wrap: wrap; }
+.metro-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--black); background: var(--paper); display: inline-block; }
+.metro-arrow { color: var(--pigeon); }
+.metro-fare strong { font-size: 22px; font-weight: 800; }
+.metro-fare span { color: var(--pigeon); margin-left: 8px; font-size: 13px; }
+.metro-hint { color: var(--pigeon); font-size: 13px; }
+.metro-acts { margin-left: auto; display: flex; gap: var(--gap); }
+.metro-acts .btn { font-weight: 700; }
+@media (max-width: 560px) {
+  .metro-bar { padding: 8px 12px 12px; }
+  .metro-sys { padding: 8px 12px 0; }
+}

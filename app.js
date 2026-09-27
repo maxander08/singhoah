@@ -265,6 +265,7 @@ export const STRINGS = {
     offLabel: 'System clock — reference unavailable', offDetail: 'no drift correction applied',
     lastCheck: 'last check {t}', syncing: 'syncing…', secondRes: ' · second resolution', checking: 'checking…',
     nightTitle: 'Toggle night shift (N)', tzTitle: 'Time zone', modeTitle: 'Analog / digital (A)', resyncTitle: 'Re-check the reference time (R)', fullTitle: 'Full screen (F)', full: 'Full screen', tzSearchPh: 'Search time zones…', tzListAria: 'Time zones', prevMatch: 'Previous match', nextMatch: 'Next match', closeFind: 'Close find bar', scrDocAria: 'Transcript document', docTitle: 'Document title', untitled: 'Untitled document', smatePh: 'Type a command…', smateTip: 'SMate assistant', smateSend: 'Send', smateOnline: 'Online', smateTyping: 'typing…', smateUnavailable: 'unavailable', smateVoice: 'Voice input', smateHi: 'Hi, I’m SMate. Try “timer 5”, “zone Taipei”, “open wallet”, “night shift” or “help”.', smateUnknown: 'Sorry, I didn’t catch that. Type “help” to see what I can do.',
+    mHint: 'Tap a station, then another — the fare appears here.', mFrom: 'From', mTo: 'To', mFare: 'Fare', mStations: 'stations', mTransfers: 'transfers', mMin: 'min', mSwap: 'Swap', mClear: 'Clear', mTRTC: 'Taipei Metro', mTY: 'Airport MRT',lpMetro: 'Metro',  lpMetroSub: 'Tap-tap fare calculator',
   },
   'zh-Hant': {
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
@@ -284,6 +285,7 @@ export const STRINGS = {
     offLabel: '系統時鐘 — 無可用時間來源', offDetail: '未套用漂移校正',
     lastCheck: '上次檢查 {t}', syncing: '同步中…', secondRes: ' · 秒級解析度', checking: '檢查中…',
     nightTitle: '切換夜間模式（N）', tzTitle: '時區', modeTitle: '類比／數位（A）', resyncTitle: '重新檢查參考時間（R）', fullTitle: '全螢幕（F）', full: '全螢幕', tzSearchPh: '搜尋時區…', tzListAria: '時區', prevMatch: '上一個符合項', nextMatch: '下一個符合項', closeFind: '關閉尋找列', scrDocAria: '轉寫文件', docTitle: '文件標題', untitled: '未命名文件', smatePh: '輸入指令…', smateTip: 'SMate 助理', smateSend: '傳送', smateOnline: '線上', smateTyping: '輸入中…', smateUnavailable: '無法使用', smateVoice: '語音輸入', smateHi: '嗨，我是 SMate。試試「計時器 5」、「時區 台北」、「開啟錢包」、「夜間模式」或「help」。', smateUnknown: '抱歉，我沒聽懂。輸入「help」看看我能做什麼。',
+    mHint: '點一個車站，再點另一個——票價就顯示在這裡。', mFrom: '從', mTo: '到', mFare: '票價', mStations: '站', mTransfers: '轉乘', mMin: '分', mSwap: '交換', mClear: '清除', mTRTC: '台北捷運', mTY: '機場捷運',lpMetro: '捷運',  lpMetroSub: '點兩站算票價',
   },
   hi: {
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
@@ -303,6 +305,7 @@ export const STRINGS = {
     offLabel: 'सिस्टम घड़ी — संदर्भ अनुपलब्ध', offDetail: 'कोई ड्रिफ्ट सुधार लागू नहीं',
     lastCheck: 'अंतिम जाँच {t}', syncing: 'सिंक हो रहा है…', secondRes: ' · सेकंड रिज़ॉल्यूशन', checking: 'जाँच हो रही है…',
     nightTitle: 'नाइट शिफ्ट चालू/बंद करें (N)', tzTitle: 'समय क्षेत्र', modeTitle: 'एनालॉग / डिजिटल (A)', resyncTitle: 'संदर्भ समय दोबारा जाँचें (R)', fullTitle: 'फ़ुल स्क्रीन (F)', full: 'फ़ुल स्क्रीन', tzSearchPh: 'समय क्षेत्र खोजें…', tzListAria: 'समय क्षेत्र', prevMatch: 'पिछला मिलान', nextMatch: 'अगला मिलान', closeFind: 'खोज पट्टी बंद करें', scrDocAria: 'लेख दस्तावेज़', docTitle: 'दस्तावेज़ शीर्षक', untitled: 'बिना शीर्षक दस्तावेज़', smatePh: 'कमांड लिखें…', smateTip: 'SMate सहायक', smateSend: 'भेजें', smateOnline: 'ऑनलाइन', smateTyping: 'टाइप कर रहा है…', smateUnavailable: 'अनुपलब्ध', smateVoice: 'बोलकर लिखें', smateHi: 'नमस्ते, मैं SMate हूँ। "टाइमर 5", "ज़ोन ताइपे", "वॉलेट खोलें", "नाइट शिफ्ट" या "help" आज़माएँ।', smateUnknown: 'क्षमा करें, समझ नहीं आया। "help" लिखें।',
+    mHint: 'एक स्टेशन छूएँ, फिर दूसरा — किराया यहाँ दिखेगा।', mFrom: 'से', mTo: 'तक', mFare: 'किराया', mStations: 'स्टेशन', mTransfers: 'ट्रांसफ़र', mMin: 'मिनट', mSwap: 'बदलें', mClear: 'साफ़ करें', mTRTC: 'ताइपे मेट्रो', mTY: 'एयरपोर्ट MRT',lpMetro: 'मेट्रो',  lpMetroSub: 'दो स्टेशन छूकर किराया',
   },
   es: {
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
@@ -322,6 +325,7 @@ export const STRINGS = {
     offLabel: 'Reloj del sistema — referencia no disponible', offDetail: 'sin corrección de deriva',
     lastCheck: 'última comprobación {t}', syncing: 'sincronizando…', secondRes: ' · resolución de segundos', checking: 'comprobando…',
     nightTitle: 'Alternar turno de noche (N)', tzTitle: 'Zona horaria', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Volver a comprobar la hora de referencia (R)', fullTitle: 'Pantalla completa (F)', full: 'Pantalla completa', tzSearchPh: 'Buscar zonas horarias…', tzListAria: 'Zonas horarias', prevMatch: 'Coincidencia anterior', nextMatch: 'Siguiente coincidencia', closeFind: 'Cerrar barra de búsqueda', scrDocAria: 'Documento de transcripción', docTitle: 'Título del documento', untitled: 'Documento sin título', smatePh: 'Escribe una orden…', smateTip: 'Asistente SMate', smateSend: 'Enviar', smateOnline: 'en línea', smateTyping: 'escribiendo…', smateUnavailable: 'no disponible', smateVoice: 'Entrada de voz', smateHi: 'Hola, soy SMate. Prueba "temporizador 5", "zona Taipéi", "abrir cartera", "turno de noche" o "help".', smateUnknown: 'No te entendí. Escribe "help" para ver qué puedo hacer.',
+    mHint: 'Toca una estación y luego otra: la tarifa aparece aquí.', mFrom: 'Desde', mTo: 'Hasta', mFare: 'Tarifa', mStations: 'estaciones', mTransfers: 'transbordos', mMin: 'min', mSwap: 'Invertir', mClear: 'Borrar', mTRTC: 'Metro de Taipéi', mTY: 'MRT del aeropuerto',lpMetro: 'Metro',  lpMetroSub: 'Calculadora de tarifas',
   },
   fr: {
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
@@ -341,6 +345,7 @@ export const STRINGS = {
     offLabel: 'Horloge système — référence indisponible', offDetail: 'aucune correction de dérive',
     lastCheck: 'dernier contrôle {t}', syncing: 'synchronisation…', secondRes: ' · résolution à la seconde', checking: 'contrôle…',
     nightTitle: 'Basculer le mode nuit (N)', tzTitle: 'Fuseau horaire', modeTitle: 'Analogique / numérique (A)', resyncTitle: 'Revérifier l’heure de référence (R)', fullTitle: 'Plein écran (F)', full: 'Plein écran', tzSearchPh: 'Rechercher un fuseau…', tzListAria: 'Fuseaux horaires', prevMatch: 'Occurrence précédente', nextMatch: 'Occurrence suivante', closeFind: 'Fermer la barre de recherche', scrDocAria: 'Document de transcription', docTitle: 'Titre du document', untitled: 'Document sans titre', smatePh: 'Écrivez une commande…', smateTip: 'Assistant SMate', smateSend: 'Envoyer', smateOnline: 'en ligne', smateTyping: 'écrit…', smateUnavailable: 'indisponible', smateVoice: 'Saisie vocale', smateHi: 'Bonjour, je suis SMate. Essayez « minuteur 5 », « fuseau Taipei », « ouvrir portefeuille », « mode nuit » ou « help ».', smateUnknown: 'Désolé, je n’ai pas compris. Tapez « help ».',
+    mHint: 'Touche une station puis une autre — le tarif s’affiche ici.', mFrom: 'De', mTo: 'À', mFare: 'Tarif', mStations: 'stations', mTransfers: 'correspondances', mMin: 'min', mSwap: 'Inverser', mClear: 'Effacer', mTRTC: 'Métro de Taipei', mTY: 'MRT de l’aéroport',lpMetro: 'Métro',  lpMetroSub: 'Calculateur de tarif',
   },
   ar: {
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
@@ -360,6 +365,7 @@ export const STRINGS = {
     offLabel: 'ساعة النظام — لا مرجع متاح', offDetail: 'دون تصحيح للانحراف',
     lastCheck: 'آخر فحص {t}', syncing: 'جارٍ المزامنة…', secondRes: ' · دقة بالثواني', checking: 'جارٍ الفحص…',
     nightTitle: 'تبديل الوضع الليلي (N)', tzTitle: 'المنطقة الزمنية', modeTitle: 'تناظري / رقمي (A)', resyncTitle: 'إعادة فحص الوقت المرجعي (R)', fullTitle: 'ملء الشاشة (F)', full: 'ملء الشاشة', tzSearchPh: 'ابحث عن المناطق الزمنية…', tzListAria: 'المناطق الزمنية', prevMatch: 'التطابق السابق', nextMatch: 'التطابق التالي', closeFind: 'إغلاق شريط البحث', scrDocAria: 'مستند النص', docTitle: 'عنوان المستند', untitled: 'مستند بدون عنوان', smatePh: 'اكتب أمراً…', smateTip: 'مساعد SMate', smateSend: 'إرسال', smateOnline: 'متصل', smateTyping: 'يكتب…', smateUnavailable: 'غير متاح', smateVoice: 'إدخال صوتي', smateHi: 'مرحباً، أنا SMate. جرّب "مؤقت 5" أو "المنطقة تايبيه" أو "افتح المحفظة" أو "الوضع الليلي" أو "help".', smateUnknown: 'عذراً، لم أفهم. اكتب "help".',
+    mHint: 'انقر محطة ثم أخرى — يظهر السعر هنا.', mFrom: 'من', mTo: 'إلى', mFare: 'الأجرة', mStations: 'محطات', mTransfers: 'تبدلات', mMin: 'د', mSwap: 'تبديل', mClear: 'مسح', mTRTC: 'مترو تايبيه', mTY: 'قطار المطار MRT',lpMetro: 'المترو',  lpMetroSub: 'حاسبة الأجرة بنقرتين',
   },
   bn: {
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
@@ -379,6 +385,7 @@ export const STRINGS = {
     offLabel: 'সিস্টেম ঘড়ি — রেফারেন্স নেই', offDetail: 'ড্রিফ্ট সংশোধন প্রযোজ্য নয়',
     lastCheck: 'সর্বশেষ যাচাই {t}', syncing: 'সিঙ্ক হচ্ছে…', secondRes: ' · সেকেন্ড রেজোলিউশন', checking: 'যাচাই হচ্ছে…',
     nightTitle: 'নাইট শিফ্ট টগল করুন (N)', tzTitle: 'টাইমজোন', modeTitle: 'অ্যানালগ / ডিজিটাল (A)', resyncTitle: 'রেফারেন্স সময় আবার যাচাই করুন (R)', fullTitle: 'ফুল স্ক্রিন (F)', full: 'ফুল স্ক্রিন', tzSearchPh: 'টাইমজোন খুঁজুন…', tzListAria: 'টাইমজোন', prevMatch: 'আগের মিল', nextMatch: 'পরের মিল', closeFind: 'ফাইন্ড বার বন্ধ করুন', scrDocAria: 'লিপি নথি', docTitle: 'নথির শিরোনাম', untitled: 'শিরোনামহীন নথি', smatePh: 'কমান্ড লিখুন…', smateTip: 'SMate সহায়ক', smateSend: 'পাঠান', smateOnline: 'অনলাইন', smateTyping: 'লিখছে…', smateUnavailable: 'অনুপলব্ধ', smateVoice: 'ভয়েস ইনপুট', smateHi: 'হ্যালো, আমি SMate। "টাইমার 5", "টাইমজোন তাইপেই", "ওয়ালেট খুলুন", "নাইট শিফট" বা "help" লিখে দেখুন।', smateUnknown: 'দুঃখিত, বুঝিনি। "help" লিখুন।',
+    mHint: 'একটি স্টেশন ছুঁয়ে আরেকটি ছুঁলে — ভাড়া এখানে দেখা যাবে।', mFrom: 'থেকে', mTo: 'পর্যন্ত', mFare: 'ভাড়া', mStations: 'স্টেশন', mTransfers: 'ট্রান্সফার', mMin: 'মিনিট', mSwap: 'অদলবদল', mClear: 'মুছুন', mTRTC: 'তাইপে মেট্রো', mTY: 'এয়ারপোর্ট MRT',lpMetro: 'মেট্রো',  lpMetroSub: 'দুই স্টেশনে ভাড়া',
   },
   ru: {
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
@@ -398,6 +405,7 @@ export const STRINGS = {
     offLabel: 'Системные часы — эталон недоступен', offDetail: 'коррекция дрейфа не применяется',
     lastCheck: 'последняя проверка {t}', syncing: 'синхронизация…', secondRes: ' · точность до секунды', checking: 'проверка…',
     nightTitle: 'Переключить ночной режим (N)', tzTitle: 'Часовой пояс', modeTitle: 'Аналоговый / цифровой (A)', resyncTitle: 'Проверить эталонное время (R)', fullTitle: 'Полный экран (F)', full: 'Полный экран', tzSearchPh: 'Поиск часового пояса…', tzListAria: 'Часовые пояса', prevMatch: 'Предыдущее совпадение', nextMatch: 'Следующее совпадение', closeFind: 'Закрыть панель поиска', scrDocAria: 'Документ транскрипции', docTitle: 'Название документа', untitled: 'Документ без названия', smatePh: 'Введите команду…', smateTip: 'Ассистент SMate', smateSend: 'Отправить', smateOnline: 'в сети', smateTyping: 'печатает…', smateUnavailable: 'недоступно', smateVoice: 'Голосовой ввод', smateHi: 'Привет, я SMate. Попробуйте «таймер 5», «пояс Тайбэй», «открыть кошелёк», «ночной режим» или "help".', smateUnknown: 'Не понял. Наберите "help".',
+    mHint: 'Коснитесь станции, затем другой — здесь появится цена.', mFrom: 'Откуда', mTo: 'Куда', mFare: 'Проезд', mStations: 'станций', mTransfers: 'пересадки', mMin: 'мин', mSwap: 'Поменять', mClear: 'Очистить', mTRTC: 'Тайбэйское метро', mTY: 'Аэроэкспресс MRT',lpMetro: 'Метро',  lpMetroSub: 'Калькулятор проезда',
   },
   pt: {
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
@@ -417,6 +425,7 @@ export const STRINGS = {
     offLabel: 'Relógio do sistema — referência indisponível', offDetail: 'sem correção de deriva',
     lastCheck: 'última verificação {t}', syncing: 'sincronizando…', secondRes: ' · resolução de segundos', checking: 'verificando…',
     nightTitle: 'Alternar modo noturno (N)', tzTitle: 'Fuso horário', modeTitle: 'Analógico / digital (A)', resyncTitle: 'Verificar novamente a hora de referência (R)', fullTitle: 'Tela cheia (F)', full: 'Tela cheia', tzSearchPh: 'Buscar fusos horários…', tzListAria: 'Fusos horários', prevMatch: 'Ocorrência anterior', nextMatch: 'Próxima ocorrência', closeFind: 'Fechar barra de localizar', scrDocAria: 'Documento de transcrição', docTitle: 'Título do documento', untitled: 'Documento sem título', smatePh: 'Digite um comando…', smateTip: 'Assistente SMate', smateSend: 'Enviar', smateOnline: 'on-line', smateTyping: 'digitando…', smateUnavailable: 'indisponível', smateVoice: 'Entrada de voz', smateHi: 'Oi, eu sou o SMate. Experimente "timer 5", "fuso Taipei", "abrir carteira", "modo noturno" ou "help".', smateUnknown: 'Não entendi. Digite "help".',
+    mHint: 'Toque numa estação e depois noutra — a tarifa aparece aqui.', mFrom: 'De', mTo: 'Para', mFare: 'Tarifa', mStations: 'estações', mTransfers: 'transferências', mMin: 'min', mSwap: 'Inverter', mClear: 'Limpar', mTRTC: 'Metrô de Taipé', mTY: 'MRT do aeroporto',lpMetro: 'Metrô',  lpMetroSub: 'Calculadora de tarifas',
   },
   ur: {
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
@@ -436,6 +445,7 @@ export const STRINGS = {
     offLabel: 'سسٹم گھڑی — ماخذ دستیاب نہیں', offDetail: 'کوئی ڈرفٹ اصلاح لاگو نہیں',
     lastCheck: 'آخری معائنہ {t}', syncing: 'سنک ہو رہا ہے…', secondRes: ' · سیکنڈ ریزولیوشن', checking: 'معائنہ ہو رہا ہے…',
     nightTitle: 'نائٹ موڈ تبدیل کریں (N)', tzTitle: 'ٹائم زون', modeTitle: 'انالاگ / ڈیجیٹل (A)', resyncTitle: 'حوالہ وقت دوبارہ جانچیں (R)', fullTitle: 'فل اسکرین (F)', full: 'فل اسکرین', tzSearchPh: 'ٹائم زون تلاش کریں…', tzListAria: 'ٹائم زون', prevMatch: 'پچھلا میل', nextMatch: 'اگلا میل', closeFind: 'تلاش بار بند کریں', scrDocAria: 'نقل کی دستاویز', docTitle: 'دستاویز کا عنوان', untitled: 'بے عنوان دستاویز', smatePh: 'کمانڈ لکھیں…', smateTip: 'SMate معاون', smateSend: 'بھیجیں', smateOnline: 'آن لائن', smateTyping: 'تحریر کر رہا ہے…', smateUnavailable: 'دستیاب نہیں', smateVoice: 'صوتی ان پٹ', smateHi: 'ہیلو، میں SMate ہوں۔ "ٹائمر 5"، "ٹائم زون تائپے"، "والٹ کھولیں"، "نائٹ موڈ" یا "help" آزمائیں۔', smateUnknown: 'معذرت، سمجھ نہیں آیا۔ "help" لکھیں۔',
+    mHint: 'اسٹیشن چھوئیں پھر دوسرا — کرایہ یہاں دکھے گا۔', mFrom: 'سے', mTo: 'تک', mFare: 'کرایہ', mStations: 'اسٹیشن', mTransfers: 'تبدیلیاں', mMin: 'منٹ', mSwap: 'الٹیں', mClear: 'صاف کریں', mTRTC: 'تائپے میٹرو', mTY: 'ایئرپورٹ MRT',lpMetro: 'میٹرو',  lpMetroSub: 'دو اسٹیشن، کرایہ',
   },
   it: {
     wallet: 'Portafoglio', walBalance: 'Saldo', walExpense: 'Spesa', walIncome: 'Entrata',
@@ -466,6 +476,7 @@ export const STRINGS = {
     smatePh: 'Scrivi un comando…', smateTip: 'Assistente SMate', smateSend: 'Invia', smateOnline: 'Online', smateTyping: 'sta scrivendo…', smateUnavailable: 'non disponibile', smateVoice: 'Input vocale',
     smateHi: 'Ciao, sono SMate. Prova “timer 5”, “zona Taipei”, “apri portafoglio”, “notte” o “help”.',
     smateUnknown: 'Scusa, non ho capito. Scrivi “help” per vedere cosa so fare.',
+    mHint: 'Tocca una stazione e poi un’altra: la tariffa appare qui.', mFrom: 'Da', mTo: 'A', mFare: 'Tariffa', mStations: 'stazioni', mTransfers: 'cambi', mMin: 'min', mSwap: 'Inverti', mClear: 'Cancella', mTRTC: 'Metropolitana di Taipei', mTY: 'MRT dell’aeroporto',lpMetro: 'Metro',  lpMetroSub: 'Calcolatore di tariffa',
   },
   id: {
     wallet: 'Dompet', walBalance: 'Saldo', walExpense: 'Pengeluaran', walIncome: 'Pemasukan',
@@ -496,6 +507,7 @@ export const STRINGS = {
     smatePh: 'Ketik perintah…', smateTip: 'Asisten SMate', smateSend: 'Kirim', smateOnline: 'Daring', smateTyping: 'mengetik…', smateUnavailable: 'tidak tersedia', smateVoice: 'Input suara',
     smateHi: 'Hai, saya SMate. Coba “timer 5”, “zona Taipei”, “buka dompet”, “mode malam”, atau “help”.',
     smateUnknown: 'Maaf, saya tidak mengerti. Ketik “help” untuk melihat kemampuan saya.',
+    mHint: 'Ketuk satu stasiun lalu stasiun lain — tarif muncul di sini.', mFrom: 'Dari', mTo: 'Ke', mFare: 'Tarif', mStations: 'stasiun', mTransfers: 'transit', mMin: 'mnt', mSwap: 'Tukar', mClear: 'Bersihkan', mTRTC: 'MRT Taipei', mTY: 'MRT Bandara',lpMetro: 'Metro',  lpMetroSub: 'Kalkulator tarif',
   },
   ko: {
     wallet: '지갑', walBalance: '잔액', walExpense: '지출', walIncome: '수입',
@@ -526,6 +538,7 @@ export const STRINGS = {
     smatePh: '명령 입력…', smateTip: 'SMate 어시스턴트', smateSend: '보내기', smateOnline: '온라인', smateTyping: '입력 중…', smateUnavailable: '사용 불가', smateVoice: '음성 입력',
     smateHi: '안녕하세요, SMate입니다. “타이머 5”, “시간대 타이베이”, “지갑 열기”, “나이트 시프트” 또는 “help”를 사용해 보세요.',
     smateUnknown: '죄송해요, 이해하지 못했어요. “help”를 입력해 보세요.',
+    mHint: '역을 누르고 다른 역을 누르면 요금이 여기에 표시됩니다.', mFrom: '출발', mTo: '도착', mFare: '요금', mStations: '개 역', mTransfers: '환승', mMin: '분', mSwap: '교환', mClear: '지우기', mTRTC: '타이베이 첩운', mTY: '공항 첩운',lpMetro: '지하철',  lpMetroSub: '두 역 요금 계산기',
   },
   ja: {
     wallet: 'ウォレット', walBalance: '残高', walExpense: '支出', walIncome: '収入',
@@ -556,6 +569,7 @@ export const STRINGS = {
     smatePh: 'コマンドを入力…', smateTip: 'SMateアシスタント', smateSend: '送信', smateOnline: 'オンライン', smateTyping: '入力中…', smateUnavailable: '利用不可', smateVoice: '音声入力',
     smateHi: 'こんにちは、SMateです。「タイマー 5」「ゾーン 台北」「ウォレットを開く」「ナイトシフト」「help」などを試してください。',
     smateUnknown: 'すみません、聞き取れませんでした。「help」でできることの一覧が出ます。',
+    mHint: '駅をタップして、もう一つタップ——運賃がここに表示されます。', mFrom: '出発', mTo: '到着', mFare: '運賃', mStations: '駅', mTransfers: '乗り換え', mMin: '分', mSwap: '入替', mClear: 'クリア', mTRTC: '台北メトロ', mTY: '空港MRT',lpMetro: 'メトロ',  lpMetroSub: 'タップで運賃計算',
   },
   ms: {
     wallet: 'Dompet', walBalance: 'Baki', walExpense: 'Perbelanjaan', walIncome: 'Pendapatan',
@@ -586,6 +600,7 @@ export const STRINGS = {
     smatePh: 'Taip arahan…', smateTip: 'Pembantu SMate', smateSend: 'Hantar', smateOnline: 'Dalam talian', smateTyping: 'menaip…', smateUnavailable: 'tiada', smateVoice: 'Input suara',
     smateHi: 'Hai, saya SMate. Cuba “pemasa 5”, “zon Taipei”, “buka dompet”, “syif malam” atau “help”.',
     smateUnknown: 'Maaf, saya tidak faham. Taip “help” untuk melihat kemampuan saya.',
+    mHint: 'Ketik satu stesen kemudian stesen lain — tambang muncul di sini.', mFrom: 'Dari', mTo: 'Ke', mFare: 'Tambang', mStations: 'stesen', mTransfers: 'pertukaran', mMin: 'min', mSwap: 'Tukar', mClear: 'Kosongkan', mTRTC: 'Metro Taipei', mTY: 'MRT Lapangan Terbang',lpMetro: 'Metro',  lpMetroSub: 'Kalkulator tambang',
   },
   de: {
     wallet: 'Geldbörse', walBalance: 'Guthaben', walExpense: 'Ausgabe', walIncome: 'Einnahme',
@@ -616,6 +631,7 @@ export const STRINGS = {
     smatePh: 'Befehl eingeben…', smateTip: 'SMate-Assistent', smateSend: 'Senden', smateOnline: 'Online', smateTyping: 'schreibt…', smateUnavailable: 'nicht verfügbar', smateVoice: 'Spracheingabe',
     smateHi: 'Hi, ich bin SMate. Probier „timer 5“, „zone Taipei“, „Wallet öffnen“, „Nachtmodus“ oder „help“.',
     smateUnknown: 'Sorry, das habe ich nicht verstanden. Tippe „help“.',
+    mHint: 'Tippe auf eine Station und dann auf eine andere — der Preis erscheint hier.', mFrom: 'Von', mTo: 'Nach', mFare: 'Preis', mStations: 'Stationen', mTransfers: 'Umstiege', mMin: 'Min', mSwap: 'Tauschen', mClear: 'Leeren', mTRTC: 'Taipeh-Metro', mTY: 'Flughafen-MRT',lpMetro: 'Metro',  lpMetroSub: 'Tarifrechner',
   },
   pl: {
     wallet: 'Portfel', walBalance: 'Saldo', walExpense: 'Wydatek', walIncome: 'Przychód',
@@ -646,6 +662,7 @@ export const STRINGS = {
     smatePh: 'Wpisz polecenie…', smateTip: 'Asystent SMate', smateSend: 'Wyślij', smateOnline: 'Online', smateTyping: 'pisze…', smateUnavailable: 'niedostępny', smateVoice: 'Wprowadzanie głosowe',
     smateHi: 'Cześć, tu SMate. Wypróbuj „timer 5“, „strefa Tajpej“, „otwórz portfel“, „tryb nocny“ lub „help“.',
     smateUnknown: 'Przepraszam, nie zrozumiałem. Wpisz „help“.',
+    mHint: 'Dotknij stacji, potem drugiej — tutaj pojawi się cena.', mFrom: 'Z', mTo: 'Do', mFare: 'Opłata', mStations: 'stacji', mTransfers: 'przesiadki', mMin: 'min', mSwap: 'Zamień', mClear: 'Wyczyść', mTRTC: 'Metro w Tajpej', mTY: 'MRT lotniskowe',lpMetro: 'Metro',  lpMetroSub: 'Kalkulator opłat',
   },
   da: {
     wallet: 'Pung', walBalance: 'Saldo', walExpense: 'Udgift', walIncome: 'Indtægt',
@@ -676,6 +693,7 @@ export const STRINGS = {
     smatePh: 'Skriv en kommando…', smateTip: 'SMate-assistent', smateSend: 'Send', smateOnline: 'Online', smateTyping: 'skriver…', smateUnavailable: 'utilgængelig', smateVoice: 'Stemmeinput',
     smateHi: 'Hej, jeg er SMate. Prøv “timer 5”, “zone Taipei”, “åbn pung”, “nattilstand” eller “help”.',
     smateUnknown: 'Beklager, jeg forstod det ikke. Skriv “help”.',
+    mHint: 'Tryk på en station og så en anden — prisen vises her.', mFrom: 'Fra', mTo: 'Til', mFare: 'Pris', mStations: 'stationer', mTransfers: 'skift', mMin: 'min.', mSwap: 'Byt', mClear: 'Ryd', mTRTC: 'Taipei Metro', mTY: 'Lufthavns-MRT',lpMetro: 'Metro',  lpMetroSub: 'Takstberegner',
   },
   nb: {
     wallet: 'Lommebok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inntekt',
@@ -706,6 +724,7 @@ export const STRINGS = {
     smatePh: 'Skriv en kommando…', smateTip: 'SMate-assistent', smateSend: 'Send', smateOnline: 'Pålogget', smateTyping: 'skriver…', smateUnavailable: 'utilgjengelig', smateVoice: 'Taleinndata',
     smateHi: 'Hei, jeg er SMate. Prøv «timer 5», «sone Taipei», «åpne lommebok», «nattmodus» eller «help».',
     smateUnknown: 'Beklager, jeg forsto ikke. Skriv «help».',
+    mHint: 'Trykk på en stasjon og så en annen — prisen vises her.', mFrom: 'Fra', mTo: 'Til', mFare: 'Pris', mStations: 'stasjoner', mTransfers: 'bytter', mMin: 'min', mSwap: 'Bytt', mClear: 'Tøm', mTRTC: 'Taipei-metroen', mTY: 'Flyplass-MRT',lpMetro: 'Metro',  lpMetroSub: 'Priskalkulator',
   },
   sv: {
     wallet: 'Plånbok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inkomst',
@@ -736,6 +755,7 @@ export const STRINGS = {
     smatePh: 'Skriv ett kommando…', smateTip: 'SMate-assistent', smateSend: 'Skicka', smateOnline: 'Online', smateTyping: 'skriver…', smateUnavailable: 'inte tillgänglig', smateVoice: 'Röstinput',
     smateHi: 'Hej, jag är SMate. Prova ”timer 5”, ”zon Taipei”, ”öppna plånbok”, ”nattläge” eller ”help”.',
     smateUnknown: 'Ursäkta, jag fattade inte. Skriv ”help”.',
+    mHint: 'Tryck på en station och sedan en annan — priset visas här.', mFrom: 'Från', mTo: 'Till', mFare: 'Pris', mStations: 'stationer', mTransfers: 'byten', mMin: 'min', mSwap: 'Byt', mClear: 'Rensa', mTRTC: 'Taipeis tunnelbana', mTY: 'Flygplats-MRT',lpMetro: 'Metro',  lpMetroSub: 'Priskalkyl',
   },
   fi: {
     wallet: 'Lompakko', walBalance: 'Saldo', walExpense: 'Meno', walIncome: 'Tulo',
@@ -766,6 +786,7 @@ export const STRINGS = {
     smatePh: 'Kirjoita komento…', smateTip: 'SMate-avustaja', smateSend: 'Lähetä', smateOnline: 'Paikalla', smateTyping: 'kirjoittaa…', smateUnavailable: 'ei käytettävissä', smateVoice: 'Puhesyöte',
     smateHi: 'Hei, olen SMate. Kokeile ”ajastin 5”, ”aikavyöhyke Taipei”, ”avaa lompakko”, ”yötila” tai ”help”.',
     smateUnknown: 'Anteeksi, en ymmärtänyt. Kirjoita ”help”.',
+    mHint: 'Napauta asemaa ja sitten toista — hinta ilmestyy tähän.', mFrom: 'Mistä', mTo: 'Mihin', mFare: 'Hinta', mStations: 'asemaa', mTransfers: 'vaihdot', mMin: 'min', mSwap: 'Vaihda', mClear: 'Tyhjennä', mTRTC: 'Taipein metro', mTY: 'Lentokenttä-MRT',lpMetro: 'Metro',  lpMetroSub: 'Hintalaskuri',
   },
   sr: {
     wallet: 'Novčanik', walBalance: 'Stanje', walExpense: 'Trošak', walIncome: 'Prihod',
@@ -796,6 +817,7 @@ export const STRINGS = {
     smatePh: 'Unesi komandu…', smateTip: 'SMate asistent', smateSend: 'Pošalji', smateOnline: 'Na mreži', smateTyping: 'kuca…', smateUnavailable: 'nedostupno', smateVoice: 'Glasovni unos',
     smateHi: 'Zdravo, ja sam SMate. Probaj „tajmer 5“, „zona Tajpej“, „otvori novčanik“, „noćni režim“ ili „help“.',
     smateUnknown: 'Izvini, nisam razumeo. Unesi „help“.',
+    mHint: 'Kucni stanicu pa drugu — cena se pojavljuje ovde.', mFrom: 'Od', mTo: 'Do', mFare: 'Cena', mStations: 'stanica', mTransfers: 'presedanja', mMin: 'min', mSwap: 'Zameni', mClear: 'Obriši', mTRTC: 'Tajpej metro', mTY: 'Aerodromski MRT',lpMetro: 'Metro',  lpMetroSub: 'Kalkulator cene',
   },
   nl: {
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
@@ -826,6 +848,7 @@ export const STRINGS = {
     smatePh: 'Typ een commando…', smateTip: 'SMate-assistent', smateSend: 'Verzenden', smateOnline: 'Online', smateTyping: 'typt…', smateUnavailable: 'niet beschikbaar', smateVoice: 'Spraakinvoer',
     smateHi: 'Hoi, ik ben SMate. Probeer “timer 5”, “zone Taipei”, “open portemonnee”, “nachtmodus” of “help”.',
     smateUnknown: 'Sorry, dat begreep ik niet. Typ “help”.',
+    mHint: 'Tik op een station en dan op een ander — de prijs verschijnt hier.', mFrom: 'Van', mTo: 'Naar', mFare: 'Prijs', mStations: 'stations', mTransfers: 'overstappen', mMin: 'min', mSwap: 'Wissel', mClear: 'Wissen', mTRTC: 'Taipei-metro', mTY: 'Luchthaven-MRT',lpMetro: 'Metro',  lpMetroSub: 'Tarievencalculator',
   },
   'nl-BE': {
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
@@ -856,6 +879,7 @@ export const STRINGS = {
     smatePh: 'Typ een commando…', smateTip: 'SMate-assistent', smateSend: 'Versturen', smateOnline: 'Online', smateTyping: 'typt…', smateUnavailable: 'niet beschikbaar', smateVoice: 'Spraakinvoer',
     smateHi: 'Hoi, ik ben SMate. Probeer “timer 5”, “zone Taipei”, “open portemonnee”, “nachtmodus” of “help”.',
     smateUnknown: 'Sorry, dat begreep ik niet. Typ “help”.',
+    mHint: 'Tik op een station en dan op een ander — de prijs verschijnt hier.', mFrom: 'Van', mTo: 'Naar', mFare: 'Prijs', mStations: 'stations', mTransfers: 'overstappen', mMin: 'min', mSwap: 'Wissel', mClear: 'Wissen', mTRTC: 'Taipei-metro', mTY: 'Luchthaven-MRT',lpMetro: 'Metro',  lpMetroSub: 'Tariefcalculator',
   },
   el: {
     wallet: 'Πορτοφόλι', walBalance: 'Υπόλοιπο', walExpense: 'Έξοδο', walIncome: 'Έσοδο',
@@ -886,6 +910,7 @@ export const STRINGS = {
     smatePh: 'Πληκτρολόγησε εντολή…', smateTip: 'Βοηθός SMate', smateSend: 'Αποστολή', smateOnline: 'Σε σύνδεση', smateTyping: 'πληκτρολογεί…', smateUnavailable: 'μη διαθέσιμο', smateVoice: 'Φωνητική εισαγωγή',
     smateHi: 'Γεια, είμαι ο SMate. Δοκίμασε «χρονοδιακόπτης 5», «ζώνη Ταϊπέι», «άνοιξε πορτοφόλι», «νυχτερινή λειτουργία» ή «help».',
     smateUnknown: 'Συγγνώμη, δεν κατάλαβα. Πληκτρολόγησε «help».',
+    mHint: 'Πάτησε έναν σταθμό και μετά άλλον έναν — ο ναύλος εμφανίζεται εδώ.', mFrom: 'Από', mTo: 'Προς', mFare: 'Ναύλος', mStations: 'σταθμοί', mTransfers: 'μετεπιβιβάσεις', mMin: 'λεπ', mSwap: 'Ανταλλαγή', mClear: 'Καθαρισμός', mTRTC: 'Μετρό Ταϊπέι', mTY: 'MRT αεροδρομίου',lpMetro: 'Μετρό',  lpMetroSub: 'Υπολογιστής ναύλου',
   },
 };
 
