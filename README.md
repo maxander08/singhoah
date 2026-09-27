@@ -86,19 +86,20 @@ Tuesday, 25 August 2026                       05:51 UTC
   tenth of a pixel, so zooming no longer shows stair-steps. Click a country
   to adopt its zone; countries with several zones open the picker
   pre-filtered to them; the current zone's country is outlined in yellow.
-  Zoom up to 16× with the `+`/`−` buttons, the mouse wheel, a double-click
-  (anchored at the cursor) or a two-finger pinch on phones; drag or
-  one-finger swipe to pan; hover any country for a tooltip with its name
-  (in the UI language) and local time; close with the `×` button or `Esc`.
+  Zoom up to 16× with the `+`/`−` buttons, the mouse wheel (1.6× per
+  notch), a double-click (anchored at the cursor) or a two-finger pinch on
+  phones; drag or one-finger swipe to pan at double gain; hover any country
+  for a tooltip with its name (in the UI language) and local time; close
+  with the `×` button or `Esc`.
   The geometry loads on first map open rather than at page load, so the
   clock itself stays quick to start on phones.
   **Settlements** are labelled the way a street map labels them: dots for
   cities, towns and villages only, with the name in the app's language and
   the local script underneath (`Taipei` over `臺北市`, `Tokyo` over `東京都`),
-  haloed so they stay legible on any border. Which ones show follows the
-  zoom — capitals and megacities at world view, towns and villages as you
-  close in — labels hold a constant size on screen, and colliding ones give
-  way to the larger place, up to 70 at a time.
+  plain ink with no background or halo. Which ones appear follows the zoom —
+  capitals and megacities at world view, and every settlement inside the
+  frame once you are close in; nothing in view is dropped, and labels hold
+  a constant size on screen.
 - **IP locator** — the *IP* button shows your public IP with its country
   flag, the city/region/country and coordinates it geolocates to (ipapi.co
   with an ipwho.is fallback), and a one-tap *Use this time zone* action.

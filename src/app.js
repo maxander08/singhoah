@@ -1926,7 +1926,7 @@ function mapDrawCities() {
   const rect = els.mapSvg.getBoundingClientRect();
   const upx = vw / Math.max(1, rect.width);              // svg units per screen px
   const base = 11 * upx;                                 // 11px labels at any zoom
-  const thresh = Math.max(1, 5000 / Math.pow(k, 2.6));   // pop (thousands) by zoom
+  const thresh = Math.max(1, 5000 / Math.pow(k, 3.5));   // pop (thousands) by zoom
   const cands = [];
   for (const c of mapCities) {
     if (c.x < x0 || c.x > x0 + vw || c.y < y0 || c.y > y0 + vh) continue;
@@ -1936,20 +1936,9 @@ function mapDrawCities() {
   cands.sort((a, b) => (b.c - a.c) || (b.p - a.p));
   const NS = 'http://www.w3.org/2000/svg';
   const frag = document.createDocumentFragment();
-  const placed = [];
   for (const c of cands) {
-    if (placed.length >= 70) break;
     const main = cityNameLang(c);
     const sub = c.s && c.s !== main ? c.s : '';
-    const wEst = Math.max(main.length, sub.length) * base * 0.62 + base;
-    const hEst = base * (sub ? 2.6 : 1.7);
-    const rx = c.x - wEst / 2, ry = c.y + base * 0.4;
-    let hit = false;
-    for (const r of placed) {
-      if (rx < r.x + r.w && rx + wEst > r.x && ry < r.y + r.h && ry + hEst > r.y) { hit = true; break; }
-    }
-    if (hit) continue;
-    placed.push({ x: rx, y: ry, w: wEst, h: hEst });
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('class', 'map-city');
     const dot = document.createElementNS(NS, 'circle');
@@ -1976,7 +1965,6 @@ function mapDrawCities() {
   }
   cityLayer.textContent = '';
   cityLayer.appendChild(frag);
-  cityLayer.style.setProperty('--halo', `${Math.max(1.5, base * 0.3).toFixed(2)}px`);
 }
 /* center the map on a named settlement — the picker behind "map Taipei" */
 function mapGoCity(name) {
@@ -2066,7 +2054,7 @@ function initMapTools() {
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
     const r = svg.getBoundingClientRect();
-    mapZoom(e.deltaY < 0 ? 1.25 : 0.8, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    mapZoom(e.deltaY < 0 ? 1.6 : 0.625, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   }, { passive: false });
   svg.addEventListener('dblclick', (e) => {
     const r = svg.getBoundingClientRect();
@@ -2106,9 +2094,9 @@ function initMapTools() {
     if (mapDrag && mapView.k > 1) {
       const r = mapDrag.r;
       const vw = mapBase.w / mapView.k, vh = mapBase.h / mapView.k;
-      const dx = (e.clientX - mapDrag.x) / r.width * vw;
-      const dy = (e.clientY - mapDrag.y) / r.height * vh;
-      if (Math.abs(e.clientX - mapDrag.x) + Math.abs(e.clientY - mapDrag.y) > 4) mapMoved = true;
+      const dx = (e.clientX - mapDrag.x) / r.width * vw * 2;
+      const dy = (e.clientY - mapDrag.y) / r.height * vh * 2;
+      if (Math.abs(e.clientX - mapDrag.x) + Math.abs(e.clientY - mapDrag.y) > 2) mapMoved = true;
       mapView.cx = mapDrag.cx - dx;
       mapView.cy = mapDrag.cy - dy;
       mapApply();

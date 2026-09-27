@@ -295,8 +295,6 @@ button { font: inherit; color: inherit; }
 .map-city text {
   fill: var(--black); font-family: var(--font-sans); font-weight: 650;
   font-variation-settings: "wght" 650;
-  paint-order: stroke; stroke: var(--paper); stroke-width: var(--halo, 3px);
-  stroke-linejoin: round;
 }
 .map-city-sub { font-weight: 500; font-variation-settings: "wght" 500; opacity: .72; }
 /* monochrome atlas: dark-grey landmasses, white country borders */

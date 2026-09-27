@@ -666,15 +666,18 @@ await page.waitForTimeout(700);
 const city1 = await page.evaluate(() => {
   const labels = [...document.querySelectorAll('#mapCities .map-city')];
   const tp = labels.find((g) => g.textContent.includes('Taipei'));
+  const tx = tp ? tp.querySelector('text') : null;
   return {
     n: labels.length,
     main: tp ? tp.querySelector('tspan').textContent : null,
     sub: tp ? tp.querySelector('tspan:nth-of-type(2)')?.textContent || null : null,
+    stroke: tx ? getComputedStyle(tx).stroke : 'missing',
   };
 });
 ok('zooming in reveals labelled cities, towns and villages', city1.n > 3, `${city1.n} labels`);
 ok('a city shows its native script below the name',
   city1.main === 'Taipei' && city1.sub === '臺北市', `${city1.main} / ${city1.sub}`);
+ok('city labels carry no background or halo', city1.stroke === 'none', city1.stroke);
 await page.evaluate(() => {
   const svg = document.getElementById('mapSvg');
   for (let i = 0; i < 6; i++) svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, clientX: 400, clientY: 300 }));
