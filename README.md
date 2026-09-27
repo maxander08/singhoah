@@ -176,11 +176,16 @@ Every page carries a small **SMate** button in the topbar, next to the
 account chip, that opens a chat panel. Type commands in any of the ten
 languages and SMate drives the app through its real controls, fully offline:
 set timers (`timer 5`, `計時器 5`), pause/resume/reset them, add a stopwatch,
-change the home time zone (`zone Taipei`), switch window layout (`single` /
-`side` / `2x2` / `4x4`, including spoken shapes like `2 by 2` or `4 by 4`),
-flip analog/digital, night shift, re-sync, full screen, map, change the
-language, navigate between the apps (`open wallet`), and in SinghoWallet add
-entries (`add 250 income`), switch Days/Reports or change the currency.
+restart or delete timers and stopwatches (`restart timer`, `delete
+stopwatch`), remove a single pane (`remove Taipei`), change the home time
+zone (`zone Taipei`), switch window layout (`single` / `side` / `2x2` /
+`4x4`, including spoken shapes like `2 by 2` or `4 by 4`), flip
+analog/digital, night shift, re-sync, full screen, map, IP locator, print,
+change the language, navigate between the apps (`open wallet`), and in
+SinghoWallet add entries (`add 250 income`), switch Days/Reports or change
+the currency. In SinghoScribe it drives the toolbar — `undo`, `redo`,
+`copy`, `download`, `print`, `timestamps`, `clear` — and in SinghoSettings
+it flips the `theme`.
 Commands compose: one sentence can do several things at once —
 `set time zones to Jakarta, Taipei, and Singapore in a 2 by 2 window` —
 and city names work in any of the ten languages (`雅加達、台北、新加坡`).

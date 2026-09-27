@@ -1379,6 +1379,65 @@ ok('SMate answers balance questions on any page', await asp.evaluate(() =>
 await asp.close();
 await as.close();
 
+/* --- full coverage: delete/restart panes, remove a zone, scribe toolbar,
+       print, theme — by text exactly as by voice --- */
+const fc = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+await fc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const fp = await fc.newPage();
+await fp.goto(URL + 'index.html', { waitUntil: 'load' });
+await fp.waitForTimeout(300);
+await fp.click('#smateBtn');
+const fcSend = async (txt) => { await fp.fill('#smateIn', txt); await fp.click('#smateSend'); await fp.waitForTimeout(1100); };
+await fcSend('timer 5');
+await fcSend('restart timer');
+ok('SMate restarts the timer', await fp.evaluate(() => !!document.querySelector('.cell.timer')));
+await fcSend('delete timer');
+ok('SMate deletes the timer pane', await fp.evaluate(() => !document.querySelector('.cell.timer')));
+await fcSend('stopwatch');
+await fcSend('restart stopwatch');
+await fcSend('delete stopwatch');
+ok('SMate restarts and deletes the stopwatch', await fp.evaluate(() => !document.querySelector('.cell.stop')));
+await fcSend('zones Jakarta and Taipei side by side');
+await fcSend('remove Taipei');
+ok('SMate removes a single zone', await fp.evaluate(() => {
+  const cs = [...document.querySelectorAll('#grid .cell')];
+  return cs.length === 2 && !cs[0].classList.contains('unset')
+    && cs[0].textContent.includes('Jakarta') && cs[1].classList.contains('unset');
+}));
+await fcSend('print');
+ok('SMate can print', await fp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.length > 0));
+await fp.close();
+
+const fsp = await fc.newPage();
+await fsp.goto(URL + 'scribe.html', { waitUntil: 'load' });
+await fsp.waitForTimeout(300);
+await fsp.click('#smateBtn');
+await fsp.type('#scrDoc', 'hello world');
+const fsSend = async (txt) => { await fsp.fill('#smateIn', txt); await fsp.click('#smateSend'); await fsp.waitForTimeout(1100); };
+await fsSend('undo');
+ok('SMate drives Scribe undo', await fsp.evaluate(() =>
+  document.getElementById('scrDoc').textContent !== 'hello world'));
+await fsSend('redo');
+ok('SMate drives Scribe redo', await fsp.evaluate(() =>
+  document.getElementById('scrDoc').textContent === 'hello world'));
+await fsSend('clear');
+ok('SMate clears the Scribe document', await fsp.evaluate(() =>
+  document.getElementById('scrDoc').textContent.trim() === ''));
+await fsp.close();
+
+const ft = await fc.newPage();
+await ft.goto(URL + 'settings.html', { waitUntil: 'load' });
+await ft.waitForTimeout(300);
+await ft.click('#smateBtn');
+await ft.fill('#smateIn', 'theme');
+await ft.click('#smateSend');
+await ft.waitForTimeout(1100);
+ok('SMate flips the theme from settings', await ft.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.length > 0));
+await ft.close();
+await fc.close();
+
 /* --- SMate compound commands: zones + window shape + extras in one sentence --- */
 const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));

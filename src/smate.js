@@ -272,6 +272,16 @@
     timeQ: ['what time', 'time in', 'current time', 'how late', '幾點', '几点', 'क्या बजा', 'कितने बजे', 'qué hora', 'hora en', 'quelle heure', 'heure à', 'كم الساعة', 'কটা বাজে', 'который час', 'сколько времени', 'время в', 'que horas', 'hora em', 'کتنا بجہ'],
     remind: ['remind', 'reminder', '提醒', 'याद दिला', 'recuérdame', 'recuerdame', 'rappelle', 'ذكرني', 'মনে করিয়ে', 'напомни', 'lembre', 'یاد دہانی'],
     clearChat: [...words(['clearChat']), 'clear chat', 'clear conversation', '清除對話'],
+    remove: ['remove', 'delete', 'get rid', '刪除', '删除', 'हटा', 'borra', 'elimina', 'supprime', 'احذف', 'মোছ', 'удали', 'remova', 'exclua', 'ہٹا', 'مٹا'],
+    restart: ['restart', 'start over', 'begin again', '重新開始', 'फिर से शुरू', 'reinicia', 'recommence', 'আবার শুরু', 'перезапусти', 'reinicie', 'دوبارہ شروع'],
+    undo: ['undo', 'पूर्ववत', 'deshaz', 'annule', 'تراجع', 'আনডু', 'отмени', 'desfaça'],
+    redo: ['redo', 'पुनः करें', 'rehaz', 'rétablis', 'ریڈو', 'রিডু', 'верни', 'refaça'],
+    print: ['print', '列印', '打印', 'छापें', 'imprime', 'اطبع', 'প্রিন্ট', 'печатай', 'imprima', 'پرنٹ'],
+    copy: ['copy', '複製', 'कॉपी', 'copie', 'انسخ', 'কপি', 'копируй', 'کاپی'],
+    download: ['download', '下載', 'डाउनलोड', 'télécharge', 'تحميل', 'ডাউনলোড', 'скачай', 'baixe', 'ڈاؤن لوڈ'],
+    stamps: ['timestamp', 'stamps', '時間戳'],
+    theme: ['theme', '主題', 'थीम', 'tema', 'thème', 'সময', 'থিম', 'тема', 'تھیم'],
+    clearDoc: ['clear', 'wipe'],
     map: words(['map']),
     resync: [...words(['resync']), 'sync'],
     full: words(['full']),
@@ -538,7 +548,7 @@
     const lay = layoutIntent(text);
     const zones = findAllZones(text);
     const zoneGate = has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3;
-    if (lay != null || (zones.length && zoneGate)) {
+    if (!has(text, KW.remove) && (lay != null || (zones.length && zoneGate))) {
       if (page === 'clock') {
         LIB.smateWindow(zoneGate ? zones : [], lay);
         const bits = [];
@@ -579,12 +589,44 @@
       clearChatNow();
       return t(curLang, 'done');
     }
+        /* pane surgery: delete / restart timers & stopwatches, remove zones */
+    const wantTimer = has(text, KW.timer);
+    const wantStop = has(text, KW.stopwatch);
+    if (page === 'clock' && has(text, KW.remove) && (wantTimer || wantStop)) {
+      note(LIB.smateRemove(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null);
+    } else if (page === 'clock' && has(text, KW.restart) && (wantTimer || wantStop)) {
+      note(LIB.smateRestart(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null);
+    } else if (page === 'clock' && has(text, KW.remove)) {
+      const z = findAllZones(text)[0];
+      if (z) note(LIB.smateRemove(z) ? t(curLang, 'done') : null);
+    }
+    /* the Scribe toolbar, by voice or text */
+    if (page === 'scribe') {
+      if (has(text, KW.undo)) note(click($('scrUndo')) ? t(curLang, 'done') : null);
+      if (has(text, KW.redo)) note(click($('scrRedo')) ? t(curLang, 'done') : null);
+      if (has(text, KW.copy)) note(click($('scrCopy')) ? t(curLang, 'done') : null);
+      if (has(text, KW.download)) note(click($('scrDl')) ? t(curLang, 'done') : null);
+      if (has(text, KW.print)) note(click($('scrPrint')) ? t(curLang, 'done') : null);
+      if (has(text, KW.stamps)) note(click($('scrStamps')) ? t(curLang, 'done') : null);
+      if (!has(text, KW.clearAll) && !has(text, KW.clearChat) && has(text, KW.clearDoc)) {
+        const oc = window.confirm; window.confirm = () => true;
+        note(click($('scrClear')) ? t(curLang, 'done') : null);
+        window.confirm = oc;
+      }
+    }
+    /* print anywhere else, theme, IP locator */
+    if (has(text, KW.print) && page !== 'scribe') { window.print(); note(t(curLang, 'done')); }
+    if (has(text, KW.theme)) {
+      if (page === 'settings') note(click($('btnTheme')) ? t(curLang, 'done') : null);
+      else note(act.nav('settings'));
+    }
+    if (page === 'clock' && /\bip\b/.test(text)) note(click($('btnIp')) ? t(curLang, 'done') : null);
         /* timer */
     if (has(text, KW.timer) && num(text) != null) note(act.timerSet(num(text)));
-    else if (has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) note(act.timerCtl(text));
-    else if (has(text, KW.timer) && page === 'clock') note(act.timerCtl(text + ' start'));
+    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) note(act.timerCtl(text));
+    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && page === 'clock') note(act.timerCtl(text + ' start'));
     /* stopwatch */
-    if (has(text, KW.stopwatch)) note(act.stopwatch(text));
+    if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.stopwatch)) note(act.stopwatch(text));
     /* display mode */
     if (has(text, KW.analog) || has(text, KW.digital)) {
       const b = $('btnMode');
@@ -771,7 +813,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'add <n> income|expense | currency <CODE> | clear all | help.',
+    'add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');
   async function askAI(raw) {

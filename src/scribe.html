@@ -160,6 +160,30 @@
     }, 600);
   }
 
+  /* ---------- undo/redo: snapshot history. Native execCommand('undo')
+     forgets everything once the document loses focus — clicking the chat
+     or the toolbar killed it. Snapshots survive focus loss and work the
+     same for a mouse click, Ctrl+Z, or a spoken command. ---------- */
+  let hist = [];
+  let hpos = -1;
+  let histTimer = 0;
+  function histSnap() {
+    const h = $('scrDoc').innerHTML;
+    if (hpos >= 0 && hist[hpos] === h) return;
+    hist = hist.slice(0, hpos + 1);
+    hist.push(h);
+    if (hist.length > 100) hist.shift();
+    hpos = hist.length - 1;
+  }
+  function histGo(d) {
+    histSnap();
+    const to = hpos + d;
+    if (to < 0 || to >= hist.length) return;
+    hpos = to;
+    $('scrDoc').innerHTML = hist[hpos];
+    count(); save();
+  }
+
   /* ---------- document ---------- */
   function words() {
     const m = $('scrDoc').textContent.replace(/​/g, '').match(/[\u3400-\u9fff\uf900-\ufaff]|\w+/g);
@@ -317,10 +341,10 @@
   $('scrClear').addEventListener('click', () => {
     if (!confirm(t(lang, 'resetQ'))) return;
     $('scrDoc').innerHTML = '';
-    count(); save();
+    count(); save(); histSnap();
   });
-  $('scrUndo').addEventListener('click', () => { $('scrDoc').focus(); document.execCommand('undo'); });
-  $('scrRedo').addEventListener('click', () => { $('scrDoc').focus(); document.execCommand('redo'); });
+  $('scrUndo').addEventListener('click', () => { histGo(-1); $('scrDoc').focus(); });
+  $('scrRedo').addEventListener('click', () => { histGo(1); $('scrDoc').focus(); });
   $('scrPrint').addEventListener('click', () => window.print());
   $('scrStamps').addEventListener('click', () => { stamps = !stamps; stampsUI(); save(); });
   $('scrImport').addEventListener('click', () => $('scrFile').click());
@@ -432,7 +456,12 @@
   $('scrReplOne').addEventListener('click', replOne);
   $('scrReplAll').addEventListener('click', replAll);
   $('scrFindX').addEventListener('click', () => { $('scrFindBar').hidden = true; clearHl(); });
-  $('scrDoc').addEventListener('input', () => { count(); save(); });
+  $('scrDoc').addEventListener('input', () => {
+    count(); save();
+    clearTimeout(histTimer);
+    histTimer = setTimeout(histSnap, 350);
+  });
+  $('scrDoc').addEventListener('blur', () => { clearTimeout(histTimer); histSnap(); });
   $('scrTitle').addEventListener('input', save);
 
   /* ---------- UI language ---------- */
@@ -511,9 +540,12 @@
     if (e.key === 'f' || e.key === 'F') { e.preventDefault(); $('scrFindBar').hidden = false; $('scrFindIn').focus(); }
     else if (e.key === 'h' || e.key === 'H') { e.preventDefault(); $('scrFindBar').hidden = false; $('scrReplIn').focus(); }
     else if (e.key === 's' || e.key === 'S') { e.preventDefault(); save(); }
+    else if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); histGo(e.shiftKey ? 1 : -1); }
+    else if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); histGo(1); }
   });
 
   load();
+  histSnap();
   stampsUI();
   let saved = '';
   try { saved = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }

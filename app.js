@@ -1368,6 +1368,35 @@ function addZoneToWindow(z) {
   setCellZone(slot, z);
 }
 
+/** SMate drivers: delete panes / zones, and restart sessions — the same
+    state transitions the UI performs, callable from the assistant. */
+function smateRemove(what) {
+  let n = 0;
+  for (let i = cells.length - 1; i >= 0; i -= 1) {
+    const z = cellZone(i);
+    if (!z) continue;
+    const hit = what === 'timer' ? isTimer(z) : what === 'stop' ? isStop(z) : z === what;
+    if (hit) {
+      clearSessionCell(i);
+      n += 1;
+      if (what !== 'timer' && what !== 'stop') break;
+    }
+  }
+  if (window.__clock) render(window.__clock.now());
+  return n;
+}
+function smateRestart(kind) {
+  const now = (window.__clock ? window.__clock.now() : new Date()).getTime();
+  let n = 0;
+  if (kind === 'timer') {
+    for (const tm of timers.values()) { tm.remaining = tm.duration; tm.endsAt = now + tm.duration; tm.running = true; n += 1; }
+  } else {
+    for (const st of stops.values()) { st.accum = 0; st.startedAt = now; st.running = true; n += 1; }
+  }
+  if (window.__clock) render(window.__clock.now());
+  return n;
+}
+
 /** Clear all: drop every added zone/timer/stopwatch, back to one home clock. */
 function clearWindow() {
   timers.clear();
@@ -2205,7 +2234,7 @@ globalThis.__SING_LIB = {
   curSymbol, curName, curFlag, CURRENCIES, curAlias,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,
-  smateWindow, clearWindow,
+  smateWindow, clearWindow, smateRemove, smateRestart,
 };
 
 if (typeof document !== 'undefined') {
