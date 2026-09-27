@@ -1454,6 +1454,13 @@ ok('brand vocabulary maps speech mishearings', await fp.evaluate(() =>
 await fcSend('hey smate');
 ok('calling SMate by name answers with its skills', await fp.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.length > 20));
+await fcSend('map Taipei');
+ok('SMate flies the map to a named city', await fp.evaluate(() =>
+  !document.getElementById('mapWrap').hidden
+  && [...document.querySelectorAll('#mapCities .map-city')]
+    .some((g) => g.textContent.includes('Taipei'))));
+await fp.evaluate(() => document.getElementById('mapClose').click());
+await fp.waitForTimeout(200);
 await fcSend('open sing ho wallet');
 await fp.waitForURL('**/wallet.html', { timeout: 5000 });
 ok('SMate understands spoken brand names', fp.url().includes('wallet.html'));

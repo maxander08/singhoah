@@ -1982,11 +1982,18 @@ function mapDrawCities() {
 }
 /* center the map on a named settlement — the picker behind "map Taipei" */
 function mapGoCity(name) {
-  const want = String(name || '').trim().toLowerCase();
+  const want = String(name || '')
+    .toLowerCase()
+    .replace(/\b(map|show|open|fly|to|of|the|me|please|city|town)\b/g, ' ')
+    .replace(/\s+/g, ' ').trim();
   openMap();
   ensureMapData(() => {
+    if (!want) return;
     const c = mapCities.find((x) => x.n.toLowerCase() === want)
-      || mapCities.find((x) => x.n.toLowerCase().startsWith(want));
+      || mapCities.find((x) => x.n.toLowerCase().startsWith(want) && want.length > 2)
+      || mapCities.find((x) => want.length > 3 && want.includes(x.n.toLowerCase()))
+      || mapCities.find((x) => (x.s && x.s.length > 1 && want.includes(x.s.toLowerCase()))
+        || (x.t && Object.values(x.t).some((v) => v && want.includes(v.toLowerCase()))));
     if (!c) return;
     mapView.k = 8;
     mapView.cx = c.x; mapView.cy = c.y;

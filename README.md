@@ -196,7 +196,8 @@ account chip, that opens a chat panel. Type commands in any of the ten
 languages and SMate drives the app through its real controls, fully offline:
 set timers (`timer 5`, `計時器 5`), pause/resume/reset them, add a stopwatch,
 restart or delete timers and stopwatches (`restart timer`, `delete
-stopwatch`), remove a single pane (`remove Taipei`), change the home time
+stopwatch`), remove a single pane (`remove Taipei`), fly the map to a city
+(`map Taipei`), change the home time
 zone (`zone Taipei`), switch window layout (`single` / `side` / `2x2` /
 `4x4`, including spoken shapes like `2 by 2` or `4 by 4`), flip
 analog/digital, night shift, re-sync, full screen, map, IP locator, print,

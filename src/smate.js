@@ -636,7 +636,10 @@
     /* resync / full / map / theme */
     if (has(text, KW.resync)) note(click($('btnSync')) ? t(curLang, 'done') : null);
     if (has(text, KW.full)) note(click($('btnFull')) ? t(curLang, 'done') : null);
-    if (has(text, KW.map)) note(click($('btnMap')) ? t(curLang, 'done') : null);
+    if (has(text, KW.map)) {
+      note(click($('btnMap')) ? t(curLang, 'done') : null);
+      LIB.mapGoCity(text);
+    }
     if (has(text, KW.night) || has(text, KW.light)) {
       const b = $('btnNight');
       if (b) { const dark = document.documentElement.classList.contains('dark'); const wantDark = has(text, KW.night); if (wantDark !== dark) b.click(); note(t(curLang, 'done')); }
