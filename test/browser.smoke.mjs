@@ -1821,6 +1821,25 @@ ok('Airport MRT Taipei Main -> Terminal 2 fares at NT$160', await mt.evaluate(()
   document.getElementById('mFareVal').textContent.trim() === 'NT$160'));
 ok('metro runs without page errors', metroErrs.length === 0);
 await mtctx.close();
+const mbc = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await mbc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const mbp = await mbc.newPage();
+await mbp.goto(URL + 'metro.html', { waitUntil: 'load' });
+await mbp.waitForTimeout(500);
+ok('metro basemap draws rivers and roads under the lines', await mbp.evaluate(() => {
+  const w = document.querySelector('#metroBaseWater path');
+  const r = document.querySelector('#metroBaseRoads .b-road-maj');
+  return !!w && !!r && w.getAttribute('d').length > 500 && r.getAttribute('d').length > 500;
+}));
+ok('street grid is hidden at overview zoom', await mbp.evaluate(() =>
+  document.querySelector('#metroBaseRoads .b-road-min').style.display === 'none'));
+await mbp.click('#metroIn'); await mbp.click('#metroIn'); await mbp.click('#metroIn');
+await mbp.waitForTimeout(300);
+ok('zooming in reveals the street grid', await mbp.evaluate(() => {
+  const m = document.querySelector('#metroBaseRoads .b-road-min');
+  return m.style.display !== 'none' && m.getAttribute('d').length > 500;
+}));
+await mbc.close();
 const mtz = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await mtz.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); });
 const mz = await mtz.newPage();

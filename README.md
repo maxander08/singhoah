@@ -196,6 +196,10 @@ every station as a dot labelled with its English name and the Chinese name
 below it — the same family look as the world map: pan, wheel/pinch zoom,
 fit-to-screen.
 
+Under the coloured lines a muted OpenStreetMap basemap gives real geography:
+rivers, lakes, the coast and the road network — major roads always, and the
+full street grid once you zoom in (© OpenStreetMap contributors, ODbL).
+
 Tap one station, then another: the route is computed (fewest transfers,
 shortest distance), the route lights up on the map and the bottom bar shows
 the fare. Taipei Metro fares use the officially published distance bands

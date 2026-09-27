@@ -1375,6 +1375,13 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .metro-st.from, .metro-st.to { fill: var(--notification); stroke: var(--on-notification); }
 .metro-label { fill: var(--black); font-family: var(--font-sans); font-weight: 700; pointer-events: none; }
 .metro-label-zh { font-weight: 500; opacity: .72; }
+:root { --bwater: #c9dbe7; --broadM: rgba(29,29,27,.22); --broadm: rgba(29,29,27,.13); }
+.dark { --bwater: #1a2732; --broadM: rgba(241,239,232,.17); --broadm: rgba(241,239,232,.10); }
+.b-water-f { fill: var(--bwater); stroke: none; pointer-events: none; }
+.b-water-s { fill: none; stroke: var(--bwater); pointer-events: none; }
+.b-road-maj, .b-road-min { fill: none; pointer-events: none; stroke-linecap: round; stroke-linejoin: round; }
+.b-road-maj { stroke: var(--broadM); }
+.b-road-min { stroke: var(--broadm); }
 .metro-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .metro-zoom .btn { background: var(--paper-2); width: 34px; height: 34px; font-size: 17px; line-height: 1; }
 .metro-bar { border-top: 1px solid var(--border); padding: 10px var(--pad-side) 14px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; min-height: 64px; }

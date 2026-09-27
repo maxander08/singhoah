@@ -6,6 +6,7 @@
    (English over the original script), pan / zoom / pinch.
    ============================================================ */
 import { METRO } from './metrodata.js';
+import { MAJ, MIN, WATF, WATS } from './metrobase.js';
 
 const LIB = globalThis.__SING_LIB;
 const { LANGS, t, langOf, ccFlag, langTitleOf, makeLangPicker, clampPop } = LIB;
@@ -47,20 +48,51 @@ function vGeom() {
 /* portrait phones get the map rotated 90° so the lines' long axis runs
    down the screen instead of across a thin strip */
 const PORTRAIT = (() => { try { return innerHeight > innerWidth; } catch { return false; } })();
+const PROJ = {};
 for (const sys of ['TRTC', 'TY']) {
   const pts = Object.values(ST).filter((s) => s.sys === sys);
   const lons = pts.map((p) => p.lon), lats = pts.map((p) => p.lat);
   const lo0 = Math.min(...lons), lo1 = Math.max(...lons), la0 = Math.min(...lats), la1 = Math.max(...lats);
-  const kmx = (lo1 - lo0) * 111.32 * Math.cos(((la0 + la1) / 2) * RAD);
+  const cf = 111.32 * Math.cos(((la0 + la1) / 2) * RAD);
+  const kmx = (lo1 - lo0) * cf;
   const kmy = (la1 - la0) * 110.57;
   const fw = PORTRAIT ? kmy : kmx, fh = PORTRAIT ? kmx : kmy; /* frame axes */
   const sc = Math.min((VB.w - 160) / Math.max(1e-6, fw), (VB.h - 160) / Math.max(1e-6, fh));
   const ox = (VB.w - fw * sc) / 2, oy = (VB.h - fh * sc) / 2;
+  PROJ[sys] = { lo0, la1, cf, sc, ox, oy };
   for (const p of pts) {
-    const ex = (p.lon - lo0) * 111.32 * Math.cos(((la0 + la1) / 2) * RAD) * sc;
+    const ex = (p.lon - lo0) * cf * sc;
     const ey = (la1 - p.lat) * 110.57 * sc;
     if (PORTRAIT) { p.x = ox + ey; p.y = oy + ex; } else { p.x = ox + ex; p.y = oy + ey; }
   }
+}
+
+/* ---- street-level basemap (roads / rivers / water, © OpenStreetMap) ---- */
+function baseD(sysId, arr, close) {
+  const P = PROJ[sysId];
+  let d = '';
+  for (const a of arr) {
+    let la = a[0] / 1e4, lo = a[1] / 1e4;
+    let inside = false, seg = '';
+    const put = () => {
+      const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
+      const x = PORTRAIT ? P.ox + ey : P.ox + ex;
+      const y = PORTRAIT ? P.oy + ex : P.oy + ey;
+      if (x > -200 && x < 1200 && y > -200 && y < 1000) inside = true;
+      seg += (seg ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    };
+    put();
+    for (let i = 2; i < a.length; i += 2) { la += a[i] / 1e4; lo += a[i + 1] / 1e4; put(); }
+    if (inside) d += seg + (close ? 'Z' : '');
+  }
+  return d;
+}
+const BASED = {};
+for (const sysId of ['TRTC', 'TY']) {
+  BASED[sysId] = {
+    watf: baseD(sysId, WATF, true), wats: baseD(sysId, WATS, false),
+    maj: baseD(sysId, MAJ, false), min: baseD(sysId, MIN, false),
+  };
 }
 
 /* graph edges: [a, b, km, lineId] — transfers are zero-km links */
@@ -135,7 +167,17 @@ function fare(sys, a, b, r) {
 const els = {};
 for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'btnNight', 'nightText',
   'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
-  'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear']) els[id] = $(id);
+  'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear',
+  'metroBaseWater', 'metroBaseRoads']) els[id] = $(id);
+let bWF, bWS, bRM, bRm, baseSys = null;
+function initBase() {
+  bWF = document.createElementNS(NS, 'path'); bWF.setAttribute('class', 'b-water-f');
+  bWS = document.createElementNS(NS, 'path'); bWS.setAttribute('class', 'b-water-s');
+  els.metroBaseWater.append(bWF, bWS);
+  bRM = document.createElementNS(NS, 'path'); bRM.setAttribute('class', 'b-road-maj');
+  bRm = document.createElementNS(NS, 'path'); bRm.setAttribute('class', 'b-road-min');
+  els.metroBaseRoads.append(bRM, bRm);
+}
 
 function applyLang(id, persist = true) {
   lang = langOf(id).id;
@@ -199,6 +241,19 @@ function draw() {
   const g = vGeom();
   els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
   const upx = 1 / g.s;
+
+  /* street basemap */
+  if (baseSys !== sys) {
+    baseSys = sys;
+    bWF.setAttribute('d', BASED[sys].watf || 'M0 0');
+    bWS.setAttribute('d', BASED[sys].wats || 'M0 0');
+    bRM.setAttribute('d', BASED[sys].maj || 'M0 0');
+    bRm.setAttribute('d', BASED[sys].min || 'M0 0');
+  }
+  bWS.setAttribute('stroke-width', (1.2 * upx).toFixed(2));
+  bRM.setAttribute('stroke-width', (1.5 * upx).toFixed(2));
+  bRm.style.display = v.k >= 2 ? '' : 'none';
+  bRm.setAttribute('stroke-width', (0.9 * upx).toFixed(2));
 
   /* lines */
   els.metroLines.textContent = '';
@@ -382,6 +437,7 @@ els.btnNight.addEventListener('click', () => {
   updateThemeBtn();
   draw();
 });
+initBase();
 applyLang(lang, false);
 fitContent();
 

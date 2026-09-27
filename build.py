@@ -38,12 +38,12 @@ shutil.copy(SRC / "settings.html", OUT / "settings.html")
 shutil.copy(SRC / "scribe.html", OUT / "scribe.html")
 
 # --- sibling apps: SinghoWallet + SinghoLaunch ---
-for n in ["wallet.html", "wallet.js", "launch.html", "metro.html", "metro.js", "metrodata.js"]:
+for n in ["wallet.html", "wallet.js", "launch.html", "metro.html", "metro.js", "metrodata.js", "metrobase.js"]:
     shutil.copy(SRC / n, OUT / n)
 
 SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js",
            "wallet.html", "wallet.js", "launch.html",
            "firebase-config.js", "auth.js", "smate.js", "settings.html", "scribe.html",
-           "metro.html", "metro.js", "metrodata.js"]
+           "metro.html", "metro.js", "metrodata.js", "metrobase.js"]
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))
