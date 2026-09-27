@@ -132,6 +132,9 @@ function ensureBase(sysId) {
 function pumpBase(sysId) {
   const B = BASE[sysId];
   if (!B || B.done || !B.src) return;
+  /* never decode mid-gesture: the 90/120 Hz frame budget (11.1/8.3 ms)
+     belongs entirely to the compositor transform while the map is live */
+  if (interacting) { setTimeout(() => pumpBase(sysId), 16); return; }
   const t0 = performance.now();
   while (performance.now() - t0 < 6) { /* ~6 ms budget per slice */
     let progressed = false;

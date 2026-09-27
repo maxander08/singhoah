@@ -2556,6 +2556,13 @@ function mapApply() {
   els.mapSvg.style.setProperty('--mapk', String(1 / k));   /* hairlines stay hairlines */
   scheduleCities();
 }
+/* Pointer events arrive far faster than frames (120-1000 Hz mice, touch);
+   gesture-driven applies are coalesced to exactly one per animation frame
+   so pan/pinch cost is constant at any refresh rate (60/90/120 Hz). */
+let mapRaf = 0;
+function mapApplySoon() {
+  if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; mapApply(); });
+}
 function mapZoom(f, px, py) {
   const k2 = Math.max(1, Math.min(16, mapView.k * f));
   if (k2 === mapView.k) return;
@@ -2567,7 +2574,7 @@ function mapZoom(f, px, py) {
   const vw2 = w / k2, vh2 = h / k2;
   mapView.cx = x - px * vw2 + vw2 / 2;
   mapView.cy = y - py * vh2 + vh2 / 2;
-  mapApply();
+  mapApplySoon();
 }
 function mapTipShow(e, cc) {
   const tip = els.mapTip;
@@ -2649,7 +2656,7 @@ function initMapTools() {
       if (Math.abs(e.clientX - mapDrag.x) + Math.abs(e.clientY - mapDrag.y) > 2) mapMoved = true;
       mapView.cx = mapDrag.cx - dx;
       mapView.cy = mapDrag.cy - dy;
-      mapApply();
+      mapApplySoon();
     }
   });
   const endDrag = (e) => {
