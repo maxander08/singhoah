@@ -289,10 +289,10 @@
     light: [...words(['light']), 'day'],
     lang: [...words(['language']), 'language', 'lang'],
     tz: [...words(['tzTitle', 'homeCity']), 'zone', 'timezone', 'tz', '時區'],
-    wallet: words(['wallet']),
-    clock: [...words(['lpClock']), 'clock'],
-    settings: words(['settings']),
-    scribe: [...words(['lpScribe']), 'scribe'],
+    wallet: [...words(['wallet']), 'singhowallet'],
+    clock: [...words(['lpClock']), 'clock', 'singhoah'],
+    settings: [...words(['settings']), 'singhosettings'],
+    scribe: [...words(['lpScribe']), 'scribe', 'singhoscribe'],
     launch: words(['launchpad']),
     expense: words(['walExpense']),
     income: words(['walIncome']),
@@ -523,7 +523,8 @@
 
   /* every detectable intent runs, in one pass — compound sentences work */
   function run(raw) {
-    const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    const text = LIB.brandFix(raw);
+    if (/^(?:hey |hi |hello |ok |okay )?smate[!?.]*$/.test(text)) return helpText();
     if (has(text, KW.help) || text === '?' || text === '؟' || text === '？') return helpText();
     const outs = [];
     const note = (v) => { if (v) outs.push(v); };
@@ -741,7 +742,7 @@
         if (r.isFinal) vfinal += r[0].transcript;
         else interim += r[0].transcript;
       }
-      input.value = vfinal + interim;
+      input.value = LIB.brandFix(vfinal + interim, true);
     };
     vrec.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setStatus('smateUnavailable'); };
     vrec.onend = () => {
@@ -813,7 +814,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
+    'open Singhoah|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');
   async function askAI(raw) {

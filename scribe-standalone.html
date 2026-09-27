@@ -1186,7 +1186,17 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
   padding: 6px var(--pad-side); border-top: 1px solid var(--border);
   color: var(--pigeon); font-size: 12px;
 }
-@media (max-width: 700px) { .scr-page { padding: 28px 18px; } }
+/* Mobile Scribe: 16px text so iOS never zoom-jumps on focus, labels give
+   way to the controls they name, and the mic is a real thumb target. */
+@media (max-width: 700px) {
+  .scr-page { padding: 28px 18px; font-size: 16px; min-height: 70vh; }
+  .scr-title { font-size: 16px; }
+  .scr-bar { gap: 6px; padding: 8px 10px; }
+  .scr-lbl { display: none; }
+  .scr-sel { max-width: 148px; flex: 0 1 auto; }
+  .scr-mic { min-height: 44px; padding: 0 14px; }
+  .scr-foot { flex-wrap: wrap; }
+}
 
 /* ---------- scribe: toolbar groups, find bar, stamps, print ---------- */
 .scr-sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--border); }
@@ -3089,6 +3099,26 @@ function addZoneToWindow(z) {
   setCellZone(slot, z);
 }
 
+/** Speech engines never learn brand names — they hear "sing ho script" or
+    "s mate". Map the mishearings back onto the Singho vocabulary.
+    display=true keeps the surrounding casing (for transcripts); otherwise
+    the whole string is lowercased + normalized (for command matching). */
+function brandFix(s, display = false) {
+  const RULES = [
+    [/\bsing\s*(?:ho|how|hoh|hou)\s*(?:scribe|script|scrip)s?\b/g, 'SinghoScribe'],
+    [/\bsing\s*(?:ho|how|hoh|hou)\s*wallets?\b/g, 'SinghoWallet'],
+    [/\bsing\s*(?:ho|how|hoh|hou)\s*settings?\b/g, 'SinghoSettings'],
+    [/\bsing\s*(?:ho|how|hoh|hou)(?:\s*(?:ahh|ah|a|ya|yah))?\b/g, 'Singhoah'],
+    [/(^|[^'\w])(?:s|es)\s*\.?\s*mates?\b/g, '$1SMate'],
+    [/\bsmart\s*mates?\b/g, 'SMate'],
+  ];
+  let out = display ? s : s.toLowerCase();
+  for (const [re, rep] of RULES) {
+    out = out.replace(display ? new RegExp(re.source, 'gi') : re, display ? rep : rep.toLowerCase());
+  }
+  return display ? out : out.replace(/\s+/g, ' ').trim();
+}
+
 /** SMate drivers: delete panes / zones, and restart sessions — the same
     state transitions the UI performs, callable from the assistant. */
 function smateRemove(what) {
@@ -3955,7 +3985,7 @@ globalThis.__SING_LIB = {
   curSymbol, curName, curFlag, CURRENCIES, curAlias,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,
-  smateWindow, clearWindow, smateRemove, smateRestart,
+  smateWindow, clearWindow, smateRemove, smateRestart, brandFix,
 };
 
 if (typeof document !== 'undefined') {
@@ -4259,10 +4289,10 @@ if (typeof document !== 'undefined') {
     light: [...words(['light']), 'day'],
     lang: [...words(['language']), 'language', 'lang'],
     tz: [...words(['tzTitle', 'homeCity']), 'zone', 'timezone', 'tz', '時區'],
-    wallet: words(['wallet']),
-    clock: [...words(['lpClock']), 'clock'],
-    settings: words(['settings']),
-    scribe: [...words(['lpScribe']), 'scribe'],
+    wallet: [...words(['wallet']), 'singhowallet'],
+    clock: [...words(['lpClock']), 'clock', 'singhoah'],
+    settings: [...words(['settings']), 'singhosettings'],
+    scribe: [...words(['lpScribe']), 'scribe', 'singhoscribe'],
     launch: words(['launchpad']),
     expense: words(['walExpense']),
     income: words(['walIncome']),
@@ -4493,7 +4523,8 @@ if (typeof document !== 'undefined') {
 
   /* every detectable intent runs, in one pass — compound sentences work */
   function run(raw) {
-    const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    const text = LIB.brandFix(raw);
+    if (/^(?:hey |hi |hello |ok |okay )?smate[!?.]*$/.test(text)) return helpText();
     if (has(text, KW.help) || text === '?' || text === '؟' || text === '？') return helpText();
     const outs = [];
     const note = (v) => { if (v) outs.push(v); };
@@ -4711,7 +4742,7 @@ if (typeof document !== 'undefined') {
         if (r.isFinal) vfinal += r[0].transcript;
         else interim += r[0].transcript;
       }
-      input.value = vfinal + interim;
+      input.value = LIB.brandFix(vfinal + interim, true);
     };
     vrec.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setStatus('smateUnavailable'); };
     vrec.onend = () => {
@@ -4783,7 +4814,7 @@ if (typeof document !== 'undefined') {
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
+    'open Singhoah|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');
   async function askAI(raw) {
@@ -4807,7 +4838,9 @@ if (typeof document !== 'undefined') {
     ['zh-TW', '繁體中文'], ['zh-CN', '简体中文'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'],
     ['ja-JP', '日本語'], ['ko-KR', '한국어'], ['es-ES', 'Español'], ['fr-FR', 'Français'],
     ['de-DE', 'Deutsch'], ['hi-IN', 'हिन्दी'], ['ru-RU', 'Русский'], ['pt-BR', 'Português'], ['ar-SA', 'العربية'],
+    ['bn-BD', 'বাংলা'], ['ur-PK', 'اردو'],
   ];
+  let inTouched = false;
   for (const sel of [$('scrIn'), $('scrOut')]) {
     for (const [code, name] of SR_LANGS) {
       const o = document.createElement('option');
@@ -4826,7 +4859,7 @@ if (typeof document !== 'undefined') {
       if (d && typeof d === 'object') {
         if (typeof d.html === 'string') $('scrDoc').innerHTML = d.html;
         if (typeof d.title === 'string' && d.title) $('scrTitle').value = d.title;
-        if (SR_LANGS.some(([c]) => c === d.in)) $('scrIn').value = d.in;
+        if (SR_LANGS.some(([c]) => c === d.in)) { $('scrIn').value = d.in; inTouched = true; }
         if (SR_LANGS.some(([c]) => c === d.out)) $('scrOut').value = d.out;
         if (typeof d.stamps === 'boolean') stamps = d.stamps;
       }
@@ -4974,7 +5007,7 @@ if (typeof document !== 'undefined') {
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
           if (r.isFinal) {
-            const text = r[0].transcript.trim();
+            const text = globalThis.__SING_LIB.brandFix(r[0].transcript.trim(), true);
             if (!text) continue;
             const from = $('scrIn').value, to = $('scrOut').value;
             if (from === to) appendFinal(text);
@@ -5006,7 +5039,7 @@ if (typeof document !== 'undefined') {
   }
   function stopRec() { listening = false; clearInterval(tickT); $('scrTime').hidden = true; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
   $('scrMic').addEventListener('click', () => { if (listening) stopRec(); else startRec(); });
-  $('scrIn').addEventListener('change', () => { if (listening) { stopRec(); startRec(); } save(); });
+  $('scrIn').addEventListener('change', () => { inTouched = true; if (listening) { stopRec(); startRec(); } save(); });
   $('scrOut').addEventListener('change', save);
 
   /* ---------- toolbar ---------- */
@@ -5203,6 +5236,15 @@ if (typeof document !== 'undefined') {
     const dark = document.documentElement.classList.contains('dark');
     $('nightText').textContent = t(lang, dark ? 'light' : 'night');
     $('scrDoc').dataset.hint = t(lang, 'scribeHint');
+    if (!inTouched) {
+      const loc = L.locale;
+      const m = SR_LANGS.find(([c]) => c.toLowerCase() === loc.toLowerCase())
+        || SR_LANGS.find(([c]) => c.split('-')[0] === loc.split('-')[0]);
+      if (m && $('scrIn').value !== m[0]) {
+        $('scrIn').value = m[0];
+        if (listening) { stopRec(); startRec(); }
+      }
+    }
     micUI(); count();
     if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
     document.dispatchEvent(new CustomEvent('singhoah:lang'));

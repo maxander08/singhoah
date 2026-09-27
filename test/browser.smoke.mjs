@@ -1407,6 +1407,16 @@ ok('SMate removes a single zone', await fp.evaluate(() => {
 await fcSend('print');
 ok('SMate can print', await fp.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.length > 0));
+ok('brand vocabulary maps speech mishearings', await fp.evaluate(() =>
+  window.__SING_LIB.brandFix('open sing ho wallet then sing ho scribe') === 'open singhowallet then singhoscribe'
+  && window.__SING_LIB.brandFix('i use sing ho script and s mate daily', true) === 'i use SinghoScribe and SMate daily'
+  && window.__SING_LIB.brandFix('Singhoah and sing how ahh', true) === 'Singhoah and Singhoah'));
+await fcSend('hey smate');
+ok('calling SMate by name answers with its skills', await fp.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.length > 20));
+await fcSend('open sing ho wallet');
+await fp.waitForURL('**/wallet.html', { timeout: 5000 });
+ok('SMate understands spoken brand names', fp.url().includes('wallet.html'));
 await fp.close();
 
 const fsp = await fc.newPage();
@@ -1436,7 +1446,39 @@ await ft.waitForTimeout(1100);
 ok('SMate flips the theme from settings', await ft.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.length > 0));
 await ft.close();
+
+/* Scribe transcription follows the app language until you pick one */
+const fl = await fc.newPage();
+await fl.goto(URL + 'scribe.html', { waitUntil: 'load' });
+await fl.evaluate(() => { localStorage.removeItem('singhoah:scribe'); localStorage.setItem('singhoah:lang', 'fr'); });
+await fl.reload({ waitUntil: 'load' });
+await fl.waitForTimeout(300);
+ok('Scribe transcribes in the app language (fr)', await fl.evaluate(() =>
+  document.getElementById('scrIn').value === 'fr-FR'));
+await fl.evaluate(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
+await fl.reload({ waitUntil: 'load' });
+await fl.waitForTimeout(300);
+ok('Scribe transcribes in the app language (zh-TW)', await fl.evaluate(() =>
+  document.getElementById('scrIn').value === 'zh-TW'));
+await fl.close();
 await fc.close();
+
+/* Mobile Scribe: big text (no iOS focus-zoom), no labels, thumb-sized mic */
+const msc = await browser.newContext({ viewport: { width: 390, height: 844 } });
+await msc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const mpg = await msc.newPage();
+await mpg.goto(URL + 'scribe.html', { waitUntil: 'load' });
+await mpg.waitForTimeout(300);
+ok('mobile Scribe uses 16px text and hides the bar labels', await mpg.evaluate(() => {
+  const page = document.querySelector('.scr-page');
+  const lbl = document.querySelector('.scr-lbl');
+  return getComputedStyle(page).fontSize === '16px'
+    && getComputedStyle(lbl).display === 'none';
+}));
+ok('mobile Scribe mic is a thumb target', await mpg.evaluate(() =>
+  document.getElementById('scrMic').getBoundingClientRect().height >= 44));
+await mpg.close();
+await msc.close();
 
 /* --- SMate compound commands: zones + window shape + extras in one sentence --- */
 const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });

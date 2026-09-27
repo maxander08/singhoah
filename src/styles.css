@@ -1164,7 +1164,17 @@ body[data-app="scribe"] { display: flex; flex-direction: column; }
   padding: 6px var(--pad-side); border-top: 1px solid var(--border);
   color: var(--pigeon); font-size: 12px;
 }
-@media (max-width: 700px) { .scr-page { padding: 28px 18px; } }
+/* Mobile Scribe: 16px text so iOS never zoom-jumps on focus, labels give
+   way to the controls they name, and the mic is a real thumb target. */
+@media (max-width: 700px) {
+  .scr-page { padding: 28px 18px; font-size: 16px; min-height: 70vh; }
+  .scr-title { font-size: 16px; }
+  .scr-bar { gap: 6px; padding: 8px 10px; }
+  .scr-lbl { display: none; }
+  .scr-sel { max-width: 148px; flex: 0 1 auto; }
+  .scr-mic { min-height: 44px; padding: 0 14px; }
+  .scr-foot { flex-wrap: wrap; }
+}
 
 /* ---------- scribe: toolbar groups, find bar, stamps, print ---------- */
 .scr-sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--border); }

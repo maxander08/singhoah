@@ -156,10 +156,16 @@ replace** (Ctrl+F / Ctrl+H, highlighted matches with next/previous, replace one
 or all), optional **timestamps** on each dictated paragraph, **import** of
 .txt/.md files and **print** (a print stylesheet yields a clean paper copy).
 All of it follows the UI language in all ten languages. The **spoken
-language** (recognizer) and **transcript language** are independently selectable;
-defaults are both Chinese (Traditional). When they differ, each finalized sentence
-is translated (MyMemory, free) before being appended. Uses the browser's Web Speech
-API (Chrome/Edge/Safari; a clear notice appears where unsupported).
+language** (recognizer) follows the app's UI language automatically — every
+one of the ten is offered, plus extras like German, simplified Chinese and
+UK English — and can still be overridden by hand; the **transcript
+language** is independently selectable. When they differ, each finalized
+sentence is translated (MyMemory, free) before being appended. Recognized
+speech is vocabulary-corrected, so saying "SinghoScribe", "SinghoWallet" or
+"SMate" lands in the document spelled right instead of "sing ho script".
+Uses the browser's Web Speech API (Chrome/Edge/Safari; a clear notice
+appears where unsupported). On phones the layout adapts: 16px page text
+(so iOS never zoom-jumps on focus), a thumb-sized mic, and a condensed bar.
 
 ## SinghoSettings — the settings page
 
@@ -193,7 +199,11 @@ and city names work in any of the ten languages (`雅加達、台北、新加坡
 window to a single home clock; from any other page SMate hops home and
 clears there.
 The mic button answers in the app's current language where the browser
-supports speech recognition; the header line shows online / typing… /
+supports speech recognition, and it knows the Singho vocabulary: the way
+speech engines mishear the brand names ("sing ho wallet", "s mate") is
+mapped back to **Singhoah**, **SinghoWallet**, **SinghoScribe**,
+**SinghoSettings** and **SMate**, so `open SinghoWallet` works whether it
+was typed or spoken. The header line shows online / typing… /
 listening / unavailable like a chat app.
 
 **A chat you can talk to.** The conversation persists across pages and

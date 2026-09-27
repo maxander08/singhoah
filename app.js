@@ -1368,6 +1368,26 @@ function addZoneToWindow(z) {
   setCellZone(slot, z);
 }
 
+/** Speech engines never learn brand names — they hear "sing ho script" or
+    "s mate". Map the mishearings back onto the Singho vocabulary.
+    display=true keeps the surrounding casing (for transcripts); otherwise
+    the whole string is lowercased + normalized (for command matching). */
+function brandFix(s, display = false) {
+  const RULES = [
+    [/\bsing\s*(?:ho|how|hoh|hou)\s*(?:scribe|script|scrip)s?\b/g, 'SinghoScribe'],
+    [/\bsing\s*(?:ho|how|hoh|hou)\s*wallets?\b/g, 'SinghoWallet'],
+    [/\bsing\s*(?:ho|how|hoh|hou)\s*settings?\b/g, 'SinghoSettings'],
+    [/\bsing\s*(?:ho|how|hoh|hou)(?:\s*(?:ahh|ah|a|ya|yah))?\b/g, 'Singhoah'],
+    [/(^|[^'\w])(?:s|es)\s*\.?\s*mates?\b/g, '$1SMate'],
+    [/\bsmart\s*mates?\b/g, 'SMate'],
+  ];
+  let out = display ? s : s.toLowerCase();
+  for (const [re, rep] of RULES) {
+    out = out.replace(display ? new RegExp(re.source, 'gi') : re, display ? rep : rep.toLowerCase());
+  }
+  return display ? out : out.replace(/\s+/g, ' ').trim();
+}
+
 /** SMate drivers: delete panes / zones, and restart sessions — the same
     state transitions the UI performs, callable from the assistant. */
 function smateRemove(what) {
@@ -2234,7 +2254,7 @@ globalThis.__SING_LIB = {
   curSymbol, curName, curFlag, CURRENCIES, curAlias,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,
-  smateWindow, clearWindow, smateRemove, smateRestart,
+  smateWindow, clearWindow, smateRemove, smateRestart, brandFix,
 };
 
 if (typeof document !== 'undefined') {

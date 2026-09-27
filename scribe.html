@@ -123,7 +123,9 @@
     ['zh-TW', '繁體中文'], ['zh-CN', '简体中文'], ['en-US', 'English (US)'], ['en-GB', 'English (UK)'],
     ['ja-JP', '日本語'], ['ko-KR', '한국어'], ['es-ES', 'Español'], ['fr-FR', 'Français'],
     ['de-DE', 'Deutsch'], ['hi-IN', 'हिन्दी'], ['ru-RU', 'Русский'], ['pt-BR', 'Português'], ['ar-SA', 'العربية'],
+    ['bn-BD', 'বাংলা'], ['ur-PK', 'اردو'],
   ];
+  let inTouched = false;
   for (const sel of [$('scrIn'), $('scrOut')]) {
     for (const [code, name] of SR_LANGS) {
       const o = document.createElement('option');
@@ -142,7 +144,7 @@
       if (d && typeof d === 'object') {
         if (typeof d.html === 'string') $('scrDoc').innerHTML = d.html;
         if (typeof d.title === 'string' && d.title) $('scrTitle').value = d.title;
-        if (SR_LANGS.some(([c]) => c === d.in)) $('scrIn').value = d.in;
+        if (SR_LANGS.some(([c]) => c === d.in)) { $('scrIn').value = d.in; inTouched = true; }
         if (SR_LANGS.some(([c]) => c === d.out)) $('scrOut').value = d.out;
         if (typeof d.stamps === 'boolean') stamps = d.stamps;
       }
@@ -290,7 +292,7 @@
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
           if (r.isFinal) {
-            const text = r[0].transcript.trim();
+            const text = globalThis.__SING_LIB.brandFix(r[0].transcript.trim(), true);
             if (!text) continue;
             const from = $('scrIn').value, to = $('scrOut').value;
             if (from === to) appendFinal(text);
@@ -322,7 +324,7 @@
   }
   function stopRec() { listening = false; clearInterval(tickT); $('scrTime').hidden = true; try { if (rec) rec.stop(); } catch { /* ignore */ } micUI(); }
   $('scrMic').addEventListener('click', () => { if (listening) stopRec(); else startRec(); });
-  $('scrIn').addEventListener('change', () => { if (listening) { stopRec(); startRec(); } save(); });
+  $('scrIn').addEventListener('change', () => { inTouched = true; if (listening) { stopRec(); startRec(); } save(); });
   $('scrOut').addEventListener('change', save);
 
   /* ---------- toolbar ---------- */
@@ -519,6 +521,15 @@
     const dark = document.documentElement.classList.contains('dark');
     $('nightText').textContent = t(lang, dark ? 'light' : 'night');
     $('scrDoc').dataset.hint = t(lang, 'scribeHint');
+    if (!inTouched) {
+      const loc = L.locale;
+      const m = SR_LANGS.find(([c]) => c.toLowerCase() === loc.toLowerCase())
+        || SR_LANGS.find(([c]) => c.split('-')[0] === loc.split('-')[0]);
+      if (m && $('scrIn').value !== m[0]) {
+        $('scrIn').value = m[0];
+        if (listening) { stopRec(); startRec(); }
+      }
+    }
     micUI(); count();
     if (persist) { try { localStorage.setItem('singhoah:lang', lang); } catch { /* ignore */ } }
     document.dispatchEvent(new CustomEvent('singhoah:lang'));
