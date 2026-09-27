@@ -302,6 +302,12 @@ button { font: inherit; color: inherit; }
 .map-cc.nozone { fill: #1f1f1f; cursor: default; }
 .map-cc:not(.nozone):hover { stroke: #ffffff; stroke-width: 1; filter: brightness(1.35); }
 .map-cc.sel { stroke: var(--notification); stroke-width: 1.4; filter: brightness(1.25); }
+/* light mode: pale landmasses on white, so the dark ink stays legible */
+:root:not(.dark) .map-cc { fill: #d9d9d9; stroke: #ffffff; }
+:root:not(.dark) .map-cc.nozone { fill: #e6e6e6; }
+:root:not(.dark) .map-cc:not(.nozone):hover { filter: brightness(0.92); }
+:root:not(.dark) .map-cc.sel { filter: brightness(0.9); }
+
 .map-grat {
   fill: none;
   stroke: var(--pigeon);

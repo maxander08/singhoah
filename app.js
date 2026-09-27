@@ -1936,14 +1936,28 @@ function mapDrawCities() {
   cands.sort((a, b) => (b.c - a.c) || (b.p - a.p));
   const NS = 'http://www.w3.org/2000/svg';
   const frag = document.createDocumentFragment();
+  /* street-map culling: labels never overlap. Bigger places claim their
+     space first; the rest appear as you zoom in and room opens up — that
+     is how every city gets shown without ever becoming soup. */
+  const placed = [];
   for (const c of cands) {
+    if (placed.length >= 90) break;
     const main = cityNameLang(c);
-    const sub = c.s && c.s !== main ? c.s : '';
+    const sub = k >= 5 && c.s && c.s !== main ? c.s : '';
+    const wEst = Math.max(main.length, sub.length) * base * 0.62 + base * 0.8;
+    const hEst = base * (sub ? 2.5 : 1.55);
+    const rx = c.x - wEst / 2, ry = c.y + base * 0.35;
+    let hit = false;
+    for (const r of placed) {
+      if (rx < r.x + r.w && rx + wEst > r.x && ry < r.y + r.h && ry + hEst > r.y) { hit = true; break; }
+    }
+    if (hit) continue;
+    placed.push({ x: rx, y: ry, w: wEst, h: hEst });
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('class', 'map-city');
     const dot = document.createElementNS(NS, 'circle');
     dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y);
-    dot.setAttribute('r', Math.max(0.8, base * 0.15).toFixed(2));
+    dot.setAttribute('r', Math.min(1.8, Math.max(0.55, upx)).toFixed(2));
     g.appendChild(dot);
     const tx = document.createElementNS(NS, 'text');
     tx.setAttribute('x', c.x); tx.setAttribute('y', c.y);

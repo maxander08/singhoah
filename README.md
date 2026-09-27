@@ -97,9 +97,10 @@ Tuesday, 25 August 2026                       05:51 UTC
   cities, towns and villages only, with the name in the app's language and
   the local script underneath (`Taipei` over `臺北市`, `Tokyo` over `東京都`),
   plain ink with no background or halo. Which ones appear follows the zoom —
-  capitals and megacities at world view, and every settlement inside the
-  frame once you are close in; nothing in view is dropped, and labels hold
-  a constant size on screen.
+  capitals and megacities at world view, more as you close in — and labels
+  never overlap: bigger places claim their space first and every other
+  settlement appears as soon as you zoom in far enough to make room.
+  Labels hold a constant size on screen.
 - **IP locator** — the *IP* button shows your public IP with its country
   flag, the city/region/country and coordinates it geolocates to (ipapi.co
   with an ipwho.is fallback), and a one-tap *Use this time zone* action.

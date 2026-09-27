@@ -678,6 +678,15 @@ ok('zooming in reveals labelled cities, towns and villages', city1.n > 3, `${cit
 ok('a city shows its native script below the name',
   city1.main === 'Taipei' && city1.sub === '臺北市', `${city1.main} / ${city1.sub}`);
 ok('city labels carry no background or halo', city1.stroke === 'none', city1.stroke);
+ok('city labels never overlap', await page.evaluate(() => {
+  const b = [...document.querySelectorAll('#mapCities text')].map((t) => t.getBoundingClientRect());
+  for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+    const ox = Math.min(b[i].right, b[j].right) - Math.max(b[i].left, b[j].left);
+    const oy = Math.min(b[i].bottom, b[j].bottom) - Math.max(b[i].top, b[j].top);
+    if (ox > 2 && oy > 2) return false;
+  }
+  return b.length > 3;
+}));
 await page.evaluate(() => {
   const svg = document.getElementById('mapSvg');
   for (let i = 0; i < 6; i++) svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, clientX: 400, clientY: 300 }));
