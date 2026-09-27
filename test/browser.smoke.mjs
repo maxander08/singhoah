@@ -647,7 +647,7 @@ ok('生活 sits beside the SinghoClock wordmark',
 
 /* --- the world map: detailed SVG, click a country to pick its zone --- */
 await page.locator('#btnMap').click();
-await page.waitForTimeout(300);
+await page.waitForSelector('#mapSvg .map-cc', { timeout: 20000 });
 const mp1 = await page.evaluate(() => {
   const tz = document.getElementById('zoneText').textContent.split(' ·')[0];
   return {
@@ -659,9 +659,36 @@ const mp1 = await page.evaluate(() => {
 });
 ok('the map renders 230+ detailed countries plus the 15° graticule',
   mp1.paths >= 230 && mp1.grat, `${mp1.paths} paths`);
+
+/* settlements: zoom-driven labels, English name with the native script under it */
+await page.evaluate(() => window.__SING_LIB.mapGoCity('Taipei'));
+await page.waitForTimeout(700);
+const city1 = await page.evaluate(() => {
+  const labels = [...document.querySelectorAll('#mapCities .map-city')];
+  const tp = labels.find((g) => g.textContent.includes('Taipei'));
+  return {
+    n: labels.length,
+    main: tp ? tp.querySelector('tspan').textContent : null,
+    sub: tp ? tp.querySelector('tspan:nth-of-type(2)')?.textContent || null : null,
+  };
+});
+ok('zooming in reveals labelled cities, towns and villages', city1.n > 3, `${city1.n} labels`);
+ok('a city shows its native script below the name',
+  city1.main === 'Taipei' && city1.sub === '臺北市', `${city1.main} / ${city1.sub}`);
+await page.evaluate(() => {
+  const svg = document.getElementById('mapSvg');
+  for (let i = 0; i < 6; i++) svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, clientX: 400, clientY: 300 }));
+});
+await page.waitForTimeout(400);
+ok('more zoom brings out smaller places', await page.evaluate(() =>
+  document.querySelectorAll('#mapCities .map-city').length > 0));
+await page.evaluate(() => document.getElementById('mapZoomReset').click());
+await page.waitForTimeout(300);
 ok('the current zone country is highlighted', mp1.sel === mp1.cc, `${mp1.sel} vs ${mp1.cc}`);
-await page.screenshot({ path: 'shot-map.png' });
-await page.locator('#mapSvg .map-cc[data-cc="JP"]').click();
+// with 10m coastlines the bbox-center of Japan can fall in open water
+// (the Nanpo islands stretch the box), so dispatch the click on the path
+await page.evaluate(() => document.querySelector('#mapSvg .map-cc[data-cc="JP"]')
+  .dispatchEvent(new MouseEvent('click', { bubbles: true })));
 await page.waitForTimeout(300);
 ok('clicking a single-zone country selects it and closes the map',
   await page.evaluate(() => document.getElementById('mapWrap').hidden
@@ -1067,8 +1094,8 @@ ok('mouse-wheel zoom works', mw2 < mw1);
 await page.click('#mapZoomReset');
 await page.waitForTimeout(200);
 ok('reset button restores full view', Math.abs(parseFloat((await page.getAttribute('#mapSvg', 'viewBox')).split(' ')[2]) - mw0) < 1);
-const mccPath = page.locator('.map-cc:not(.nozone)').first();
-await mccPath.hover();
+const mccPath = page.locator('.map-cc[data-cc="FR"]');
+await mccPath.dispatchEvent('pointermove', { clientX: 700, clientY: 300 });
 await page.waitForTimeout(300);
 const mtipShown = !(await page.locator('#mapTip').isHidden()) && (await page.textContent('#mapTip')).length > 1;
 ok('hover tooltip shows country + local time', mtipShown);
@@ -1480,6 +1507,41 @@ ok('mobile Scribe mic is a thumb target', await mpg.evaluate(() =>
   document.getElementById('scrMic').getBoundingClientRect().height >= 44));
 await mpg.close();
 await msc.close();
+
+/* map labels follow the app language; phone gets a touch-zoomable map */
+const zlc = await browser.newContext({ viewport: { width: 1440, height: 850 } });
+await zlc.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  localStorage.setItem('singhoah:lang', 'zh-Hant');
+});
+const zlp = await zlc.newPage();
+await zlp.goto(URL + 'index.html', { waitUntil: 'load' });
+await zlp.waitForTimeout(300);
+await zlp.evaluate(() => window.__SING_LIB.mapGoCity('Taipei'));
+await zlp.waitForSelector('#mapCities .map-city', { timeout: 20000 });
+await zlp.waitForTimeout(400);
+ok('map labels follow the app language', await zlp.evaluate(() =>
+  [...document.querySelectorAll('#mapCities .map-city')]
+    .some((g) => g.querySelector('tspan').textContent === '臺北市')));
+await zlp.close();
+await zlc.close();
+
+const mcc = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+await mcc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const mcp2 = await mcc.newPage();
+await mcp2.goto(URL + 'index.html', { waitUntil: 'load' });
+await mcp2.waitForTimeout(400);
+await mcp2.click('#btnMap');
+await mcp2.waitForSelector('#mapSvg .map-cc', { timeout: 20000 });
+await mcp2.evaluate(() => window.__SING_LIB.mapGoCity('Tokyo'));
+await mcp2.waitForSelector('#mapCities .map-city', { timeout: 10000 });
+ok('the phone map carries city labels and gives gestures to the page', await mcp2.evaluate(() => {
+  const svg = document.getElementById('mapSvg');
+  return document.querySelectorAll('#mapCities .map-city').length > 3
+    && getComputedStyle(svg).touchAction === 'none';
+}));
+await mcp2.close();
+await mcc.close();
 
 /* --- SMate compound commands: zones + window shape + extras in one sentence --- */
 const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });

@@ -288,7 +288,17 @@ button { font: inherit; color: inherit; }
   padding: 10px;
 }
 .map-wrap[hidden] { display: none; }
-.map-wrap svg { width: 100%; height: 100%; }
+.map-wrap svg { width: 100%; height: 100%; touch-action: none; }
+/* settlement labels: screen-constant size, haloed over any border */
+.map-city { pointer-events: none; }
+.map-city circle { fill: var(--black); }
+.map-city text {
+  fill: var(--black); font-family: var(--font-sans); font-weight: 650;
+  font-variation-settings: "wght" 650;
+  paint-order: stroke; stroke: var(--paper); stroke-width: var(--halo, 3px);
+  stroke-linejoin: round;
+}
+.map-city-sub { font-weight: 500; font-variation-settings: "wght" 500; opacity: .72; }
 /* monochrome atlas: dark-grey landmasses, white country borders */
 .map-cc { fill: #2e2e2e; stroke: #ffffff; stroke-width: .6; cursor: pointer; }
 .map-cc.nozone { fill: #1f1f1f; cursor: default; }

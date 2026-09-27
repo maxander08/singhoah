@@ -1803,6 +1803,8 @@ async function runSync(full = true) {
 
 let mapPaths = new Map();   // cc -> svg path
 let zoneWhitelist = null;   // map-driven picker filter
+let cityLayer = null;       // settlement labels group
+let mapCities = [];         // decoded settlement rows
 
 function buildMap() {
   const M = globalThis.__SINGHOAH_MAP;
@@ -1832,6 +1834,10 @@ function buildMap() {
     els.mapSvg.appendChild(p);
     mapPaths.set(cc, p);
   }
+  cityLayer = document.createElementNS(NS, 'g');
+  cityLayer.setAttribute('id', 'mapCities');
+  els.mapSvg.appendChild(cityLayer);
+  mapCities = (M.cities || []).map(([x, y, n2, p2, s2, t2, c2]) => ({ x, y, n: n2, p: p2, s: s2 || '', t: t2 || null, c: !!c2 }));
 }
 
 function mapCountryClick(cc) {
@@ -1849,9 +1855,31 @@ function markMapSel() {
   mapPaths.forEach((p, k) => p.classList.toggle('sel', k === cc));
 }
 
+/* the 10m geometry is heavy — it rides along on first map open, not page load */
+let mapDataState = 0;
+const mapWaiters = [];
+function ensureMapData(done) {
+  if (globalThis.__SINGHOAH_MAP) { done(); return; }
+  mapWaiters.push(done);
+  if (mapDataState === 1) return;
+  mapDataState = 1;
+  const s = document.createElement('script');
+  s.src = 'mapdata.js';
+  s.onload = () => {
+    mapDataState = 2;
+    buildMap();
+    mapBase = { w: globalThis.__SINGHOAH_MAP.w, h: globalThis.__SINGHOAH_MAP.h };
+    const q = mapWaiters.splice(0);
+    for (const f of q) f();
+  };
+  s.onerror = () => { mapDataState = 0; mapWaiters.length = 0; closeMap(); };
+  document.head.appendChild(s);
+}
+
 function openMap() {
-  mapView = { k: 1, cx: mapBase.w / 2, cy: mapBase.h / 2 };
+  mapView = { k: 1, cx: (mapBase.w || 960) / 2, cy: (mapBase.h || 500) / 2 };
   if (mapBase.w) mapApply();
+  ensureMapData(() => { mapApply(); markMapSel(); });
   /* the full-screen map closes any menu left floating above it */
   closePop();
   closeLangPop();
@@ -1876,6 +1904,96 @@ function closeMap() {
   els.btnMap.setAttribute('aria-pressed', 'false');
 }
 
+/* ---- settlements: Google-style labels. More appear as you zoom in,
+       collisions are dropped biggest-first, text stays screen-sized, and
+       the native script rides under the app-language name (Taipei / 臺北市). */
+const CITY_TR_KEY = { 'zh-Hant': 'zht', hi: 'hi', es: 'es', fr: 'fr', ar: 'ar', bn: 'bn', ru: 'ru', pt: 'pt', ur: 'ur' };
+function cityNameLang(c) {
+  const key = CITY_TR_KEY[lang];
+  if (key === 'zht') return (c.t && c.t.zht) || c.s || c.n;
+  return (key && c.t && c.t[key]) || c.n;
+}
+let cityRaf = 0;
+function scheduleCities() {
+  if (cityRaf) return;
+  cityRaf = requestAnimationFrame(() => { cityRaf = 0; mapDrawCities(); });
+}
+function mapDrawCities() {
+  if (!cityLayer || !mapBase.w || els.mapWrap.hidden) return;
+  const k = mapView.k, { w, h } = mapBase;
+  const vw = w / k, vh = h / k;
+  const x0 = mapView.cx - vw / 2, y0 = mapView.cy - vh / 2;
+  const rect = els.mapSvg.getBoundingClientRect();
+  const upx = vw / Math.max(1, rect.width);              // svg units per screen px
+  const base = 11 * upx;                                 // 11px labels at any zoom
+  const thresh = Math.max(1, 5000 / Math.pow(k, 2.6));   // pop (thousands) by zoom
+  const cands = [];
+  for (const c of mapCities) {
+    if (c.x < x0 || c.x > x0 + vw || c.y < y0 || c.y > y0 + vh) continue;
+    if (c.p < thresh && !(c.c && k >= 2)) continue;
+    cands.push(c);
+  }
+  cands.sort((a, b) => (b.c - a.c) || (b.p - a.p));
+  const NS = 'http://www.w3.org/2000/svg';
+  const frag = document.createDocumentFragment();
+  const placed = [];
+  for (const c of cands) {
+    if (placed.length >= 70) break;
+    const main = cityNameLang(c);
+    const sub = c.s && c.s !== main ? c.s : '';
+    const wEst = Math.max(main.length, sub.length) * base * 0.62 + base;
+    const hEst = base * (sub ? 2.6 : 1.7);
+    const rx = c.x - wEst / 2, ry = c.y + base * 0.4;
+    let hit = false;
+    for (const r of placed) {
+      if (rx < r.x + r.w && rx + wEst > r.x && ry < r.y + r.h && ry + hEst > r.y) { hit = true; break; }
+    }
+    if (hit) continue;
+    placed.push({ x: rx, y: ry, w: wEst, h: hEst });
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'map-city');
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y);
+    dot.setAttribute('r', Math.max(0.8, base * 0.15).toFixed(2));
+    g.appendChild(dot);
+    const tx = document.createElementNS(NS, 'text');
+    tx.setAttribute('x', c.x); tx.setAttribute('y', c.y);
+    tx.setAttribute('text-anchor', 'middle');
+    tx.style.fontSize = `${base.toFixed(2)}px`;
+    const t1 = document.createElementNS(NS, 'tspan');
+    t1.setAttribute('x', c.x); t1.setAttribute('dy', (base * 1.2).toFixed(2));
+    t1.textContent = main;
+    tx.appendChild(t1);
+    if (sub) {
+      const t2 = document.createElementNS(NS, 'tspan');
+      t2.setAttribute('x', c.x); t2.setAttribute('dy', (base * 0.95).toFixed(2));
+      t2.setAttribute('class', 'map-city-sub');
+      t2.textContent = sub;
+      tx.appendChild(t2);
+    }
+    g.appendChild(tx);
+    frag.appendChild(g);
+  }
+  cityLayer.textContent = '';
+  cityLayer.appendChild(frag);
+  cityLayer.style.setProperty('--halo', `${Math.max(1.5, base * 0.3).toFixed(2)}px`);
+}
+/* center the map on a named settlement — the picker behind "map Taipei" */
+function mapGoCity(name) {
+  const want = String(name || '').trim().toLowerCase();
+  openMap();
+  ensureMapData(() => {
+    const c = mapCities.find((x) => x.n.toLowerCase() === want)
+      || mapCities.find((x) => x.n.toLowerCase().startsWith(want));
+    if (!c) return;
+    mapView.k = 8;
+    mapView.cx = c.x; mapView.cy = c.y;
+    mapApply();
+  });
+  return true;
+}
+if (typeof document !== 'undefined') document.addEventListener('singhoah:lang', scheduleCities);
+
 /* ---- map tools: zoom, pan, live tooltip, close ---- */
 let mapView = { k: 1, cx: 0, cy: 0 };
 let mapBase = { w: 0, h: 0 };
@@ -1898,9 +2016,10 @@ function mapApply() {
   mapView.cx = x + vw / 2; mapView.cy = y + vh / 2;
   els.mapSvg.setAttribute('viewBox', `${x} ${y} ${vw} ${vh}`);
   els.mapSvg.style.setProperty('--mapk', String(1 / k));   /* hairlines stay hairlines */
+  scheduleCities();
 }
 function mapZoom(f, px, py) {
-  const k2 = Math.max(1, Math.min(10, mapView.k * f));
+  const k2 = Math.max(1, Math.min(16, mapView.k * f));
   if (k2 === mapView.k) return;
   const { w, h } = mapBase;
   const vw = w / mapView.k, vh = h / mapView.k;
@@ -1955,11 +2074,35 @@ function initMapTools() {
   });
   /* pan via window listeners (no setPointerCapture — it would retarget
      the click event to the svg and break country picking) */
+  const ptrs = new Map();
+  let pinch = null;
+  const ptrDist = () => {
+    const [a, b] = [...ptrs.values()];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  };
   svg.addEventListener('pointerdown', (e) => {
+    ptrs.set(e.pointerId, e);
+    if (ptrs.size === 2) {
+      mapDrag = null;
+      pinch = { d0: ptrDist() || 1, k0: mapView.k };
+      return;
+    }
     mapDrag = { x: e.clientX, y: e.clientY, cx: mapView.cx, cy: mapView.cy, r: svg.getBoundingClientRect() };
     mapMoved = false;
   });
   window.addEventListener('pointermove', (e) => {
+    if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, e);
+    if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const r = svg.getBoundingClientRect();
+      const target = Math.max(1, Math.min(16, pinch.k0 * (ptrDist() / pinch.d0)));
+      if (target !== mapView.k) {
+        mapZoom(target / mapView.k,
+          ((a.clientX + b.clientX) / 2 - r.left) / r.width,
+          ((a.clientY + b.clientY) / 2 - r.top) / r.height);
+      }
+      return;
+    }
     if (mapDrag && mapView.k > 1) {
       const r = mapDrag.r;
       const vw = mapBase.w / mapView.k, vh = mapBase.h / mapView.k;
@@ -1971,7 +2114,11 @@ function initMapTools() {
       mapApply();
     }
   });
-  const endDrag = () => { if (mapDrag) { mapDrag = null; setTimeout(() => { mapMoved = false; }, 0); } };
+  const endDrag = (e) => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (mapDrag) { mapDrag = null; setTimeout(() => { mapMoved = false; }, 0); }
+  };
   window.addEventListener('pointerup', endDrag);
   window.addEventListener('pointercancel', endDrag);
   svg.addEventListener('pointermove', (e) => {
@@ -2097,8 +2244,6 @@ function initUI() {
   buildLangPicker();
   buildWindowMenu();
   buildTimerPop();
-  buildMap();
-  if (globalThis.__SINGHOAH_MAP) { mapBase = { w: globalThis.__SINGHOAH_MAP.w, h: globalThis.__SINGHOAH_MAP.h }; }
   initMapTools();
 
   const zones = allTimeZones();
@@ -2255,7 +2400,7 @@ globalThis.__SING_LIB = {
   curSymbol, curName, curFlag, CURRENCIES, curAlias,
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,
-  smateWindow, clearWindow, smateRemove, smateRestart, brandFix,
+  smateWindow, clearWindow, smateRemove, smateRestart, brandFix, mapGoCity,
 };
 
 if (typeof document !== 'undefined') {
