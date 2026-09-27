@@ -36,22 +36,30 @@ const VB = { w: 1000, h: 800 };
 /* screen <-> map conversion, correct for preserveAspectRatio letterboxing */
 function vGeom() {
   const v = view[sys];
-  const w = VB.w / v.k, h = VB.h / v.k;
   const rect = els.metroSvg.getBoundingClientRect();
+  /* the viewBox follows the container's aspect so portrait phones use the
+     whole screen instead of a letterboxed strip */
+  const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
+  const w = VB.w / v.k, h = w * aspect;
   const s = Math.min(rect.width / w, rect.height / h) || 1; /* meet scale */
   return { v, w, h, rect, s, ox: (rect.width - w * s) / 2, oy: (rect.height - h * s) / 2 };
 }
+/* portrait phones get the map rotated 90° so the lines' long axis runs
+   down the screen instead of across a thin strip */
+const PORTRAIT = (() => { try { return innerHeight > innerWidth; } catch { return false; } })();
 for (const sys of ['TRTC', 'TY']) {
   const pts = Object.values(ST).filter((s) => s.sys === sys);
   const lons = pts.map((p) => p.lon), lats = pts.map((p) => p.lat);
   const lo0 = Math.min(...lons), lo1 = Math.max(...lons), la0 = Math.min(...lats), la1 = Math.max(...lats);
   const kmx = (lo1 - lo0) * 111.32 * Math.cos(((la0 + la1) / 2) * RAD);
   const kmy = (la1 - la0) * 110.57;
-  const sc = Math.min((VB.w - 160) / Math.max(1e-6, kmx), (VB.h - 160) / Math.max(1e-6, kmy));
-  const ox = (VB.w - kmx * sc) / 2, oy = (VB.h - kmy * sc) / 2;
+  const fw = PORTRAIT ? kmy : kmx, fh = PORTRAIT ? kmx : kmy; /* frame axes */
+  const sc = Math.min((VB.w - 160) / Math.max(1e-6, fw), (VB.h - 160) / Math.max(1e-6, fh));
+  const ox = (VB.w - fw * sc) / 2, oy = (VB.h - fh * sc) / 2;
   for (const p of pts) {
-    p.x = ox + (p.lon - lo0) * 111.32 * Math.cos(((la0 + la1) / 2) * RAD) * sc;
-    p.y = oy + (la1 - p.lat) * 110.57 * sc;
+    const ex = (p.lon - lo0) * 111.32 * Math.cos(((la0 + la1) / 2) * RAD) * sc;
+    const ey = (la1 - p.lat) * 110.57 * sc;
+    if (PORTRAIT) { p.x = ox + ey; p.y = oy + ex; } else { p.x = ox + ex; p.y = oy + ey; }
   }
 }
 
@@ -178,7 +186,7 @@ function buildSysTabs() {
     b.addEventListener('click', () => {
       sys = id; from = to = null;
       try { localStorage.setItem('singhoah:metroSys', id); } catch { /* ignore */ }
-      buildSysTabs(); renderBar(); draw();
+      buildSysTabs(); renderBar(); fitContent();
     });
     els.metroSys.appendChild(b);
   }
@@ -188,9 +196,9 @@ function buildSysTabs() {
 
 function draw() {
   const v = view[sys];
-  const w = VB.w / v.k, h = VB.h / v.k;
-  els.metroSvg.setAttribute('viewBox', `${v.cx - w / 2} ${v.cy - h / 2} ${w} ${h}`);
-  const upx = 1 / vGeom().s;
+  const g = vGeom();
+  els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
+  const upx = 1 / g.s;
 
   /* lines */
   els.metroLines.textContent = '';
@@ -246,21 +254,23 @@ function draw() {
     if (placed.length >= 80) break;
     const wEst = Math.max(s.en.length, s.zh.length) * base * 0.62 + base;
     const hEst = base * 2.6;
-    const rx = s.x - wEst / 2, ry = s.y + base * 0.5;
+    /* keep the whole label inside the 0..1000 frame (edge stations) */
+    const lx = Math.min(VB.w - wEst / 2 - 4, Math.max(wEst / 2 + 4, s.x));
+    const rx = lx - wEst / 2, ry = s.y + base * 0.5;
     let hit = false;
     for (const q of placed) if (rx < q.x + q.w && rx + wEst > q.x && ry < q.y + q.h && ry + hEst > q.y) { hit = true; break; }
     if (hit) continue;
     placed.push({ x: rx, y: ry, w: wEst, h: hEst });
     const tx = document.createElementNS(NS, 'text');
-    tx.setAttribute('x', s.x); tx.setAttribute('y', s.y);
+    tx.setAttribute('x', lx); tx.setAttribute('y', s.y);
     tx.setAttribute('text-anchor', 'middle');
     tx.setAttribute('class', 'metro-label');
     tx.style.fontSize = `${base.toFixed(2)}px`;
     const t1 = document.createElementNS(NS, 'tspan');
-    t1.setAttribute('x', s.x); t1.setAttribute('dy', (base * 1.5).toFixed(2));
+    t1.setAttribute('x', lx); t1.setAttribute('dy', (base * 1.5).toFixed(2));
     t1.textContent = s.en;
     const t2 = document.createElementNS(NS, 'tspan');
-    t2.setAttribute('x', s.x); t2.setAttribute('dy', (base * 0.95).toFixed(2));
+    t2.setAttribute('x', lx); t2.setAttribute('dy', (base * 0.95).toFixed(2));
     t2.setAttribute('class', 'metro-label-zh');
     t2.textContent = s.zh;
     tx.append(t1, t2);
@@ -295,7 +305,27 @@ function renderBar() {
 function setView(nx, ny, nk) {
   const v = view[sys];
   v.k = Math.min(12, Math.max(0.7, nk));
-  v.cx = nx; v.cy = ny;
+  v.cx = Math.min(VB.w, Math.max(0, nx));
+  v.cy = Math.min(VB.h, Math.max(0, ny));
+  draw();
+}
+
+/* zoom so the current system's stations fill the frame */
+function fitContent() {
+  const rect = els.metroSvg.getBoundingClientRect();
+  const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (const s of Object.values(ST)) {
+    if (s.sys !== sys) continue;
+    minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x);
+    minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y);
+  }
+  const pad = 70;
+  minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+  const v = view[sys];
+  v.k = Math.min(12, Math.max(0.7, Math.min(VB.w / (maxX - minX), (VB.w * aspect) / (maxY - minY))));
+  v.cx = (minX + maxX) / 2;
+  v.cy = (minY + maxY) / 2;
   draw();
 }
 
@@ -339,7 +369,7 @@ els.metroSvg.addEventListener('wheel', (e) => {
 }, { passive: false });
 els.metroIn.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k * 1.4); });
 els.metroOut.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k / 1.4); });
-els.metroFit.addEventListener('click', () => { view[sys] = { cx: 500, cy: 400, k: 1 }; draw(); });
+els.metroFit.addEventListener('click', () => fitContent());
 els.mSwap.addEventListener('click', () => { [from, to] = [to, from]; renderBar(); draw(); });
 els.mClear.addEventListener('click', () => { from = to = null; renderBar(); draw(); });
 
@@ -353,5 +383,6 @@ els.btnNight.addEventListener('click', () => {
   draw();
 });
 applyLang(lang, false);
+fitContent();
 
 globalThis.__METRO = { route, fare, ST, get sys() { return sys; } };
