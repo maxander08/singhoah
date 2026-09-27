@@ -1,4 +1,4 @@
-# Singhoah
+# SinghoClock
 
 Live: <https://maxander08.github.io/singhoah/> (GitHub Pages) — plus the app family:
 wallet <…/wallet.html>, launchpad <…/launch.html>.
@@ -103,11 +103,10 @@ Tuesday, 25 August 2026                       05:51 UTC
 - **SinghoLaunch** (`launch.html`) — the launchpad: a small live
   HH:MM:SS:mmm clock widget with a hairline analog dial above it and a
   searchable time-zone picker (persisted per browser), cards for the
-  Singhoah clock and SinghoWallet plus the offline single-file builds,
-  translated in all ten languages; the clock's top bar links to it via
-  *Launchpad*. A first-ever visit to the site lands here instead of the
-  clock. The wordmarks fly 生活 beside *Singhoah* and 錢包 beside
-  *SinghoWallet*.
+  SinghoClock clock and SinghoWallet, translated in all ten languages;
+  the clock's top bar links to it via *Launchpad*. A first-ever visit to
+  the site lands here instead of the clock. The wordmarks fly 生活 beside
+  *SinghoClock* and 錢包 beside *SinghoWallet*.
   The MAC row states plainly that browsers do not expose MAC addresses to
   web pages.
 - **Phone-friendly** — dropdowns open right below their button exactly as on
@@ -147,7 +146,7 @@ independently-running zone per cell.
 
 ## SinghoScribe — live lecture transcription
 
-A fifth app (`scribe.html`, plus offline single-file build): press **Start**, speak,
+A fifth app (`scribe.html`): press **Start**, speak,
 and the editable document fills up in real time (interim text shown faint until
 finalized), Google-Doc style — editable page, renameable title, silent autosave, word **and character** count with a listening-time
 timer, copy / download / clear, autosaved to `singhoah:scribe` (and synced with
@@ -169,7 +168,7 @@ appears where unsupported). On phones the layout adapts: 16px page text
 
 ## SinghoSettings — the settings page
 
-A fourth app (`settings.html`, also as an offline single-file build) gathers every
+A fourth app (`settings.html`) gathers every
 preference in one place, in all ten languages: language, appearance (night shift),
 clock city, wallet currency (the search understands aliases — type **NTD** and the
 Taiwan dollar appears), the account note, and a *Reset local data* action that clears
@@ -201,7 +200,7 @@ clears there.
 The mic button answers in the app's current language where the browser
 supports speech recognition, and it knows the Singho vocabulary: the way
 speech engines mishear the brand names ("sing ho wallet", "s mate") is
-mapped back to **Singhoah**, **SinghoWallet**, **SinghoScribe**,
+mapped back to **SinghoClock**, **SinghoWallet**, **SinghoScribe**,
 **SinghoSettings** and **SMate**, so `open SinghoWallet` works whether it
 was typed or spoken. The header line shows online / typing… /
 listening / unavailable like a chat app.
@@ -280,8 +279,7 @@ reachable, the portal falls back to per-account snapshots in that browser. To en
 
 Nothing else changes: the portal detects a real config and activates on its own, and
 the Firebase SDK is only downloaded when someone actually clicks Sign in. Put the
-`PASTE_`/`YOUR_` placeholders back and it goes fully dormant again. The standalone
-single-file builds never include the portal (they are meant to run offline).
+`PASTE_`/`YOUR_` placeholders back and it goes fully dormant again.
 
 ## Layout
 

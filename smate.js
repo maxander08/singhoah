@@ -290,7 +290,7 @@
     lang: [...words(['language']), 'language', 'lang'],
     tz: [...words(['tzTitle', 'homeCity']), 'zone', 'timezone', 'tz', '時區'],
     wallet: [...words(['wallet']), 'singhowallet'],
-    clock: [...words(['lpClock']), 'clock', 'singhoah'],
+    clock: [...words(['lpClock']), 'clock', 'singhoclock'],
     settings: [...words(['settings']), 'singhosettings'],
     scribe: [...words(['lpScribe']), 'scribe', 'singhoscribe'],
     launch: words(['launchpad']),
@@ -814,7 +814,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open Singhoah|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');
   async function askAI(raw) {

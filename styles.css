@@ -1,5 +1,5 @@
 /* ============================================================
-   Singhoah — style
+   SinghoClock — style
    Design scheme after Mini Metro's signage language (recreated, not themed):
    flat warm paper, near-black bold geometric type, sharp corners, no
    shadows or gradients, solid transit-blue chips for anything selected,
@@ -674,7 +674,6 @@ button { font: inherit; color: inherit; }
 .lp-card strong { font-size: 19px; font-weight: 750; letter-spacing: -.02em; font-variation-settings: "wght" 750; }
 .lp-sub { color: var(--pigeon); font-size: 13px; }
 .lp-card:hover .lp-sub { color: inherit; }
-.lp-offrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .lp-dial { width: clamp(96px, 24vw, 128px); aspect-ratio: 1; margin: 0 auto 12px; }
 .lp-dial svg { width: 100%; height: 100%; display: block; }
 .lp-tzwrap { position: relative; display: inline-block; }

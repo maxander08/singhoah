@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SinghoLaunch — launchpad</title>
-<meta name="description" content="Launchpad for the Singhoah app family: clock and wallet.">
+<meta name="description" content="Launchpad for the SinghoClock app family: clock and wallet.">
 <meta name="color-scheme" content="dark light">
 <script>
   try { if ((localStorage.getItem('singhoah:night') || '1') === '1') document.documentElement.classList.add('dark'); }
@@ -63,7 +63,7 @@
   <div class="lp-grid">
     <a class="lp-card" id="cardClock" href="index.html">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.5l3.1 1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <strong>Singhoah · <span id="lpClockT">Clock</span></strong>
+      <strong>SinghoClock · <span id="lpClockT">Clock</span></strong>
       <span class="lp-sub" id="lpClockS">Drift-corrected world clock</span>
     </a>
     <a class="lp-card" id="cardWallet" href="wallet.html">
@@ -81,12 +81,6 @@
       <strong>SinghoScribe · <span id="lpScribeT">Scribe</span></strong>
       <span class="lp-sub" id="lpScribeS">Live lecture transcription</span>
     </a>
-  </div>
-  <div class="lp-offrow">
-    <a class="btn" id="lpOffClock" href="standalone.html">Clock · Offline single-file</a>
-    <a class="btn" id="lpOffWallet" href="wallet-standalone.html">Wallet · Offline single-file</a>
-    <a class="btn" id="lpOffSettings" href="settings-standalone.html">Settings · Offline single-file</a>
-    <a class="btn" id="lpOffScribe" href="scribe-standalone.html">Scribe · Offline single-file</a>
   </div>
 </main>
 
@@ -216,18 +210,14 @@
     $('lpClockS').textContent = t(lang, 'lpClockSub');
     $('lpWalletT').textContent = t(lang, 'wallet');
     $('lpWalletS').textContent = t(lang, 'lpWalletSub');
-    $('lpOffClock').textContent = `${t(lang, 'lpClock')} · ${t(lang, 'lpOffline')}`;
-    $('lpOffWallet').textContent = `${t(lang, 'wallet')} · ${t(lang, 'lpOffline')}`;
     $('lpSettingsT').textContent = t(lang, 'settings');
     $('lpSettingsS').textContent = t(lang, 'lpSettingsSub');
-    $('lpOffSettings').textContent = `${t(lang, 'settings')} · ${t(lang, 'lpOffline')}`;
     if ($('settingsText')) $('settingsText').textContent = t(lang, 'settings');
     if ($('clockText')) $('clockText').textContent = t(lang, 'lpClock');
     if ($('btnClock')) $('btnClock').title = t(lang, 'lpClock');
     if ($('btnSettings')) $('btnSettings').title = t(lang, 'settings');
     $('lpScribeT').textContent = t(lang, 'lpScribe');
     $('lpScribeS').textContent = t(lang, 'lpScribeSub');
-    $('lpOffScribe').textContent = `${t(lang, 'lpScribe')} · ${t(lang, 'lpOffline')}`;
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');
     lpTzSearch.placeholder = t(lang, 'search');
     lpTzSearch.setAttribute('aria-label', t(lang, 'search'));

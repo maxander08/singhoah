@@ -1,5 +1,5 @@
 /* ============================================================
-   Singhoah — Firebase web-app config (optional Google sign-in)
+   SinghoClock — Firebase web-app config (optional Google sign-in)
 
    Live config for project "singhoah1" (owner: maxander08).
    The portal renders the Sign-in button whenever this object

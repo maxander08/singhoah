@@ -38,7 +38,7 @@ await page.waitForTimeout(400);
 const clockOf = () => page.locator('#clock').textContent();
 
 /* --- the name --- */
-ok('wordmark reads Singhoah', (await page.locator('.wordmark').textContent()).trim() === 'Singhoah',
+ok('wordmark reads SinghoClock', (await page.locator('.wordmark').textContent()).trim() === 'SinghoClock',
   (await page.locator('.wordmark').textContent()).trim());
 
 /* --- the clock itself --- */
@@ -642,7 +642,7 @@ if (!ipd.useHidden) {
 /* --- the wallet moved out: SinghoWallet is its own app --- */
 ok('the clock ships no wallet — SinghoWallet is its own app',
   await page.evaluate(() => !document.getElementById('btnWallet') && !!document.getElementById('btnLaunch')));
-ok('生活 sits beside the Singhoah wordmark',
+ok('生活 sits beside the SinghoClock wordmark',
   (await page.locator('.wordmark-zh').textContent()) === '生活');
 
 /* --- the world map: detailed SVG, click a country to pick its zone --- */
@@ -1410,7 +1410,8 @@ ok('SMate can print', await fp.evaluate(() =>
 ok('brand vocabulary maps speech mishearings', await fp.evaluate(() =>
   window.__SING_LIB.brandFix('open sing ho wallet then sing ho scribe') === 'open singhowallet then singhoscribe'
   && window.__SING_LIB.brandFix('i use sing ho script and s mate daily', true) === 'i use SinghoScribe and SMate daily'
-  && window.__SING_LIB.brandFix('Singhoah and sing how ahh', true) === 'Singhoah and Singhoah'));
+  && window.__SING_LIB.brandFix('Singhoah and sing how ahh', true) === 'SinghoClock and SinghoClock'
+  && window.__SING_LIB.brandFix('open sing ho clock') === 'open singhoclock'));
 await fcSend('hey smate');
 ok('calling SMate by name answers with its skills', await fp.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.length > 20));

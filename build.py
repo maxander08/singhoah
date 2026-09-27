@@ -37,81 +37,12 @@ shutil.copy(SRC / "smate.js", OUT / "smate.js")
 shutil.copy(SRC / "settings.html", OUT / "settings.html")
 shutil.copy(SRC / "scribe.html", OUT / "scribe.html")
 
-# self-contained single file (works in sandboxed previews, offline, anywhere)
-SMATE = (SRC / "smate.js").read_text(encoding="utf-8")
-SMATE_TAG = '<script type="module" src="smate.js"></script>'
-def inline_smate(s):
-    return s.replace(SMATE_TAG, '<script type="module">\n' + SMATE + '\n</script>')
-html = (SRC / "index.html").read_text(encoding="utf-8")
-html = html.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
-html = html.replace('<link rel="stylesheet" href="fonts.css">',
-                    '<style>\n' + "\n".join(css) + '\n</style>')
-html = html.replace('<link rel="stylesheet" href="styles.css">',
-                    '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
-html = html.replace('<script src="mapdata.js"></script>',
-                    '<script>\n' + (SRC / "mapdata.js").read_text(encoding="utf-8") + '\n</script>')
-html = html.replace('<script src="flags.js"></script>',
-                    '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
-html = html.replace('<script type="module" src="app.js"></script>',
-                    '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
-(OUT / "standalone.html").write_text(inline_smate(html), encoding="utf-8")
-
 # --- sibling apps: SinghoWallet + SinghoLaunch ---
 for n in ["wallet.html", "wallet.js", "launch.html"]:
     shutil.copy(SRC / n, OUT / n)
 
-whtml = (SRC / "wallet.html").read_text(encoding="utf-8")
-whtml = whtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
-whtml = whtml.replace('<link rel="stylesheet" href="fonts.css">',
-                      '<style>\n' + "\n".join(css) + '\n</style>')
-whtml = whtml.replace('<link rel="stylesheet" href="styles.css">',
-                      '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
-whtml = whtml.replace('<script src="flags.js"></script>',
-                      '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
-whtml = whtml.replace('<script type="module" src="app.js"></script>',
-                      '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
-whtml = whtml.replace('<script type="module" src="wallet.js"></script>',
-                      '<script type="module">\n' + (SRC / "wallet.js").read_text(encoding="utf-8") + '\n</script>')
-(OUT / "wallet-standalone.html").write_text(inline_smate(whtml), encoding="utf-8")
-
-lhtml = (SRC / "launch.html").read_text(encoding="utf-8")
-lhtml = lhtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
-lhtml = lhtml.replace('<link rel="stylesheet" href="fonts.css">',
-                      '<style>\n' + "\n".join(css) + '\n</style>')
-lhtml = lhtml.replace('<link rel="stylesheet" href="styles.css">',
-                      '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
-lhtml = lhtml.replace('<script src="flags.js"></script>',
-                      '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
-lhtml = lhtml.replace('<script type="module" src="app.js"></script>',
-                      '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
-(OUT / "launch-standalone.html").write_text(inline_smate(lhtml), encoding="utf-8")
-
-shtml = (SRC / "settings.html").read_text(encoding="utf-8")
-shtml = shtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
-shtml = shtml.replace('<link rel="stylesheet" href="fonts.css">',
-                      '<style>\n' + "\n".join(css) + '\n</style>')
-shtml = shtml.replace('<link rel="stylesheet" href="styles.css">',
-                      '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
-shtml = shtml.replace('<script src="flags.js"></script>',
-                      '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
-shtml = shtml.replace('<script type="module" src="app.js"></script>',
-                      '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
-(OUT / "settings-standalone.html").write_text(inline_smate(shtml), encoding="utf-8")
-
-crhtml = (SRC / "scribe.html").read_text(encoding="utf-8")
-crhtml = crhtml.replace('<script src="firebase-config.js"></script>', '').replace('<script type="module" src="auth.js"></script>', '')
-crhtml = crhtml.replace('<link rel="stylesheet" href="fonts.css">',
-                        '<style>\n' + "\n".join(css) + '\n</style>')
-crhtml = crhtml.replace('<link rel="stylesheet" href="styles.css">',
-                        '<style>\n' + (SRC / "styles.css").read_text(encoding="utf-8") + '\n</style>')
-crhtml = crhtml.replace('<script src="flags.js"></script>',
-                        '<script>\n' + (SRC / "flags.js").read_text(encoding="utf-8") + '\n</script>')
-crhtml = crhtml.replace('<script type="module" src="app.js"></script>',
-                        '<script type="module">\n' + (SRC / "app.js").read_text(encoding="utf-8") + '\n</script>')
-(OUT / "scribe-standalone.html").write_text(inline_smate(crhtml), encoding="utf-8")
-
-SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js", "standalone.html",
-           "wallet.html", "wallet.js", "launch.html", "wallet-standalone.html", "launch-standalone.html",
-           "firebase-config.js", "auth.js", "smate.js", "settings.html", "settings-standalone.html", "scribe.html", "scribe-standalone.html"]
+SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js",
+           "wallet.html", "wallet.js", "launch.html",
+           "firebase-config.js", "auth.js", "smate.js", "settings.html", "scribe.html"]
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))
