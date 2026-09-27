@@ -1964,15 +1964,15 @@ function mapDrawCities() {
       if (rx < r.x + r.w && rx + wEst > r.x && ry < r.y + r.h && ry + hEst > r.y) { hit = true; break; }
     }
     if (hit) continue;
-    const fits = rx >= vx0 && rx + wEst <= vx1;
-    if (fits) placed.push({ x: rx, y: ry, w: wEst, h: hEst });
+    placed.push({ x: rx, y: ry, w: wEst, h: hEst });
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('class', 'map-city');
     const dot = document.createElementNS(NS, 'circle');
     dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y);
     dot.setAttribute('r', Math.min(1.8, Math.max(0.55, upx)).toFixed(2));
     g.appendChild(dot);
-    if (!fits) { frag.appendChild(g); continue; }
+    /* labels may run off the viewport edge and clip there, street-map
+       style — a pointer without its name reads as junk geometry */
     const tx = document.createElementNS(NS, 'text');
     tx.setAttribute('x', c.x); tx.setAttribute('y', c.y);
     tx.setAttribute('text-anchor', 'middle');

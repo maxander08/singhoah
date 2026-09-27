@@ -1561,7 +1561,7 @@ ok('the phone map carries city labels and gives gestures to the page', await mcp
 }));
 await mcp2.evaluate(() => document.getElementById('mapZoomOut').click());
 await mcp2.waitForTimeout(600);
-ok('portrait maps label the whole drawn map, never a middle band', await mcp2.evaluate(() => {
+ok('portrait maps label the whole drawn map and every dot carries its name', await mcp2.evaluate(() => {
   const svg = document.getElementById('mapSvg');
   const r = svg.getBoundingClientRect();
   const [, , vbw, vbh] = svg.getAttribute('viewBox').split(' ').map(Number);
@@ -1569,11 +1569,9 @@ ok('portrait maps label the whole drawn map, never a middle band', await mcp2.ev
   const band = vbh * scale;
   const tops = [...document.querySelectorAll('#mapCities text')].map((t) => t.getBoundingClientRect().top);
   const span = Math.max(...tops) - Math.min(...tops);
-  const cut = [...document.querySelectorAll('#mapCities text')].some((t) => {
-    const b = t.getBoundingClientRect();
-    return b.left < r.left - 1 || b.right > r.right + 1;
-  });
-  return span > 1.7 * band && !cut && tops.length > 5;
+  const nameless = [...document.querySelectorAll('#mapCities .map-city')]
+    .filter((g) => !g.querySelector('text')).length;
+  return span > 1.7 * band && nameless === 0 && tops.length > 5;
 }));
 await mcp2.close();
 await mcc.close();
