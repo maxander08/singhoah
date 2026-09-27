@@ -198,7 +198,9 @@ automatically when you speak first). Beyond commands, SMate answers
 *“what time is it in Tokyo?”* for any city (offline, via `Intl`), sets
 reminders (*“remind me in 10”* — the tab title flashes ⏰ when due), does
 quick math (`25 * 4`), and offers tappable suggestion chips when idle.
-All of it works in the ten languages, with or without the AI chip.
+The trash chip in the panel header — or the words `clear chat` — wipes the
+conversation and starts fresh. All of it works in the ten languages, with
+or without the AI chip.
 
 **Optional on-device AI.** The `AI` chip in the panel header loads a small
 open model (Qwen2.5-0.5B / SmolLM2-360M) through WebLLM/WebGPU — free,

@@ -37,6 +37,9 @@
         <button type="button" class="btn smate-ai smate-speak" id="smateSpeak" aria-pressed="false">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </button>
+        <button type="button" class="btn smate-ai smate-clear" id="smateClear">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2m-8 0 1 13h8l1-13" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </button>
         <button type="button" class="btn smate-x" id="smateX" aria-label="×">×</button></div>
       <div class="smate-msgs" id="smateMsgs"></div>
       <form class="smate-inrow" id="smateForm">
@@ -95,6 +98,9 @@
     sp.title = t(curLang, 'voiceTip');
     sp.setAttribute('aria-label', t(curLang, 'voiceTip'));
     if (!('speechSynthesis' in window)) sp.style.display = 'none';
+    const cl = $('smateClear');
+    cl.title = t(curLang, 'clearChat');
+    cl.setAttribute('aria-label', t(curLang, 'clearChat'));
     const ai = $('smateAI');
     ai.title = t(curLang, 'aiTip');
     ai.setAttribute('aria-label', t(curLang, 'aiTip'));
@@ -208,6 +214,13 @@
     }
     msgs.appendChild(wrap);
   }
+  function clearChatNow() {
+    msgs.textContent = '';
+    LOG.length = 0;
+    saveLog();
+    say(t(curLang, 'smateHi'));
+    addChips();
+  }
   btn.addEventListener('click', () => toggle(pop.hidden));
   $('smateX').addEventListener('click', () => toggle(false));
   /* conversation continues across pages and reloads */
@@ -228,6 +241,7 @@
     if (voicePref !== 'on' && 'speechSynthesis' in window) speechSynthesis.cancel();
   });
   $('smateSpeak').setAttribute('aria-pressed', String(voicePref === 'on'));
+  $('smateClear').addEventListener('click', clearChatNow);
 
   /* ---------------- the interpreter ---------------- */
 
@@ -562,11 +576,7 @@
     }
     /* assistant: clear the conversation */
     if (has(text, KW.clearChat)) {
-      msgs.textContent = '';
-      LOG.length = 0;
-      saveLog();
-      say(t(curLang, 'smateHi'));
-      addChips();
+      clearChatNow();
       return t(curLang, 'done');
     }
         /* timer */

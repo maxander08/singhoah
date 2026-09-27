@@ -1361,6 +1361,14 @@ await asSend('clear chat');
 ok('clear chat starts a fresh conversation', await asp.evaluate(() =>
   document.querySelectorAll('.smate-me').length === 0 &&
   !!document.querySelector('.smate-it')));
+await asSend('timer 5');
+await asp.click('#smateClear');
+await asp.waitForTimeout(250);
+ok('the clear-chat button wipes the conversation too', await asp.evaluate(() =>
+  document.querySelectorAll('.smate-me').length === 0 &&
+  !!document.querySelector('.smate-it') &&
+  document.getElementById('smateClear').title.length > 0 &&
+  (JSON.parse(localStorage.getItem('singhoah:smateLog') || '[]')).every((m) => !m.me)));
 await asp.evaluate(() => localStorage.setItem('singhoah:wallet', JSON.stringify({ cur: 'USD', tx: [
   { id: 'a', type: 'in', amt: 500, note: 'pay', date: '2026-09-01', ts: 1 },
   { id: 'b', type: 'out', amt: 250, note: 'food', date: '2026-09-02', ts: 2 },
