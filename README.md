@@ -189,13 +189,15 @@ appears where unsupported). On phones the layout adapts: 16px page text
 
 ## SinghoMetro — tap-tap fare calculator
 
-A fifth app (`metro.html`): an interactive SVG map of the **Taipei Metro**
-(all current lines including the Xinbeitou, Xiaobitan, Xinzhuang and Luzhou
-branches) and the **Taoyuan Airport MRT**, drawn as coloured lines that
-follow the real recorded track alignments (curves and all, from
-OpenStreetMap route relations) with every station as a dot labelled with
-its English name and the Chinese name below it — the same family look as
-the world map: pan, wheel/pinch zoom, fit-to-screen.
+A fifth app (`metro.html`): an interactive SVG map of four systems —
+the **Taipei Metro** (all current lines including the Xinbeitou, Xiaobitan,
+Xinzhuang and Luzhou branches), the **Taoyuan Airport MRT**, the
+**Kaohsiung Metro** (Red and Orange lines) and the **Taichung Metro**
+(Green line) — drawn as coloured lines that follow the real recorded track
+alignments (curves and all, from OpenStreetMap route relations) with every
+station as a dot labelled with its English name and the Chinese name below
+it — the same family look as the world map: pan, wheel/pinch zoom,
+fit-to-screen.
 
 Under the coloured lines a muted OpenStreetMap basemap gives real geography:
 rivers, lakes, the coast and the road network — major roads always, and the
@@ -203,9 +205,10 @@ full street grid once you zoom in (© OpenStreetMap contributors, ODbL).
 
 Tap one station, then another: the route is computed (fewest transfers,
 shortest distance), the route lights up on the map and the bottom bar shows
-the fare. Taipei Metro fares use the officially published distance bands
-applied to the route distance; Airport MRT fares use the officially
-published station-to-station table. The bar also shows the station count,
+the fare. Taipei Metro and Kaohsiung Metro fares use the officially
+published distance bands applied to the route distance, Taichung Metro
+uses its published NT$20-plus-NT$5-per-2 km bands, and Airport MRT fares
+use the officially published station-to-station table. The bar also shows the station count,
 transfer count and an approximate travel time. **Swap** flips the pair,
 **Clear** resets, and the two system tabs switch maps (each remembers its
 own pan/zoom). The **Card** button scans an IC card where the device truly

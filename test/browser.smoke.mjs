@@ -1827,6 +1827,23 @@ await tapSt('A1');
 await tapSt('A13');
 ok('Airport MRT Taipei Main -> Terminal 2 fares at NT$160', await mt.evaluate(() =>
   document.getElementById('mFareVal').textContent.trim() === 'NT$160'));
+ok('metro offers all four system tabs', await mt.evaluate(() =>
+  document.querySelectorAll('#metroSys .metro-sysbtn').length === 4));
+await mt.evaluate(() => document.querySelectorAll('#metroSys .metro-sysbtn')[2].click());
+await mt.waitForTimeout(200);
+await tapSt('KR3');
+await tapSt('KRK1');
+ok('Kaohsiung full Red Line fares at NT$60', await mt.evaluate(() =>
+  document.getElementById('mFareVal').textContent.trim() === 'NT$60'));
+ok('Kaohsiung basemap has its own streets and water', await mt.evaluate(() =>
+  document.querySelector('#metroBaseRoads .b-road-maj').getAttribute('d').length > 500 &&
+  document.querySelector('#metroBaseWater path').getAttribute('d').length > 500));
+await mt.evaluate(() => document.querySelectorAll('#metroSys .metro-sysbtn')[3].click());
+await mt.waitForTimeout(200);
+await tapSt('T103a');
+await tapSt('T119');
+ok('Taichung Green Line end-to-end fares at NT$50', await mt.evaluate(() =>
+  document.getElementById('mFareVal').textContent.trim() === 'NT$50'));
 ok('metro runs without page errors', metroErrs.length === 0);
 await mt.click('#mCard');
 await mt.waitForTimeout(200);

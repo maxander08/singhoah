@@ -6,7 +6,7 @@
    (English over the original script), pan / zoom / pinch.
    ============================================================ */
 import { METRO } from './metrodata.js';
-import { MAJ, MIN, WATF, WATS } from './metrobase.js';
+import { MAJ, MIN, WATF, WATS, BASEMAP } from './metrobase.js';
 import { TRACKS } from './metrotracks.js';
 
 const LIB = globalThis.__SING_LIB;
@@ -50,7 +50,8 @@ function vGeom() {
    down the screen instead of across a thin strip */
 const PORTRAIT = (() => { try { return innerHeight > innerWidth; } catch { return false; } })();
 const PROJ = {};
-for (const sys of ['TRTC', 'TY']) {
+const SYSS = ['TRTC', 'TY', 'KS', 'TC']; /* order = tab order */
+for (const sys of SYSS) {
   const pts = Object.values(ST).filter((s) => s.sys === sys);
   const lons = pts.map((p) => p.lon), lats = pts.map((p) => p.lat);
   const lo0 = Math.min(...lons), lo1 = Math.max(...lons), la0 = Math.min(...lats), la1 = Math.max(...lats);
@@ -89,10 +90,11 @@ function baseD(sysId, arr, close) {
   return d;
 }
 const BASED = {};
-for (const sysId of ['TRTC', 'TY']) {
+for (const sysId of SYSS) {
+  const bm = (typeof BASEMAP === 'object' && BASEMAP && BASEMAP[sysId]) || null;
   BASED[sysId] = {
-    watf: baseD(sysId, WATF, true), wats: baseD(sysId, WATS, false),
-    maj: baseD(sysId, MAJ, false), min: baseD(sysId, MIN, false),
+    watf: baseD(sysId, bm ? bm.watf : WATF, true), wats: baseD(sysId, bm ? bm.wats : WATS, false),
+    maj: baseD(sysId, bm ? bm.maj : MAJ, false), min: baseD(sysId, bm ? bm.min : MIN, false),
   };
 }
 
@@ -101,7 +103,7 @@ const LIDSYS = {};
 for (const [s, lid] of METRO.lines) LIDSYS[lid] = s;
 const FAMINV = { O: ['O', 'Oz', 'Ol'], R: ['R', 'Rb'], G: ['G', 'Gb'] };
 const TRKD = {};
-for (const sysId of ['TRTC', 'TY']) {
+for (const sysId of SYSS) {
   TRKD[sysId] = {};
   const P = PROJ[sysId];
   const proj = (la, lo) => {
@@ -178,6 +180,18 @@ function route(a, b) {
 /* ---------------- fares ---------------- */
 
 function fare(sys, a, b, r) {
+  const fc = (METRO.fares || {})[sys] || {};
+  if (fc.tyf) {
+    const [x, y] = a < b ? [b, a] : [a, b];
+    const f = (fc.tyf[x] || {})[y];
+    return f ?? null;
+  }
+  if (fc.bands) {
+    const d = r.km * 1.08; /* straight-line hops -> running distance */
+    for (const [lim, f] of fc.bands) if (d <= lim) return f;
+    return fc.bands[fc.bands.length - 1][1];
+  }
+  /* fallback: legacy top-level tables */
   if (sys === 'TY') {
     const [x, y] = a < b ? [b, a] : [a, b];
     const f = (METRO.tyf[x] || {})[y];
@@ -244,13 +258,15 @@ function updateThemeBtn() {
 /* ---------------- system tabs + view ---------------- */
 
 let sys = 'TRTC';
-try { sys = localStorage.getItem('singhoah:metroSys') === 'TY' ? 'TY' : 'TRTC'; } catch { /* ignore */ }
-const view = { TRTC: { cx: 500, cy: 400, k: 1 }, TY: { cx: 500, cy: 400, k: 1 } };
+try { const s = localStorage.getItem('singhoah:metroSys'); if (SYSS.includes(s)) sys = s; } catch { /* ignore */ }
+const view = {};
+for (const s of SYSS) view[s] = { cx: 500, cy: 400, k: 1 };
 let from = null, to = null;
 
 function buildSysTabs() {
   els.metroSys.textContent = '';
-  for (const [id, key] of [['TRTC', 'mTRTC'], ['TY', 'mTY']]) {
+  for (const id of SYSS) {
+    const key = 'm' + id;
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'btn metro-sysbtn';
     b.setAttribute('role', 'tab');
