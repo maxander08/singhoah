@@ -407,37 +407,69 @@ function updateRoute() {
 function draw() {
   const v = view[sys];
   const g = vGeom();
-  els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
-  const upx = 1 / g.s;
 
-  /* street basemap: swap path data only when the system changes */
-  if (baseSys !== sys) {
-    baseSys = sys;
-    bWF.setAttribute('d', BASED[sys].watf || 'M0 0');
-    bWS.setAttribute('d', BASED[sys].wats || 'M0 0');
-    bRM.setAttribute('d', BASED[sys].maj || 'M0 0');
-    bRm.setAttribute('d', BASED[sys].min || 'M0 0');
-  }
-  bRm.style.display = v.k >= 2 ? '' : 'none';
-
-  const sc = buildScene(sys);
-  /* counter-scale markers/labels only when the zoom actually changed */
-  if (sc.upx !== upx) {
-    sc.upx = upx;
-    for (const [grp, s] of sc.groups) {
-      grp.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)}) scale(${upx.toFixed(4)})`);
+  /* Google-Maps-style gesture compositing: while a gesture is live we never
+     touch the geometry — one CSS transform on #metroWorld moves the already
+     painted vector buffer (compositor work only). When the gesture settles
+     we re-bake the viewBox for a razor-sharp frame. */
+  if (interacting && baked && baked.sys === sys) {
+    const g0 = vGeomFor(baked.k);
+    const x00 = baked.cx - g0.w / 2, y00 = baked.cy - g0.h / 2;
+    const x01 = v.cx - g.w / 2, y01 = v.cy - g.h / 2;
+    const a = g0.s / g.s;
+    const tx = x01 + (g0.ox - x00 * g0.s - g.ox) / g.s;
+    const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
+    worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
+  } else {
+    baked = { cx: v.cx, cy: v.cy, k: v.k, sys };
+    worldG.style.transform = '';
+    els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
+    const upx = 1 / g.s;
+    /* street basemap: swap path data only when the system changes */
+    if (baseSys !== sys) {
+      baseSys = sys;
+      bWF.setAttribute('d', BASED[sys].watf || 'M0 0');
+      bWS.setAttribute('d', BASED[sys].wats || 'M0 0');
+      bRM.setAttribute('d', BASED[sys].maj || 'M0 0');
+      bRm.setAttribute('d', BASED[sys].min || 'M0 0');
+    }
+    bRm.style.display = v.k >= 2 ? '' : 'none';
+    const sc = buildScene(sys);
+    /* counter-scale markers/labels only when the zoom actually changed */
+    if (sc.upx !== upx) {
+      sc.upx = upx;
+      for (const [grp, s] of sc.groups) {
+        grp.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)}) scale(${upx.toFixed(4)})`);
+      }
     }
   }
   /* selection highlight + route overlay only when the pair changed */
+  const sc2 = SCENE[sys];
   const selKey = from && to ? `${from}|${to}` : '';
-  if (sc.sel !== selKey) {
-    sc.sel = selKey;
-    for (const [id, c] of Object.entries(sc.byId)) {
+  if (sc2 && sc2.sel !== selKey) {
+    sc2.sel = selKey;
+    for (const [id, c] of Object.entries(sc2.byId)) {
       c.setAttribute('class', `metro-st${id === from ? ' from' : id === to ? ' to' : ''}`);
     }
     updateRoute();
   }
 }
+
+/* gesture lifecycle: live-transform while interacting, re-bake on settle */
+let interacting = false, baked = null, settleT = 0, worldG = null;
+function initWorld() {
+  worldG = document.createElementNS(NS, 'g');
+  worldG.id = 'metroWorld';
+  for (const el of [els.metroBaseWater, els.metroBaseRoads, els.metroLines, els.metroStations, els.metroLabels, els.metroRoute]) worldG.appendChild(el);
+  els.metroSvg.appendChild(worldG);
+  worldG.style.willChange = 'transform';
+}
+function beginGesture() { interacting = true; clearTimeout(settleT); }
+function pokeSettle(ms = 140) {
+  clearTimeout(settleT);
+  settleT = setTimeout(() => { interacting = false; draw(); }, ms);
+}
+addEventListener('resize', () => { interacting = false; clearTimeout(settleT); requestDraw(); });
 
 /* coalesce event-driven redraws into one per animation frame */
 let rafId = 0;
@@ -480,6 +512,8 @@ function setView(nx, ny, nk) {
 /* zoom so the current system's stations fill the frame */
 function fitContent() {
   cancelFling();
+  interacting = false;
+  clearTimeout(settleT);
   const rect = els.metroSvg.getBoundingClientRect();
   const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
   let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
@@ -505,11 +539,13 @@ function cancelFling() { if (flingRaf) { cancelAnimationFrame(flingRaf); flingRa
 
 els.metroSvg.addEventListener('pointerdown', (e) => {
   cancelFling();
+  beginGesture();
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { els.metroSvg.setPointerCapture(e.pointerId); } catch { /* synthetic pointers */ }
-  if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY, t: performance.now(), vx: 0, vy: 0 }; moved = 0; }
+  if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY, t: performance.now(), vx: 0, vy: 0 }; moved = 0; pinched = false; }
   else drag = null;
 });
+let pinched = false;
 els.metroSvg.addEventListener('pointermove', (e) => {
   const pt = pointers.get(e.pointerId);
   if (!pt) return;
@@ -522,6 +558,7 @@ els.metroSvg.addEventListener('pointermove', (e) => {
     const [c, d] = [...pointers.values()];
     const mid = { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 };
     const nd = Math.hypot(c.x - d.x, c.y - d.y) || 1;
+    pinched = true;
     const v = view[sys];
     const [X, Y] = worldAt(oldMid.x, oldMid.y, vGeom(), v);
     zoomAnchor(X, Y, mid.x, mid.y, v.k * (nd / oldD));
@@ -542,7 +579,7 @@ els.metroSvg.addEventListener('pointermove', (e) => {
 });
 function endPointer(e) {
   pointers.delete(e.pointerId);
-  if (pointers.size) { drag = null; return; }
+  if (pointers.size) return;
   const d = drag; drag = null;
   if (d && moved > 6) {
     /* fling: momentum with exponential decay, cancelled by any new gesture */
@@ -556,12 +593,14 @@ function endPointer(e) {
         const dec = Math.pow(0.94, dt / 16.7);
         vx *= dec; vy *= dec;
         flingRaf = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
+        if (!flingRaf) pokeSettle(60);
       };
       flingRaf = requestAnimationFrame(step);
+      return;
     }
-    return;
   }
-  if (moved > 6) return;
+  if (pinched || moved > 6) { pinched = false; pokeSettle(80); return; }
+  interacting = false;
   /* a tap: nearest station within 16px */
   const { v, w, h, rect, s, ox, oy } = vGeom();
   const px = (e.clientX - rect.left - ox) / s + (v.cx - w / 2);
@@ -582,13 +621,16 @@ els.metroSvg.addEventListener('pointercancel', endPointer);
 els.metroSvg.addEventListener('wheel', (e) => {
   e.preventDefault();
   cancelFling();
+  beginGesture();
   const v = view[sys];
   const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
   zoomAnchor(X, Y, e.clientX, e.clientY, v.k * (e.deltaY < 0 ? 1.25 : 0.8));
+  pokeSettle(160);
 }, { passive: false });
 els.metroSvg.addEventListener('dblclick', (e) => {
   e.preventDefault();
   cancelFling();
+  beginGesture();
   const v = view[sys];
   const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
   const k0 = v.k, k1 = Math.min(12, k0 * 2), t0 = performance.now();
@@ -597,11 +639,12 @@ els.metroSvg.addEventListener('dblclick', (e) => {
     const ease = 1 - (1 - u) * (1 - u);
     zoomAnchor(X, Y, e.clientX, e.clientY, k0 + (k1 - k0) * ease);
     if (u < 1) requestAnimationFrame(step);
+    else pokeSettle(60);
   };
   requestAnimationFrame(step);
 });
-els.metroIn.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k * 1.4); });
-els.metroOut.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k / 1.4); });
+els.metroIn.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k * 1.4); });
+els.metroOut.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k / 1.4); });
 els.metroFit.addEventListener('click', () => fitContent());
 els.mSwap.addEventListener('click', () => { [from, to] = [to, from]; renderBar(); draw(); });
 els.mClear.addEventListener('click', () => { from = to = null; renderBar(); draw(); });
@@ -668,6 +711,7 @@ els.btnNight.addEventListener('click', () => {
   draw();
 });
 initBase();
+initWorld();
 applyLang(lang, false);
 fitContent();
 

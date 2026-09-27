@@ -1857,7 +1857,7 @@ ok('wheel zoom stays anchored under the cursor', await mt.evaluate(async () => {
   };
   const before = worldOf(sx, sy);
   svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: sx, clientY: sy, bubbles: true, cancelable: true }));
-  await new Promise((x) => setTimeout(x, 120));
+  await new Promise((x) => setTimeout(x, 450)); /* let the gesture settle & re-bake */
   const after = worldOf(sx, sy);
   return Math.hypot(before[0] - after[0], before[1] - after[1]) < 2;
 }));
@@ -1876,7 +1876,7 @@ ok('pinch spread zooms in about the midpoint', await mt.evaluate(async () => {
   }
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 11, clientX: cx - 160, clientY: cy, bubbles: true }));
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 12, clientX: cx + 160, clientY: cy, bubbles: true }));
-  await new Promise((x) => setTimeout(x, 120));
+  await new Promise((x) => setTimeout(x, 450)); /* settle & re-bake */
   return vw() < w0 - 1;
 }));
 ok('fling keeps the map gliding after release', await mt.evaluate(async () => {
@@ -1888,10 +1888,10 @@ ok('fling keeps the map gliding after release', await mt.evaluate(async () => {
     svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 13, clientX: cx + i * 30, clientY: cy + i * 8, bubbles: true }));
     await new Promise((x) => setTimeout(x, 12));
   }
+  const sx0 = document.querySelector('.metro-st').getBoundingClientRect().x; /* at release */
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 13, clientX: cx + 180, clientY: cy + 48, bubbles: true }));
-  const vx0 = svg.getAttribute('viewBox').split(' ').map(Number)[0]; /* at release */
   await new Promise((x) => setTimeout(x, 300));
-  return Math.abs(svg.getAttribute('viewBox').split(' ').map(Number)[0] - vx0) > 1; /* glides after release */
+  return Math.abs(document.querySelector('.metro-st').getBoundingClientRect().x - sx0) > 1; /* glides after release */
 }));
 ok('metro runs without page errors', metroErrs.length === 0);
 await mt.click('#mCard');
