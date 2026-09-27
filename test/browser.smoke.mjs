@@ -1780,6 +1780,14 @@ ok('metro draws every system line on the map', await mt.evaluate(() =>
   document.getElementById('metroLines').querySelectorAll('path, polyline, line').length >= 10));
 ok('metro renders all Taipei stations as dots', await mt.evaluate(() =>
   document.getElementById('metroStations').querySelectorAll('circle.metro-st').length >= 100));
+ok('metro lines follow the real curved tracks', await mt.evaluate(() => {
+  const paths = [...document.querySelectorAll('#metroLines path')];
+  return paths.some((p) => (p.getAttribute('d').match(/L/g) || []).length > 60);
+}));
+await mt.mouse.move(300, 300); await mt.mouse.down(); await mt.mouse.move(800, 600, { steps: 8 }); await mt.mouse.up();
+ok('dragging the map selects no text', await mt.evaluate(() => String(getSelection()).length === 0));
+await mt.click('#metroFit');
+await mt.waitForTimeout(200);
 ok('metro labels show English over the Chinese name', await mt.evaluate(() => {
   const texts = [...document.getElementById('metroLabels').querySelectorAll('text.metro-label')];
   return texts.length >= 25 && texts.every((tx) => {

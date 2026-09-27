@@ -7,6 +7,7 @@
    ============================================================ */
 import { METRO } from './metrodata.js';
 import { MAJ, MIN, WATF, WATS } from './metrobase.js';
+import { TRACKS } from './metrotracks.js';
 
 const LIB = globalThis.__SING_LIB;
 const { LANGS, t, langOf, ccFlag, langTitleOf, makeLangPicker, clampPop } = LIB;
@@ -93,6 +94,31 @@ for (const sysId of ['TRTC', 'TY']) {
     watf: baseD(sysId, WATF, true), wats: baseD(sysId, WATS, false),
     maj: baseD(sysId, MAJ, false), min: baseD(sysId, MIN, false),
   };
+}
+
+/* ---- real curved track geometry per line, projected per system ---- */
+const LIDSYS = {};
+for (const [s, lid] of METRO.lines) LIDSYS[lid] = s;
+const FAMINV = { O: ['O', 'Oz', 'Ol'], R: ['R', 'Rb'], G: ['G', 'Gb'] };
+const TRKD = {};
+for (const sysId of ['TRTC', 'TY']) {
+  TRKD[sysId] = {};
+  const P = PROJ[sysId];
+  const proj = (la, lo) => {
+    const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
+    return PORTRAIT ? [P.ox + ey, P.oy + ex] : [P.ox + ex, P.oy + ey];
+  };
+  for (const [lid, tk] of Object.entries(TRACKS)) {
+    if (LIDSYS[lid] !== sysId) continue;
+    let la = tk.p[0] / 1e5, lo = tk.p[1] / 1e5;
+    const pts = [proj(la, lo)];
+    for (let i = 2; i < tk.p.length; i += 2) { la += tk.p[i] / 1e5; lo += tk.p[i + 1] / 1e5; pts.push(proj(la, lo)); }
+    TRKD[sysId][lid] = {
+      pts,
+      st: tk.st,
+      d: pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(''),
+    };
+  }
 }
 
 /* graph edges: [a, b, km, lineId] — transfers are zero-km links */
@@ -255,12 +281,13 @@ function draw() {
   bRm.style.display = v.k >= 2 ? '' : 'none';
   bRm.setAttribute('stroke-width', (0.9 * upx).toFixed(2));
 
-  /* lines */
+  /* lines — real track curves where OSM has them */
   els.metroLines.textContent = '';
-  for (const [s, , color, refs] of METRO.lines) {
+  for (const [s, lid, color, refs] of METRO.lines) {
     if (s !== sys) continue;
     const p = document.createElementNS(NS, 'path');
-    p.setAttribute('d', refs.map((r, i) => `${i ? 'L' : 'M'}${ST[r].x.toFixed(1)} ${ST[r].y.toFixed(1)}`).join(''));
+    const tk = TRKD[sys][lid];
+    p.setAttribute('d', tk ? tk.d : refs.map((r, i) => `${i ? 'L' : 'M'}${ST[r].x.toFixed(1)} ${ST[r].y.toFixed(1)}`).join(''));
     p.setAttribute('stroke', color);
     p.setAttribute('stroke-width', (3.2 * upx).toFixed(2));
     p.setAttribute('fill', 'none');
@@ -277,7 +304,15 @@ function draw() {
     for (const seg of r.segs) {
       const line = METRO.lines.find((l) => l[1] === seg.line);
       const p = document.createElementNS(NS, 'path');
-      p.setAttribute('d', `M${ST[seg.from].x} ${ST[seg.from].y}L${ST[seg.to].x} ${ST[seg.to].y}`);
+      const cands = FAMINV[seg.line] || [seg.line];
+      const tk = cands.map((l) => TRKD[sys][l]).find((t) => t && t.st[seg.from] != null && t.st[seg.to] != null);
+      if (tk) {
+        const a = tk.st[seg.from], b = tk.st[seg.to];
+        const slice = a <= b ? tk.pts.slice(a, b + 1) : tk.pts.slice(b, a + 1).reverse();
+        p.setAttribute('d', slice.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(''));
+      } else {
+        p.setAttribute('d', `M${ST[seg.from].x} ${ST[seg.from].y}L${ST[seg.to].x} ${ST[seg.to].y}`);
+      }
       p.setAttribute('stroke', line ? line[2] : '#000dff');
       p.setAttribute('stroke-width', (6 * upx).toFixed(2));
       p.setAttribute('opacity', '0.45');

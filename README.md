@@ -191,10 +191,11 @@ appears where unsupported). On phones the layout adapts: 16px page text
 
 A fifth app (`metro.html`): an interactive SVG map of the **Taipei Metro**
 (all current lines including the Xinbeitou, Xiaobitan, Xinzhuang and Luzhou
-branches) and the **Taoyuan Airport MRT**, drawn as coloured lines with
-every station as a dot labelled with its English name and the Chinese name
-below it — the same family look as the world map: pan, wheel/pinch zoom,
-fit-to-screen.
+branches) and the **Taoyuan Airport MRT**, drawn as coloured lines that
+follow the real recorded track alignments (curves and all, from
+OpenStreetMap route relations) with every station as a dot labelled with
+its English name and the Chinese name below it — the same family look as
+the world map: pan, wheel/pinch zoom, fit-to-screen.
 
 Under the coloured lines a muted OpenStreetMap basemap gives real geography:
 rivers, lakes, the coast and the road network — major roads always, and the
