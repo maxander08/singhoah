@@ -100,7 +100,10 @@ Tuesday, 25 August 2026                       05:51 UTC
   capitals and megacities at world view, more as you close in — and labels
   never overlap: bigger places claim their space first and every other
   settlement appears as soon as you zoom in far enough to make room.
-  Labels hold a constant size on screen.
+  Labels hold a constant size on screen. Labels render everywhere the map
+  is drawn — on portrait phones the visible bands above and below the
+  viewBox get their cities too — and a name is only drawn when it fits
+  fully on screen, so nothing arrives sliced at an edge.
 - **IP locator** — the *IP* button shows your public IP with its country
   flag, the city/region/country and coordinates it geolocates to (ipapi.co
   with an ipwho.is fallback), and a one-tap *Use this time zone* action.

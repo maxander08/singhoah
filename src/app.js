@@ -1922,14 +1922,26 @@ function mapDrawCities() {
   if (!cityLayer || !mapBase.w || els.mapWrap.hidden) return;
   const k = mapView.k, { w, h } = mapBase;
   const vw = w / k, vh = h / k;
-  const x0 = mapView.cx - vw / 2, y0 = mapView.cy - vh / 2;
+  /* the element's letterbox overflow is visible too (portrait phones see
+     whole extra latitude bands), so ask the screen CTM what is really on
+     screen instead of assuming the viewBox rectangle */
   const rect = els.mapSvg.getBoundingClientRect();
-  const upx = vw / Math.max(1, rect.width);              // svg units per screen px
+  const ctm = els.mapSvg.getScreenCTM();
+  let upx = vw / Math.max(1, rect.width);
+  let vx0 = mapView.cx - vw / 2, vx1 = vx0 + vw;
+  let vy0 = mapView.cy - vh / 2, vy1 = vy0 + vh;
+  if (ctm && ctm.a) {
+    upx = 1 / ctm.a;
+    vx0 = (rect.left - ctm.e) / ctm.a;
+    vx1 = (rect.right - ctm.e) / ctm.a;
+    vy0 = (rect.top - ctm.f) / ctm.d;
+    vy1 = (rect.bottom - ctm.f) / ctm.d;
+  }
   const base = 11 * upx;                                 // 11px labels at any zoom
   const thresh = Math.max(1, 5000 / Math.pow(k, 3.5));   // pop (thousands) by zoom
   const cands = [];
   for (const c of mapCities) {
-    if (c.x < x0 || c.x > x0 + vw || c.y < y0 || c.y > y0 + vh) continue;
+    if (c.x < vx0 || c.x > vx1 || c.y < vy0 || c.y > vy1) continue;
     if (c.p < thresh && !(c.c && k >= 2)) continue;
     cands.push(c);
   }
@@ -1952,13 +1964,15 @@ function mapDrawCities() {
       if (rx < r.x + r.w && rx + wEst > r.x && ry < r.y + r.h && ry + hEst > r.y) { hit = true; break; }
     }
     if (hit) continue;
-    placed.push({ x: rx, y: ry, w: wEst, h: hEst });
+    const fits = rx >= vx0 && rx + wEst <= vx1;
+    if (fits) placed.push({ x: rx, y: ry, w: wEst, h: hEst });
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('class', 'map-city');
     const dot = document.createElementNS(NS, 'circle');
     dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y);
     dot.setAttribute('r', Math.min(1.8, Math.max(0.55, upx)).toFixed(2));
     g.appendChild(dot);
+    if (!fits) { frag.appendChild(g); continue; }
     const tx = document.createElementNS(NS, 'text');
     tx.setAttribute('x', c.x); tx.setAttribute('y', c.y);
     tx.setAttribute('text-anchor', 'middle');

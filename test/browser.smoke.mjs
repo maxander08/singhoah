@@ -1559,6 +1559,22 @@ ok('the phone map carries city labels and gives gestures to the page', await mcp
   return document.querySelectorAll('#mapCities .map-city').length > 3
     && getComputedStyle(svg).touchAction === 'none';
 }));
+await mcp2.evaluate(() => document.getElementById('mapZoomOut').click());
+await mcp2.waitForTimeout(600);
+ok('portrait maps label the whole drawn map, never a middle band', await mcp2.evaluate(() => {
+  const svg = document.getElementById('mapSvg');
+  const r = svg.getBoundingClientRect();
+  const [, , vbw, vbh] = svg.getAttribute('viewBox').split(' ').map(Number);
+  const scale = Math.min(r.width / vbw, r.height / vbh);   // meet: viewBox band height
+  const band = vbh * scale;
+  const tops = [...document.querySelectorAll('#mapCities text')].map((t) => t.getBoundingClientRect().top);
+  const span = Math.max(...tops) - Math.min(...tops);
+  const cut = [...document.querySelectorAll('#mapCities text')].some((t) => {
+    const b = t.getBoundingClientRect();
+    return b.left < r.left - 1 || b.right > r.right + 1;
+  });
+  return span > 1.7 * band && !cut && tops.length > 5;
+}));
 await mcp2.close();
 await mcc.close();
 
