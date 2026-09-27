@@ -1185,8 +1185,8 @@ await smSend('zone Taipei');
 await sq.waitForTimeout(250);
 ok('SMate changes the home time zone', await sq.evaluate(() => document.getElementById('tzLabel').textContent === 'Taipei'));
 await smSend('blorp');
-ok('SMate admits when it does not understand', await sq.evaluate(() =>
-  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+ok('without a usable GPU SMate explains the AI needs WebGPU', await sq.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
 await sq.close();
 const swq = await sm.newPage();
 await swq.goto(URL + 'wallet.html', { waitUntil: 'load' });
@@ -1259,11 +1259,16 @@ await vm.close();
 const ai = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await ai.addInitScript(() => {
   localStorage.setItem('singhoah:visited', '1');
+  localStorage.setItem('singhoah:wallet', JSON.stringify({ cur: 'USD', tx: [
+    { date: '2026-09-20', type: 'out', amt: 12, note: 'coffee' },
+    { date: '2026-09-21', type: 'out', amt: 30, note: 'lunch' },
+  ] }));
   window.__SMATE_AI_ENGINE = {
     chat: async (q) => {
       const s = q.toLowerCase();
       if (s.includes('bright')) return 'CMD: night shift';
       if (s.includes('sky')) return 'The sky is blue because air scatters short blue wavelengths of sunlight more than red.';
+      if (s.includes('[wallet')) return 'You have spent 42 USD: 12 on coffee and 30 on lunch.';
       return 'CMD: help';
     },
   };
@@ -1272,10 +1277,11 @@ const ap = await ai.newPage();
 await ap.goto(URL + 'index.html', { waitUntil: 'load' });
 await ap.waitForTimeout(300);
 await ap.click('#smateBtn');
-await ap.click('#smateAI');
-await ap.waitForTimeout(200);
-ok('SMate offers an on-device AI toggle', await ap.evaluate(() =>
+ok('SMate AI is armed by default (free, on-device)', await ap.evaluate(() =>
   document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'));
+await ap.fill('#smateIn', 'the room is too bright for my eyes');
+await ap.click('#smateSend');
+await ap.waitForTimeout(400);
 await ap.fill('#smateIn', 'the room is too bright for my eyes');
 await ap.click('#smateSend');
 await ap.waitForTimeout(1400);
@@ -1286,26 +1292,38 @@ await ap.click('#smateSend');
 await ap.waitForTimeout(1400);
 ok('AI answers light questions', await ap.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('scatters')));
+await ap.fill('#smateIn', 'how much have I spent?');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1400);
+ok('money questions get the live ledger attached for the AI', await ap.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('coffee')));
 await ap.close();
 await ai.close();
 
-/* no WebGPU / blocked CDN: degrade silently to the offline brain */
+/* no WebGPU / blocked CDN: SMate explains and the offline brain keeps working */
 const ai2 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
-await ai2.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await ai2.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  Object.defineProperty(navigator, 'gpu', { value: undefined, configurable: true });
+});
 await ai2.route(/esm\.run|mlc/, (r) => r.abort());
 const a2p = await ai2.newPage();
 await a2p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a2p.waitForTimeout(300);
 await a2p.click('#smateBtn');
-await a2p.click('#smateAI');
+await a2p.fill('#smateIn', 'blorp');
+await a2p.click('#smateSend');
 await a2p.waitForTimeout(600);
-ok('AI degrades gracefully when the runtime cannot load', await a2p.evaluate(() =>
-  document.getElementById('smateAI').classList.contains('err') &&
+ok('without WebGPU SMate explains instead of downloading anything', await a2p.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
+await a2p.click('#smateAI');
+await a2p.waitForTimeout(200);
+ok('the chip can still turn AI off by choice', await a2p.evaluate(() =>
   document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
 await a2p.waitForTimeout(900);
-ok('the offline interpreter still answers when AI is unavailable', await a2p.evaluate(() =>
+ok('the offline interpreter still answers when AI is off', await a2p.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
 await a2p.close();
 await ai2.close();
@@ -1321,8 +1339,9 @@ const a3p = await ai3.newPage();
 await a3p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a3p.waitForTimeout(300);
 await a3p.click('#smateBtn');
-await a3p.click('#smateAI');
-await a3p.waitForTimeout(150);
+await a3p.fill('#smateIn', 'blorp');
+await a3p.click('#smateSend');
+await a3p.waitForTimeout(300);
 await a3p.fill('#smateIn', 'blorp');
 await a3p.click('#smateSend');
 await a3p.waitForTimeout(1400);
@@ -1341,7 +1360,9 @@ const a4p = await ai4.newPage();
 await a4p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a4p.waitForTimeout(300);
 await a4p.click('#smateBtn');
-await a4p.click('#smateAI');
+await a4p.fill('#smateIn', 'blorp');
+await a4p.click('#smateSend');
+await a4p.waitForTimeout(300);
 await a4p.fill('#smateIn', 'blorp');
 await a4p.click('#smateSend');
 await a4p.waitForTimeout(900);

@@ -693,16 +693,27 @@
     setTimeout(async () => {
       let out = null;
       try { out = run(raw); } catch { out = null; }
-      if (!out && aiState === 'on' && aiEngine) {
-        setStatusText('AI …');
-        try {
-          const r = await Promise.race([
-            askAI(raw),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('smate-ai-slow')), AI_TIMEOUT)),
-          ]);
-          if (/^\s*CMD:/i.test(r)) { try { out = run(r.replace(/^\s*CMD:/i, '').trim()); } catch { out = null; } }
-          else if (r) out = r;
-        } catch { /* the offline brain stays the fallback */ }
+      if (!out && aiPref !== 'off') {
+        if (aiState === 'on' && aiEngine) {
+          setStatusText('AI …');
+          try {
+            const r = await Promise.race([
+              askAI(raw + walletDigest(raw)),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('smate-ai-slow')), AI_TIMEOUT)),
+            ]);
+            if (/^\s*CMD:/i.test(r)) { try { out = run(r.replace(/^\s*CMD:/i, '').trim()); } catch { out = null; } }
+            else if (r) out = r;
+          } catch { /* the offline brain stays the fallback */ }
+        } else {
+          let can = !!globalThis.__SMATE_AI_ENGINE;
+          if (!can && navigator.gpu) { try { can = !!(await navigator.gpu.requestAdapter()); } catch { can = false; } }
+          if (can) {
+            aiInit();            /* first fuzzy message wakes the model */
+            out = t(curLang, 'aiLoad');
+          } else {
+            out = t(curLang, 'aiNoGpu');
+          }
+        }
       }
       if (dots.isConnected) dots.remove();
       say(out || t(curLang, 'smateUnknown'));
@@ -765,13 +776,17 @@
      and either translates it into a canonical command or answers outright. */
   const aiBtn = $('smateAI');
   let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
+  let aiPref = 'on';   /* AI drives everything the interpreter misses; off only by choice */
+  try { if (localStorage.getItem('singhoah:smateAI') === 'off') aiPref = 'off'; } catch { /* ignore */ }
   const AI_TIMEOUT = Number(globalThis.__SMATE_AI_TIMEOUT || 20000);
   const AI_MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1', 'SmolLM2-360M-Instruct-q4f16_1', 'Qwen2.5-0.5B-Instruct-q4f32_1'];
   const aiUI = () => {
-    aiBtn.setAttribute('aria-pressed', String(aiState === 'on'));
+    aiBtn.setAttribute('aria-pressed', String(aiPref === 'on'));
     aiBtn.classList.toggle('loading', aiState === 'loading');
     aiBtn.classList.toggle('err', aiState === 'err');
   };
+  aiUI();                        /* default-ON chip reflects the pref immediately */
+
   async function aiInit() {
     if (aiState === 'loading') return;
     aiState = 'loading';
@@ -797,27 +812,45 @@
         if (!aiEngine) throw lastErr || new Error('no model');
       }
       aiState = 'on';
-      try { localStorage.setItem('singhoah:smateAI', '1'); } catch { /* ignore */ }
     } catch {
       aiState = 'err';
       aiEngine = null;
-      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
     }
     aiUI();
     setStatus('smateOnline');
   }
-  aiBtn.addEventListener('click', () => { if (aiState === 'on') { aiState = 'off'; aiEngine = null; aiUI(); try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ } setStatus('smateOnline'); } else aiInit(); });
-  try { if (localStorage.getItem('singhoah:smateAI') === '1') aiInit(); } catch { /* ignore */ }
+  aiBtn.addEventListener('click', () => {
+    if (aiPref === 'on') {
+      aiPref = 'off'; aiState = 'off'; aiEngine = null;
+      try { localStorage.setItem('singhoah:smateAI', 'off'); } catch { /* ignore */ }
+      aiUI(); setStatus('smateOnline');
+    } else {
+      aiPref = 'on';
+      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
+      aiUI(); aiInit();
+    }
+  });
 
+  const MONEY = /spend|spent|expense|income|balance|transaction|saving|gasto|gast|ingreso|dépense|dépens|revenu|solde|ख़र्च|आय|بकाيا|خرچ|آمدنی|ব্যয়|আয়|трат|доход|расход|despesa|receita|saldo|اخراجی|آمدنی/;
+  function walletDigest(raw) {
+    if (!MONEY.test(raw)) return '';
+    try {
+      const d = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
+      if (!d || !Array.isArray(d.tx)) return '';
+      const rows = d.tx.slice(-15).map((x) => `${x.date} ${x.type === 'in' ? '+' : '-'}${x.amt} ${x.note || ''}`);
+      return ` [WALLET ${d.cur || ''} balance ${LIB.walBalance(d.tx)}; recent rows: ${rows.join(' | ')}]`;
+    } catch { return ''; }
+  }
   const AI_SYS = [
-    'You are SMate, the assistant inside a world-clock web app.',
+    'You are SMate, the AI that fully drives a world-clock web app.',
     'If the user wants the app to DO something, reply exactly: CMD: <command>',
     'using this grammar (combine freely with commas):',
     'timer <n> | timer pause|resume|reset | stopwatch | stopwatch pause|resume|reset |',
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | help.',
+    'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');
   async function askAI(raw) {

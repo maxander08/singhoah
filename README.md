@@ -235,18 +235,26 @@ The trash chip in the panel header — or the words `clear chat` — wipes the
 conversation and starts fresh. All of it works in the ten languages, with
 or without the AI chip.
 
-**Optional on-device AI.** The `AI` chip in the panel header loads a small
-open model (Qwen2.5-0.5B / SmolLM2-360M) through WebLLM/WebGPU — free,
+**On-device AI, on by default.** The `AI` chip in the panel header is
+armed from the first visit: the deterministic interpreter always gets first
+crack at your words, and whatever it misses goes to a small open model
+(Qwen2.5-0.5B / SmolLM2-360M) loaded through WebLLM/WebGPU — free,
 serverless, private: weights download once (~200-300 MB), cache in
-IndexedDB, and inference never leaves the machine. The deterministic
-interpreter always gets first crack; whatever it misses goes to the model,
-which either replies `CMD: …` (executed through the same interpreter, so
-loose phrasings like *"the room is too bright"* become real actions) or
-answers light questions in your language. No WebGPU or no network on first
-run? The chip shows unavailable and the offline brain keeps working. `help` lists what it can do;
-unknown input gets an honest apology in the UI language. The interpreter
-matches against the app's own translated vocabulary in all ten languages,
-so a Spanish command works while the UI is in Urdu.
+IndexedDB, and inference never leaves the machine. The first fuzzy message
+wakes the model instead of failing; the model then either replies
+`CMD: …` (executed through the same interpreter, so loose phrasings like
+*"the room is too bright"* or *"how much have I spent this week?"* become
+real actions or precise answers), or answers directly in your language.
+Money questions are grounded: the live balance and the latest ledger rows
+are attached to the prompt, so the model sums real numbers, not guesses.
+The grammar it may emit covers every action in the app — clocks, timers,
+wallet, Scribe, maps, themes, reports, `map <City>`, `remind`, `clear
+chat` and more, composable in one sentence. Clicking the chip turns the AI
+off for good (or back on). No WebGPU? SMate says so in your language and
+the offline brain keeps working — nothing is downloaded, nothing hangs:
+every AI call is capped and falls back silently. The interpreter matches
+against the app's own translated vocabulary in all ten languages, so a
+Spanish command works while the UI is in Urdu.
 
 ## Optional Google sign-in (portal)
 
