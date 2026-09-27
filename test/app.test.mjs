@@ -97,8 +97,8 @@ test('zoneCountry and flagSrc give every zone a flag — no globes', () => {
   assert.equal(flagSrc('Mars/Olympus_Mons'), GLOBE_SVG);
 });
 
-test('t() translates all fifteen languages and syncStatus follows along', () => {
-  assert.equal(LANGS.length, 15);
+test('t() translates all twenty-five languages and syncStatus follows along', () => {
+  assert.equal(LANGS.length, 25);
   assert.ok(LANGS.some((l) => l.id === 'zh-Hant' && l.flag === 'TW'), 'Traditional Chinese included');
   assert.equal(t('en', 'night'), 'Night Shift');
   assert.equal(t('zh-Hant', 'date'), '日期');
@@ -110,6 +110,16 @@ test('t() translates all fifteen languages and syncStatus follows along', () => 
   assert.equal(t('ko', 'wallet'), '지갑');
   assert.equal(t('ja', 'stopwatch'), 'ストップウォッチ');
   assert.equal(t('ms', 'start'), 'Mula');
+  assert.equal(t('de', 'stopwatch'), 'Stoppuhr');
+  assert.equal(t('pl', 'wallet'), 'Portfel');
+  assert.equal(t('da', 'night'), 'Nattilstand');
+  assert.equal(t('nb', 'signin'), 'Logg inn');
+  assert.equal(t('sv', 'map'), 'Karta');
+  assert.equal(t('fi', 'timer'), 'Ajastin');
+  assert.equal(t('sr', 'settings'), 'Podešavanja');
+  assert.equal(t('nl', 'smateSend'), 'Verzenden');
+  assert.equal(t('nl-BE', 'signin'), 'Aanmelden');
+  assert.equal(t('el', 'wallet'), 'Πορτοφόλι');
   assert.equal(t('nope', 'window'), 'Window', 'unknown languages fall back to English');
   assert.equal(t('fr', 'drift', { mag: '+32 ms', res: '' }), 'dérive de l’appareil +32 ms — corrigée');
   const r = { ok: true, source: 'timeapi.io', offset: 12, resolution: 'millisecond', rtt: 90, at: 1 };

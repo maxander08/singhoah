@@ -408,11 +408,27 @@ await page.locator('#tzBtn').click();
 await page.locator(`.tz-row[data-zone="${sysZone}"]`).click();
 await page.waitForTimeout(200);
 
-/* --- languages: fifteen options with flags, live translation, RTL --- */
+/* --- languages: twenty-five options with flags, live translation, RTL --- */
 await page.locator('#langBtn').click();
 await page.waitForTimeout(150);
 const langRows = await page.locator('#langList .tz-row').count();
-ok('language toggle lists 15 languages', langRows === 15, `${langRows} rows`);
+ok('language toggle lists 25 languages', langRows === 25, `${langRows} rows`);
+{
+  const lm = await browser.newContext({ viewport: { width: 360, height: 640 } });
+  await lm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+  const lp = await lm.newPage();
+  await lp.goto(URL + 'index.html', { waitUntil: 'load' });
+  await lp.waitForTimeout(300);
+  await lp.click('#langBtn');
+  await lp.waitForTimeout(250);
+  ok('the 25-language menu fits and scrolls on phones', await lp.evaluate(() => {
+    const list = document.getElementById('langList');
+    const r = list.getBoundingClientRect();
+    return r.bottom <= innerHeight && r.top >= 0 && list.scrollHeight > list.clientHeight;
+  }));
+  await lp.close();
+  await lm.close();
+}
 ok('every language row carries an SVG flag', await page.evaluate(
   () => [...document.querySelectorAll('#langList img')].every((i) => i.src.startsWith('data:image/svg'))));
 
@@ -1257,7 +1273,7 @@ await v2p.waitForTimeout(300);
 await v2p.click('#smateBtn');
 await v2p.click('#smateMic');
 await v2p.waitForTimeout(250);
-ok('voice mode follows the UI language (all fifteen supported)', await v2p.evaluate(() =>
+ok('voice mode follows the UI language (all twenty-five supported)', await v2p.evaluate(() =>
   window.__srLang === 'zh-Hant-TW'));
 await v2p.close();
 await v2.close();
