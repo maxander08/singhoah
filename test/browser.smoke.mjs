@@ -1789,7 +1789,7 @@ ok('dragging the map selects no text', await mt.evaluate(() => String(getSelecti
 await mt.click('#metroFit');
 await mt.waitForTimeout(200);
 ok('metro labels show English over the Chinese name', await mt.evaluate(() => {
-  const texts = [...document.getElementById('metroLabels').querySelectorAll('text.metro-label')];
+  const texts = [...document.getElementById('metroSvg').querySelectorAll('text.metro-label')];
   return texts.length >= 25 && texts.every((tx) => {
     const ts = tx.querySelectorAll('tspan');
     return ts.length === 2 && ts[1].classList.contains('metro-label-zh') && /[\u4e00-\u9fff]/.test(ts[1].textContent);

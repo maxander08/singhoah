@@ -217,6 +217,11 @@ function initBase() {
   bRM = document.createElementNS(NS, 'path'); bRM.setAttribute('class', 'b-road-maj');
   bRm = document.createElementNS(NS, 'path'); bRm.setAttribute('class', 'b-road-min');
   els.metroBaseRoads.append(bRM, bRm);
+  /* screen-constant hairlines: widths are in screen px, the geometry scales */
+  for (const [p, w] of [[bWS, 1.2], [bRM, 1.5], [bRm, 0.9]]) {
+    p.setAttribute('vector-effect', 'non-scaling-stroke');
+    p.setAttribute('stroke-width', String(w));
+  }
 }
 
 function applyLang(id, persist = true) {
@@ -281,7 +286,109 @@ function buildSysTabs() {
   }
 }
 
-/* ---------------- drawing ---------------- */
+/* ---------------- drawing: layered scene, Google-Maps style ----------------
+   Heavy vector content (basemap + line paths) is built ONCE per system and
+   afterwards only painted through the viewBox — a pan writes exactly one
+   attribute per frame. All world-layer strokes carry vector-effect
+   non-scaling-stroke so their width stays constant in screen pixels at any
+   zoom. Stations + labels live in per-station groups that are counter-scaled
+   by 1/zoom, so dots and type keep a constant screen size like map markers;
+   their transforms are rewritten only when the zoom level actually changes.
+   Interaction events are coalesced into one redraw per animation frame. */
+
+const SCENE = {};
+function buildScene(sysId) {
+  if (SCENE[sysId]) return SCENE[sysId];
+  const gLines = document.createElementNS(NS, 'g');
+  for (const [s, lid, color, refs] of METRO.lines) {
+    if (s !== sysId) continue;
+    const p = document.createElementNS(NS, 'path');
+    const tk = TRKD[sysId][lid];
+    p.setAttribute('d', tk ? tk.d : refs.map((r, i) => `${i ? 'L' : 'M'}${ST[r].x.toFixed(1)} ${ST[r].y.toFixed(1)}`).join(''));
+    p.setAttribute('stroke', color);
+    p.setAttribute('stroke-width', '3.2');
+    p.setAttribute('vector-effect', 'non-scaling-stroke');
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    p.setAttribute('class', 'metro-line');
+    gLines.appendChild(p);
+  }
+  const groups = [], byId = {};
+  const base = 11; /* label px at screen scale */
+  const placed = [];
+  const cands = Object.values(ST).filter((s) => s.sys === sysId)
+    .sort((a, b) => (b.xf - a.xf) || a.id.localeCompare(b.id));
+  for (const s of cands) {
+    const g = document.createElementNS(NS, 'g');
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('r', s.xf ? '4.2' : '3');
+    c.setAttribute('class', 'metro-st');
+    c.dataset.st = s.id;
+    g.appendChild(c);
+    /* collision-culled bilingual label, built once, in marker-local px */
+    if (placed.length < 80) {
+      const wEst = Math.max(s.en.length, s.zh.length) * base * 0.62 + base;
+      const hEst = base * 2.6;
+      const lx = Math.min(VB.w - wEst / 2 - 4, Math.max(wEst / 2 + 4, s.x));
+      const rx = lx - wEst / 2, ry = s.y + base * 0.5;
+      let hit = false;
+      for (const q of placed) if (rx < q.x + q.w && rx + wEst > q.x && ry < q.y + q.h && ry + hEst > q.y) { hit = true; break; }
+      if (!hit) {
+        placed.push({ x: rx, y: ry, w: wEst, h: hEst });
+        const tx = document.createElementNS(NS, 'text');
+        tx.setAttribute('x', (lx - s.x).toFixed(1)); tx.setAttribute('y', '0');
+        tx.setAttribute('text-anchor', 'middle');
+        tx.setAttribute('class', 'metro-label');
+        tx.style.fontSize = `${base}px`;
+        const t1 = document.createElementNS(NS, 'tspan');
+        t1.setAttribute('x', (lx - s.x).toFixed(1)); t1.setAttribute('dy', (base * 1.5).toFixed(2));
+        t1.textContent = s.en;
+        const t2 = document.createElementNS(NS, 'tspan');
+        t2.setAttribute('x', (lx - s.x).toFixed(1)); t2.setAttribute('dy', (base * 0.95).toFixed(2));
+        t2.setAttribute('class', 'metro-label-zh');
+        t2.textContent = s.zh;
+        tx.append(t1, t2);
+        g.appendChild(tx);
+      }
+    }
+    groups.push([g, s]);
+    byId[s.id] = c;
+  }
+  els.metroLines.textContent = '';
+  els.metroStations.textContent = '';
+  els.metroLabels.textContent = '';
+  els.metroLines.appendChild(gLines);
+  for (const [g] of groups) els.metroStations.appendChild(g);
+  SCENE[sysId] = { groups, byId, upx: null, sel: null };
+  return SCENE[sysId];
+}
+
+function updateRoute() {
+  els.metroRoute.textContent = '';
+  const r = from && to ? route(from, to) : null;
+  if (!r) return;
+  for (const seg of r.segs) {
+    const line = METRO.lines.find((l) => l[1] === seg.line);
+    const p = document.createElementNS(NS, 'path');
+    const cands = FAMINV[seg.line] || [seg.line];
+    const tk = cands.map((l) => TRKD[sys][l]).find((t) => t && t.st[seg.from] != null && t.st[seg.to] != null);
+    if (tk) {
+      const a = tk.st[seg.from], b = tk.st[seg.to];
+      const slice = a <= b ? tk.pts.slice(a, b + 1) : tk.pts.slice(b, a + 1).reverse();
+      p.setAttribute('d', slice.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(''));
+    } else {
+      p.setAttribute('d', `M${ST[seg.from].x} ${ST[seg.from].y}L${ST[seg.to].x} ${ST[seg.to].y}`);
+    }
+    p.setAttribute('stroke', line ? line[2] : '#000dff');
+    p.setAttribute('stroke-width', '6');
+    p.setAttribute('vector-effect', 'non-scaling-stroke');
+    p.setAttribute('opacity', '0.45');
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke-linecap', 'round');
+    els.metroRoute.appendChild(p);
+  }
+}
 
 function draw() {
   const v = view[sys];
@@ -289,7 +396,7 @@ function draw() {
   els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
   const upx = 1 / g.s;
 
-  /* street basemap */
+  /* street basemap: swap path data only when the system changes */
   if (baseSys !== sys) {
     baseSys = sys;
     bWF.setAttribute('d', BASED[sys].watf || 'M0 0');
@@ -297,98 +404,33 @@ function draw() {
     bRM.setAttribute('d', BASED[sys].maj || 'M0 0');
     bRm.setAttribute('d', BASED[sys].min || 'M0 0');
   }
-  bWS.setAttribute('stroke-width', (1.2 * upx).toFixed(2));
-  bRM.setAttribute('stroke-width', (1.5 * upx).toFixed(2));
   bRm.style.display = v.k >= 2 ? '' : 'none';
-  bRm.setAttribute('stroke-width', (0.9 * upx).toFixed(2));
 
-  /* lines — real track curves where OSM has them */
-  els.metroLines.textContent = '';
-  for (const [s, lid, color, refs] of METRO.lines) {
-    if (s !== sys) continue;
-    const p = document.createElementNS(NS, 'path');
-    const tk = TRKD[sys][lid];
-    p.setAttribute('d', tk ? tk.d : refs.map((r, i) => `${i ? 'L' : 'M'}${ST[r].x.toFixed(1)} ${ST[r].y.toFixed(1)}`).join(''));
-    p.setAttribute('stroke', color);
-    p.setAttribute('stroke-width', (3.2 * upx).toFixed(2));
-    p.setAttribute('fill', 'none');
-    p.setAttribute('stroke-linecap', 'round');
-    p.setAttribute('stroke-linejoin', 'round');
-    p.setAttribute('class', 'metro-line');
-    els.metroLines.appendChild(p);
-  }
-
-  /* route highlight */
-  els.metroRoute.textContent = '';
-  const r = from && to ? route(from, to) : null;
-  if (r) {
-    for (const seg of r.segs) {
-      const line = METRO.lines.find((l) => l[1] === seg.line);
-      const p = document.createElementNS(NS, 'path');
-      const cands = FAMINV[seg.line] || [seg.line];
-      const tk = cands.map((l) => TRKD[sys][l]).find((t) => t && t.st[seg.from] != null && t.st[seg.to] != null);
-      if (tk) {
-        const a = tk.st[seg.from], b = tk.st[seg.to];
-        const slice = a <= b ? tk.pts.slice(a, b + 1) : tk.pts.slice(b, a + 1).reverse();
-        p.setAttribute('d', slice.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(''));
-      } else {
-        p.setAttribute('d', `M${ST[seg.from].x} ${ST[seg.from].y}L${ST[seg.to].x} ${ST[seg.to].y}`);
-      }
-      p.setAttribute('stroke', line ? line[2] : '#000dff');
-      p.setAttribute('stroke-width', (6 * upx).toFixed(2));
-      p.setAttribute('opacity', '0.45');
-      p.setAttribute('fill', 'none');
-      p.setAttribute('stroke-linecap', 'round');
-      els.metroRoute.appendChild(p);
+  const sc = buildScene(sys);
+  /* counter-scale markers/labels only when the zoom actually changed */
+  if (sc.upx !== upx) {
+    sc.upx = upx;
+    for (const [grp, s] of sc.groups) {
+      grp.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)}) scale(${upx.toFixed(4)})`);
     }
   }
-
-  /* stations */
-  els.metroStations.textContent = '';
-  for (const s of Object.values(ST)) {
-    if (s.sys !== sys) continue;
-    const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('cx', s.x); c.setAttribute('cy', s.y);
-    c.setAttribute('r', ((s.xf ? 4.2 : 3) * upx).toFixed(2));
-    c.setAttribute('class', `metro-st${s.id === from ? ' from' : s.id === to ? ' to' : ''}`);
-    c.dataset.st = s.id;
-    els.metroStations.appendChild(c);
-  }
-
-  /* labels: English over the original script, collision-culled */
-  els.metroLabels.textContent = '';
-  const base = 11 * upx;
-  const cands = Object.values(ST).filter((s) => s.sys === sys)
-    .sort((a, b) => (b.xf - a.xf) || a.id.localeCompare(b.id));
-  const placed = [];
-  for (const s of cands) {
-    if (placed.length >= 80) break;
-    const wEst = Math.max(s.en.length, s.zh.length) * base * 0.62 + base;
-    const hEst = base * 2.6;
-    /* keep the whole label inside the 0..1000 frame (edge stations) */
-    const lx = Math.min(VB.w - wEst / 2 - 4, Math.max(wEst / 2 + 4, s.x));
-    const rx = lx - wEst / 2, ry = s.y + base * 0.5;
-    let hit = false;
-    for (const q of placed) if (rx < q.x + q.w && rx + wEst > q.x && ry < q.y + q.h && ry + hEst > q.y) { hit = true; break; }
-    if (hit) continue;
-    placed.push({ x: rx, y: ry, w: wEst, h: hEst });
-    const tx = document.createElementNS(NS, 'text');
-    tx.setAttribute('x', lx); tx.setAttribute('y', s.y);
-    tx.setAttribute('text-anchor', 'middle');
-    tx.setAttribute('class', 'metro-label');
-    tx.style.fontSize = `${base.toFixed(2)}px`;
-    const t1 = document.createElementNS(NS, 'tspan');
-    t1.setAttribute('x', lx); t1.setAttribute('dy', (base * 1.5).toFixed(2));
-    t1.textContent = s.en;
-    const t2 = document.createElementNS(NS, 'tspan');
-    t2.setAttribute('x', lx); t2.setAttribute('dy', (base * 0.95).toFixed(2));
-    t2.setAttribute('class', 'metro-label-zh');
-    t2.textContent = s.zh;
-    tx.append(t1, t2);
-    els.metroLabels.appendChild(tx);
+  /* selection highlight + route overlay only when the pair changed */
+  const selKey = from && to ? `${from}|${to}` : '';
+  if (sc.sel !== selKey) {
+    sc.sel = selKey;
+    for (const [id, c] of Object.entries(sc.byId)) {
+      c.setAttribute('class', `metro-st${id === from ? ' from' : id === to ? ' to' : ''}`);
+    }
+    updateRoute();
   }
 }
 
+/* coalesce event-driven redraws into one per animation frame */
+let rafId = 0;
+function requestDraw() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => { rafId = 0; draw(); });
+}
 /* ---------------- fare bar ---------------- */
 
 function renderBar() {
@@ -418,7 +460,7 @@ function setView(nx, ny, nk) {
   v.k = Math.min(12, Math.max(0.7, nk));
   v.cx = Math.min(VB.w, Math.max(0, nx));
   v.cy = Math.min(VB.h, Math.max(0, ny));
-  draw();
+  requestDraw();
 }
 
 /* zoom so the current system's stations fill the frame */
@@ -444,7 +486,7 @@ let drag = null, moved = 0;
 els.metroSvg.addEventListener('pointerdown', (e) => {
   drag = { x: e.clientX, y: e.clientY };
   moved = 0;
-  els.metroSvg.setPointerCapture(e.pointerId);
+  try { els.metroSvg.setPointerCapture(e.pointerId); } catch { /* synthetic pointers */ }
 });
 els.metroSvg.addEventListener('pointermove', (e) => {
   if (!drag) return;
