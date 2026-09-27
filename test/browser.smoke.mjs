@@ -429,6 +429,23 @@ ok('language toggle lists 25 languages', langRows === 25, `${langRows} rows`);
   await lp.close();
   await lm.close();
 }
+
+/* device x language guard: narrowest phone with the longest and CJK
+   translations must never overflow horizontally on any page */
+for (const dl of ['de', 'el', 'ja']) {
+  const dc = await browser.newContext({ viewport: { width: 320, height: 568 } });
+  await dc.addInitScript(([l]) => { localStorage.setItem('singhoah:visited','1'); localStorage.setItem('singhoah:lang', l); }, [dl]);
+  const dp = await dc.newPage();
+  let over = 0;
+  for (const pg of ['index.html', 'wallet.html', 'scribe.html', 'settings.html', 'launch.html']) {
+    await dp.goto(URL + pg, { waitUntil: 'load' });
+    await dp.waitForTimeout(250);
+    over += await dp.evaluate(() => (document.documentElement.scrollWidth > innerWidth + 1 ? 1 : 0));
+  }
+  ok(`no horizontal overflow at 320px in ${dl}`, over === 0);
+  await dp.close();
+  await dc.close();
+}
 ok('every language row carries an SVG flag', await page.evaluate(
   () => [...document.querySelectorAll('#langList img')].every((i) => i.src.startsWith('data:image/svg'))));
 
