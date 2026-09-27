@@ -1844,6 +1844,55 @@ await tapSt('T103a');
 await tapSt('T119');
 ok('Taichung Green Line end-to-end fares at NT$50', await mt.evaluate(() =>
   document.getElementById('mFareVal').textContent.trim() === 'NT$50'));
+/* Google-Maps-style gestures: anchored wheel, pinch, fling */
+ok('wheel zoom stays anchored under the cursor', await mt.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const r = svg.getBoundingClientRect();
+  const sx = r.x + r.width / 2 + 120, sy = r.y + r.height / 2 - 80;
+  const worldOf = (sx2, sy2) => {
+    const [x0, y0, w, hh] = svg.getAttribute('viewBox').split(' ').map(Number);
+    const s = Math.min(r.width / w, r.height / hh);
+    const ox = (r.width - w * s) / 2, oy = (r.height - hh * s) / 2;
+    return [x0 + (sx2 - r.left - ox) / s, y0 + (sy2 - r.top - oy) / s];
+  };
+  const before = worldOf(sx, sy);
+  svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: sx, clientY: sy, bubbles: true, cancelable: true }));
+  await new Promise((x) => setTimeout(x, 120));
+  const after = worldOf(sx, sy);
+  return Math.hypot(before[0] - after[0], before[1] - after[1]) < 2;
+}));
+ok('pinch spread zooms in about the midpoint', await mt.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const r = svg.getBoundingClientRect();
+  const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+  const vw = () => svg.getAttribute('viewBox').split(' ').map(Number)[2];
+  const w0 = vw();
+  svg.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 11, clientX: cx - 60, clientY: cy, bubbles: true }));
+  svg.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 12, clientX: cx + 60, clientY: cy, bubbles: true }));
+  for (let i = 1; i <= 5; i++) {
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 11, clientX: cx - 60 - i * 20, clientY: cy, bubbles: true }));
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 12, clientX: cx + 60 + i * 20, clientY: cy, bubbles: true }));
+    await new Promise((x) => setTimeout(x, 25));
+  }
+  svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 11, clientX: cx - 160, clientY: cy, bubbles: true }));
+  svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 12, clientX: cx + 160, clientY: cy, bubbles: true }));
+  await new Promise((x) => setTimeout(x, 120));
+  return vw() < w0 - 1;
+}));
+ok('fling keeps the map gliding after release', await mt.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const r = svg.getBoundingClientRect();
+  const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+  svg.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 13, clientX: cx, clientY: cy, bubbles: true }));
+  for (let i = 1; i <= 6; i++) {
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 13, clientX: cx + i * 30, clientY: cy + i * 8, bubbles: true }));
+    await new Promise((x) => setTimeout(x, 12));
+  }
+  svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 13, clientX: cx + 180, clientY: cy + 48, bubbles: true }));
+  const vx0 = svg.getAttribute('viewBox').split(' ').map(Number)[0]; /* at release */
+  await new Promise((x) => setTimeout(x, 300));
+  return Math.abs(svg.getAttribute('viewBox').split(' ').map(Number)[0] - vx0) > 1; /* glides after release */
+}));
 ok('metro runs without page errors', metroErrs.length === 0);
 await mt.click('#mCard');
 await mt.waitForTimeout(200);

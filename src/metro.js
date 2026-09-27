@@ -36,15 +36,29 @@ for (const [a, b] of METRO.xf) { if (ST[a]) ST[a].xf = true; if (ST[b]) ST[b].xf
 /* per-system projection into a 1000 x 800 frame */
 const VB = { w: 1000, h: 800 };
 /* screen <-> map conversion, correct for preserveAspectRatio letterboxing */
-function vGeom() {
-  const v = view[sys];
+function vGeomFor(k) {
   const rect = els.metroSvg.getBoundingClientRect();
   /* the viewBox follows the container's aspect so portrait phones use the
      whole screen instead of a letterboxed strip */
   const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
-  const w = VB.w / v.k, h = w * aspect;
+  const w = VB.w / k, h = w * aspect;
   const s = Math.min(rect.width / w, rect.height / h) || 1; /* meet scale */
-  return { v, w, h, rect, s, ox: (rect.width - w * s) / 2, oy: (rect.height - h * s) / 2 };
+  return { w, h, rect, s, ox: (rect.width - w * s) / 2, oy: (rect.height - h * s) / 2 };
+}
+function vGeom() { return { v: view[sys], ...vGeomFor(view[sys].k) }; }
+/* world coordinate under a screen point (Google-Maps anchoring primitive) */
+function worldAt(sx, sy, g, v) {
+  return [(v.cx - g.w / 2) + (sx - g.rect.left - g.ox) / g.s,
+          (v.cy - g.h / 2) + (sy - g.rect.top - g.oy) / g.s];
+}
+/* zoom to nk keeping world point (X,Y) glued to screen point (sx,sy) */
+function zoomAnchor(X, Y, sx, sy, nk) {
+  const v = view[sys];
+  v.k = Math.min(12, Math.max(0.7, nk));
+  const g = vGeomFor(v.k);
+  v.cx = Math.min(VB.w, Math.max(0, X - (sx - g.rect.left - g.ox) / g.s + g.w / 2));
+  v.cy = Math.min(VB.h, Math.max(0, Y - (sy - g.rect.top - g.oy) / g.s + g.h / 2));
+  requestDraw();
 }
 /* portrait phones get the map rotated 90° so the lines' long axis runs
    down the screen instead of across a thin strip */
@@ -465,6 +479,7 @@ function setView(nx, ny, nk) {
 
 /* zoom so the current system's stations fill the frame */
 function fitContent() {
+  cancelFling();
   const rect = els.metroSvg.getBoundingClientRect();
   const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
   let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
@@ -482,23 +497,70 @@ function fitContent() {
   draw();
 }
 
+/* ---- Google-Maps-style gestures: drag w/ fling, anchored wheel & pinch ---- */
 let drag = null, moved = 0;
+const pointers = new Map();
+let flingRaf = 0;
+function cancelFling() { if (flingRaf) { cancelAnimationFrame(flingRaf); flingRaf = 0; } }
+
 els.metroSvg.addEventListener('pointerdown', (e) => {
-  drag = { x: e.clientX, y: e.clientY };
-  moved = 0;
+  cancelFling();
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { els.metroSvg.setPointerCapture(e.pointerId); } catch { /* synthetic pointers */ }
+  if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY, t: performance.now(), vx: 0, vy: 0 }; moved = 0; }
+  else drag = null;
 });
 els.metroSvg.addEventListener('pointermove', (e) => {
+  const pt = pointers.get(e.pointerId);
+  if (!pt) return;
+  if (pointers.size === 2) {
+    /* pinch: scale about the live midpoint, like Google Maps */
+    const [a, b] = [...pointers.values()];
+    const oldMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const oldD = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    pt.x = e.clientX; pt.y = e.clientY;
+    const [c, d] = [...pointers.values()];
+    const mid = { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 };
+    const nd = Math.hypot(c.x - d.x, c.y - d.y) || 1;
+    const v = view[sys];
+    const [X, Y] = worldAt(oldMid.x, oldMid.y, vGeom(), v);
+    zoomAnchor(X, Y, mid.x, mid.y, v.k * (nd / oldD));
+    return;
+  }
+  pt.x = e.clientX; pt.y = e.clientY;
   if (!drag) return;
+  const now = performance.now();
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   moved += Math.abs(dx) + Math.abs(dy);
-  drag = { x: e.clientX, y: e.clientY };
+  const dts = Math.max(1, now - drag.t);
+  drag.vx = 0.8 * drag.vx + 0.2 * (dx / dts);
+  drag.vy = 0.8 * drag.vy + 0.2 * (dy / dts);
+  drag.x = e.clientX; drag.y = e.clientY; drag.t = now;
   if (moved < 4) return;
   const { v, s } = vGeom();
   setView(v.cx - dx / s, v.cy - dy / s, v.k);
 });
-els.metroSvg.addEventListener('pointerup', (e) => {
-  drag = null;
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size) { drag = null; return; }
+  const d = drag; drag = null;
+  if (d && moved > 6) {
+    /* fling: momentum with exponential decay, cancelled by any new gesture */
+    let vx = d.vx, vy = d.vy;
+    if (Math.hypot(vx, vy) > 0.05) {
+      let last = performance.now();
+      const step = (now) => {
+        const dt = Math.min(48, now - last); last = now;
+        const { v, s } = vGeom();
+        setView(v.cx - vx * dt / s, v.cy - vy * dt / s, v.k);
+        const dec = Math.pow(0.94, dt / 16.7);
+        vx *= dec; vy *= dec;
+        flingRaf = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
+      };
+      flingRaf = requestAnimationFrame(step);
+    }
+    return;
+  }
   if (moved > 6) return;
   /* a tap: nearest station within 16px */
   const { v, w, h, rect, s, ox, oy } = vGeom();
@@ -507,19 +569,37 @@ els.metroSvg.addEventListener('pointerup', (e) => {
   let best = null, bd = 16 / s;
   for (const s of Object.values(ST)) {
     if (s.sys !== sys) continue;
-    const d = Math.hypot(s.x - px, s.y - py);
-    if (d < bd) { bd = d; best = s; }
+    const d2 = Math.hypot(s.x - px, s.y - py);
+    if (d2 < bd) { bd = d2; best = s; }
   }
   if (!best) return;
   if (!from || (from && to)) { from = best.id; to = null; }
   else if (best.id !== from) to = best.id;
   renderBar(); draw();
-});
+}
+els.metroSvg.addEventListener('pointerup', endPointer);
+els.metroSvg.addEventListener('pointercancel', endPointer);
 els.metroSvg.addEventListener('wheel', (e) => {
   e.preventDefault();
+  cancelFling();
   const v = view[sys];
-  setView(v.cx, v.cy, v.k * (e.deltaY < 0 ? 1.25 : 0.8));
+  const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
+  zoomAnchor(X, Y, e.clientX, e.clientY, v.k * (e.deltaY < 0 ? 1.25 : 0.8));
 }, { passive: false });
+els.metroSvg.addEventListener('dblclick', (e) => {
+  e.preventDefault();
+  cancelFling();
+  const v = view[sys];
+  const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
+  const k0 = v.k, k1 = Math.min(12, k0 * 2), t0 = performance.now();
+  const step = (now) => {
+    const u = Math.min(1, (now - t0) / 220);
+    const ease = 1 - (1 - u) * (1 - u);
+    zoomAnchor(X, Y, e.clientX, e.clientY, k0 + (k1 - k0) * ease);
+    if (u < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+});
 els.metroIn.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k * 1.4); });
 els.metroOut.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k / 1.4); });
 els.metroFit.addEventListener('click', () => fitContent());
