@@ -208,7 +208,12 @@ applied to the route distance; Airport MRT fares use the officially
 published station-to-station table. The bar also shows the station count,
 transfer count and an approximate travel time. **Swap** flips the pair,
 **Clear** resets, and the two system tabs switch maps (each remembers its
-own pan/zoom). The whole chrome — tabs, buttons, hints — is translated
+own pan/zoom). The **Card** button scans an IC card where the device truly
+can (Android with NFC, via the Web NFC API): the card is recognized
+on-device and you may note its balance in a field stored only in that
+browser's localStorage. Browsers cannot read the protected balance from
+the card itself, and the panel says exactly that where NFC is missing.
+The whole chrome — tabs, buttons, hints — is translated
 into all twenty-five languages, and the standard topbar (language, night
 shift, Launchpad, Clock, Settings, account chip, SMate) is on the page.
 

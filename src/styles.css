@@ -1383,6 +1383,13 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .b-road-maj, .b-road-min { fill: none; pointer-events: none; stroke-linecap: round; stroke-linejoin: round; }
 .b-road-maj { stroke: var(--broadM); }
 .b-road-min { stroke: var(--broadm); }
+.card-pop { top: auto; bottom: calc(100% + 10px); left: auto; right: 0; width: min(320px, calc(100vw - 24px)); padding: 12px 14px; gap: 8px; overflow: visible; }
+.card-pop p { margin: 0; }
+.card-msg { font-weight: 700; }
+.card-id { opacity: .7; font-size: 12px; word-break: break-all; }
+.card-lbl { font-size: 12px; opacity: .8; }
+.card-bal { background: var(--paper); color: var(--black); border: 2px solid var(--border); border-radius: 8px; padding: 6px 8px; font: inherit; width: 100%; }
+.card-note { font-size: 12px; opacity: .65; }
 .metro-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .metro-zoom .btn { background: var(--paper-2); width: 34px; height: 34px; font-size: 17px; line-height: 1; }
 .metro-bar { border-top: 1px solid var(--border); padding: 10px var(--pad-side) 14px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; min-height: 64px; }
@@ -1392,7 +1399,7 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .metro-fare strong { font-size: 22px; font-weight: 800; }
 .metro-fare span { color: var(--pigeon); margin-left: 8px; font-size: 13px; }
 .metro-hint { color: var(--pigeon); font-size: 13px; }
-.metro-acts { margin-left: auto; display: flex; gap: var(--gap); }
+.metro-acts { margin-left: auto; display: flex; gap: var(--gap); position: relative; }
 .metro-acts .btn { font-weight: 700; }
 @media (max-width: 560px) {
   .metro-bar { padding: 8px 12px 12px; }

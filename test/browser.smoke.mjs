@@ -1828,6 +1828,19 @@ await tapSt('A13');
 ok('Airport MRT Taipei Main -> Terminal 2 fares at NT$160', await mt.evaluate(() =>
   document.getElementById('mFareVal').textContent.trim() === 'NT$160'));
 ok('metro runs without page errors', metroErrs.length === 0);
+await mt.click('#mCard');
+await mt.waitForTimeout(200);
+ok('card panel opens and is honest where NFC is missing', await mt.evaluate(() =>
+  !document.getElementById('mCardPop').hidden &&
+  document.getElementById('mCardMsg').textContent.length > 10 &&
+  document.getElementById('mCardNote').textContent.length > 10));
+await mt.fill('#mCardBal', '250');
+await mt.evaluate(() => document.getElementById('mCardBal').dispatchEvent(new Event('change', { bubbles: true })));
+ok('card balance is kept on-device', await mt.evaluate(() => {
+  const st = JSON.parse(localStorage.getItem('singhoah:cardbal') || '{}');
+  return st.manual === '250';
+}));
+await mt.click('#mCard');
 await mtctx.close();
 const mbc = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await mbc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));

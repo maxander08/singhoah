@@ -194,7 +194,7 @@ const els = {};
 for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'btnNight', 'nightText',
   'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
   'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear',
-  'metroBaseWater', 'metroBaseRoads']) els[id] = $(id);
+  'metroBaseWater', 'metroBaseRoads', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
 let bWF, bWS, bRM, bRm, baseSys = null;
 function initBase() {
   bWF = document.createElementNS(NS, 'path'); bWF.setAttribute('class', 'b-water-f');
@@ -223,6 +223,11 @@ function applyLang(id, persist = true) {
   els.mSwap.textContent = t(lang, 'mSwap');
   els.mClear.textContent = t(lang, 'mClear');
   els.mHint.textContent = t(lang, 'mHint');
+  els.mCardText.textContent = t(lang, 'mCard');
+  els.mCard.title = t(lang, 'mCard');
+  els.mCardBalLbl.textContent = t(lang, 'mCardBal');
+  els.mCardNote.textContent = t(lang, 'mCardNote');
+  renderCard();
   buildSysTabs();
   updateThemeBtn();
   renderBar();
@@ -462,6 +467,58 @@ els.metroOut.addEventListener('click', () => { const v = view[sys]; setView(v.cx
 els.metroFit.addEventListener('click', () => fitContent());
 els.mSwap.addEventListener('click', () => { [from, to] = [to, from]; renderBar(); draw(); });
 els.mClear.addEventListener('click', () => { from = to = null; renderBar(); draw(); });
+
+/* ---------------- IC card: scan where NFC exists, honest everywhere else ---------------- */
+let cardUid = null;
+const cardStore = () => { try { return JSON.parse(localStorage.getItem('singhoah:cardbal') || '{}'); } catch { return {}; } };
+function renderCard() {
+  const st = cardStore();
+  if (cardUid) {
+    els.mCardMsg.textContent = t(lang, 'mCardSeen');
+    els.mCardId.hidden = false;
+    els.mCardId.textContent = cardUid;
+    els.mCardBal.value = st[cardUid] ?? '';
+  } else {
+    els.mCardMsg.textContent = t(lang, 'mCardNone');
+    els.mCardId.hidden = true;
+    els.mCardBal.value = st.manual ?? '';
+  }
+}
+async function scanCard() {
+  if (cardUid || !globalThis.NDEFReader) return;
+  els.mCardMsg.textContent = t(lang, 'mCardTap');
+  try {
+    const r = new globalThis.NDEFReader();
+    const got = new Promise((res) => {
+      const to = setTimeout(() => res(null), 8000);
+      r.addEventListener('reading', (e) => { clearTimeout(to); res(e.serialNumber || ''); });
+      r.addEventListener('error', () => { clearTimeout(to); res(null); });
+    });
+    await r.scan();
+    const id = await got;
+    if (id) { cardUid = id; renderCard(); }
+    else els.mCardMsg.textContent = t(lang, 'mCardNone');
+  } catch { els.mCardMsg.textContent = t(lang, 'mCardNone'); }
+}
+els.mCard.addEventListener('click', () => {
+  const open = els.mCardPop.hidden;
+  els.mCardPop.hidden = !open;
+  els.mCard.setAttribute('aria-expanded', String(open));
+  if (open) { renderCard(); clampPop(els.mCardPop); scanCard(); }
+});
+document.addEventListener('pointerdown', (e) => {
+  if (!els.mCardPop.hidden && !els.mCardPop.contains(e.target) && !els.mCard.contains(e.target)) {
+    els.mCardPop.hidden = true;
+    els.mCard.setAttribute('aria-expanded', 'false');
+  }
+});
+els.mCardBal.addEventListener('change', () => {
+  const st = cardStore();
+  const k = cardUid || 'manual';
+  if (els.mCardBal.value === '') delete st[k]; else st[k] = els.mCardBal.value;
+  try { localStorage.setItem('singhoah:cardbal', JSON.stringify(st)); } catch { /* ignore */ }
+  renderCard();
+});
 
 /* ---------------- boot ---------------- */
 
