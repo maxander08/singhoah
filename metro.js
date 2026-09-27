@@ -83,33 +83,78 @@ for (const sys of SYSS) {
   }
 }
 
-/* ---- street-level basemap (roads / rivers / water, © OpenStreetMap) ---- */
-function baseD(sysId, arr, close) {
-  const P = PROJ[sysId];
-  let d = '';
-  for (const a of arr) {
-    let la = a[0] / 1e4, lo = a[1] / 1e4;
-    let inside = false, seg = '';
-    const put = () => {
-      const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
-      const x = PORTRAIT ? P.ox + ey : P.ox + ex;
-      const y = PORTRAIT ? P.oy + ex : P.oy + ey;
-      if (x > -200 && x < 1200 && y > -200 && y < 1000) inside = true;
-      seg += (seg ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
-    };
-    put();
-    for (let i = 2; i < a.length; i += 2) { la += a[i] / 1e4; lo += a[i + 1] / 1e4; put(); }
-    if (inside) d += seg + (close ? 'Z' : '');
-  }
-  return d;
-}
-const BASED = {};
-for (const sysId of SYSS) {
+/* ---- street-level basemap (roads / rivers / water, © OpenStreetMap) ----
+   Google-Maps-style streaming: nothing is decoded at boot. A system's
+   geometry is decoded in ~6 ms time-sliced chunks (like tile fetches), and
+   only the pieces whose bbox intersects the viewport (plus a margin) are
+   attached to the DOM — re-culled whenever a gesture settles. Zoomed in,
+   the paint tree holds a fraction of the city instead of all of it. */
+function baseArrays(sysId) {
   const bm = (typeof BASEMAP === 'object' && BASEMAP && BASEMAP[sysId]) || null;
-  BASED[sysId] = {
-    watf: baseD(sysId, bm ? bm.watf : WATF, true), wats: baseD(sysId, bm ? bm.wats : WATS, false),
-    maj: baseD(sysId, bm ? bm.maj : MAJ, false), min: baseD(sysId, bm ? bm.min : MIN, false),
+  return bm || { maj: MAJ, min: MIN, watf: WATF, wats: WATS };
+}
+function decodeArr(sysId, cls, a) {
+  const P = PROJ[sysId];
+  let la = a[0] / 1e4, lo = a[1] / 1e4;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, seg = '';
+  const put = () => {
+    const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
+    const x = PORTRAIT ? P.ox + ey : P.ox + ex;
+    const y = PORTRAIT ? P.oy + ex : P.oy + ey;
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+    seg += (seg ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
   };
+  put();
+  for (let i = 2; i < a.length; i += 2) { la += a[i] / 1e4; lo += a[i + 1] / 1e4; put(); }
+  return { d: seg + (cls === 'watf' ? 'Z' : ''), b: [x0, y0, x1, y1] };
+}
+const BASE = {};
+function ensureBase(sysId) {
+  if (BASE[sysId]) return BASE[sysId];
+  const src = baseArrays(sysId);
+  BASE[sysId] = { src, dec: { maj: [], min: [], watf: [], wats: [] }, qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false };
+  pumpBase(sysId);
+  return BASE[sysId];
+}
+function pumpBase(sysId) {
+  const B = BASE[sysId];
+  if (!B || B.done) return;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 6) { /* ~6 ms budget per slice */
+    let progressed = false;
+    for (const cls of ['maj', 'watf', 'wats', 'min']) {
+      if (B.qi[cls] < B.src[cls].length) {
+        B.dec[cls].push(decodeArr(sysId, cls, B.src[cls][B.qi[cls]++]));
+        progressed = true;
+        if (performance.now() - t0 > 6) break;
+      }
+    }
+    if (!progressed) { B.done = true; break; }
+  }
+  if (sys === sysId) updateBasePaths();
+  if (!B.done) setTimeout(() => pumpBase(sysId), 16);
+}
+/* attach only viewport-visible decoded pieces (margin covers gestures) */
+function updateBasePaths() {
+  const B = BASE[sys];
+  if (!B) return;
+  const v = view[sys], g = vGeom();
+  const m = 0.35 * g.w;
+  const vx0 = v.cx - g.w / 2 - m, vx1 = v.cx + g.w / 2 + m;
+  const vy0 = v.cy - g.h / 2 - m, vy1 = v.cy + g.h / 2 + m;
+  const pick = (cls) => {
+    let d = '';
+    for (const o of B.dec[cls]) {
+      const b = o.b;
+      if (b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0) d += o.d;
+    }
+    return d || 'M0 0';
+  };
+  bWF.setAttribute('d', pick('watf'));
+  bWS.setAttribute('d', pick('wats'));
+  bRM.setAttribute('d', pick('maj'));
+  bRm.setAttribute('d', pick('min'));
 }
 
 /* ---- real curved track geometry per line, projected per system ---- */
@@ -223,7 +268,7 @@ for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'bt
   'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
   'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear',
   'metroBaseWater', 'metroBaseRoads', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
-let bWF, bWS, bRM, bRm, baseSys = null;
+let bWF, bWS, bRM, bRm;
 function initBase() {
   bWF = document.createElementNS(NS, 'path'); bWF.setAttribute('class', 'b-water-f');
   bWS = document.createElementNS(NS, 'path'); bWS.setAttribute('class', 'b-water-s');
@@ -425,14 +470,9 @@ function draw() {
     worldG.style.transform = '';
     els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
     const upx = 1 / g.s;
-    /* street basemap: swap path data only when the system changes */
-    if (baseSys !== sys) {
-      baseSys = sys;
-      bWF.setAttribute('d', BASED[sys].watf || 'M0 0');
-      bWS.setAttribute('d', BASED[sys].wats || 'M0 0');
-      bRM.setAttribute('d', BASED[sys].maj || 'M0 0');
-      bRm.setAttribute('d', BASED[sys].min || 'M0 0');
-    }
+    /* street basemap: stream + cull to the viewport */
+    ensureBase(sys);
+    updateBasePaths();
     bRm.style.display = v.k >= 2 ? '' : 'none';
     const sc = buildScene(sys);
     /* counter-scale markers/labels only when the zoom actually changed */
