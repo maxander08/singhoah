@@ -1,5 +1,5 @@
 /* SMate — the Singho assistant. A floating chat that understands commands
-   typed in any of the ten Singho languages and drives the page through its
+   typed in any of the fifteen Singho languages and drives the page through its
    real controls (the same code paths a click uses). Fully offline. */
 (() => {
   const LIB = globalThis.__SING_LIB;
@@ -269,18 +269,18 @@
     quad: [...words(['quad']), '2x2', '2 × 2', 'quad'],
     grid16: [...words(['grid16']), '4x4', '4×4'],
     clearAll: [...words(['clearAll']), 'clear all', 'clear-all', 'reset window', '全部清除'],
-    timeQ: ['what time', 'time in', 'current time', 'how late', '幾點', '几点', 'क्या बजा', 'कितने बजे', 'qué hora', 'hora en', 'quelle heure', 'heure à', 'كم الساعة', 'কটা বাজে', 'который час', 'сколько времени', 'время в', 'que horas', 'hora em', 'کتنا بجہ'],
-    remind: ['remind', 'reminder', '提醒', 'याद दिला', 'recuérdame', 'recuerdame', 'rappelle', 'ذكرني', 'মনে করিয়ে', 'напомни', 'lembre', 'یاد دہانی'],
+    timeQ: ['what time', 'time in', 'current time', 'how late', '幾點', '几点', 'क्या बजा', 'कितने बजे', 'qué hora', 'hora en', 'quelle heure', 'heure à', 'كم الساعة', 'কটা বাজে', 'который час', 'сколько времени', 'время в', 'que horas', 'hora em', 'کتنا بجہ', 'che ore', 'ora a', 'jam berapa', 'pukul berapa', '몇 시', '지금 몇', '何時', 'いま何時', 'pukul berapa'],
+    remind: ['remind', 'reminder', '提醒', 'याद दिला', 'recuérdame', 'recuerdame', 'rappelle', 'ذكرني', 'মনে করিয়ে', 'напомни', 'lembre', 'یاد دہانی', 'ricordami', 'ingatkan', '알림', '리마인드', '知らせ', 'ingatkan'],
     clearChat: [...words(['clearChat']), 'clear chat', 'clear conversation', '清除對話'],
-    remove: ['remove', 'delete', 'get rid', '刪除', '删除', 'हटा', 'borra', 'elimina', 'supprime', 'احذف', 'মোছ', 'удали', 'remova', 'exclua', 'ہٹا', 'مٹا'],
-    restart: ['restart', 'start over', 'begin again', '重新開始', 'फिर से शुरू', 'reinicia', 'recommence', 'আবার শুরু', 'перезапусти', 'reinicie', 'دوبارہ شروع'],
-    undo: ['undo', 'पूर्ववत', 'deshaz', 'annule', 'تراجع', 'আনডু', 'отмени', 'desfaça'],
-    redo: ['redo', 'पुनः करें', 'rehaz', 'rétablis', 'ریڈو', 'রিডু', 'верни', 'refaça'],
-    print: ['print', '列印', '打印', 'छापें', 'imprime', 'اطبع', 'প্রিন্ট', 'печатай', 'imprima', 'پرنٹ'],
-    copy: ['copy', '複製', 'कॉपी', 'copie', 'انسخ', 'কপি', 'копируй', 'کاپی'],
-    download: ['download', '下載', 'डाउनलोड', 'télécharge', 'تحميل', 'ডাউনলোড', 'скачай', 'baixe', 'ڈاؤن لوڈ'],
+    remove: ['remove', 'delete', 'get rid', '刪除', '删除', 'हटा', 'borra', 'elimina', 'supprime', 'احذف', 'মোছ', 'удали', 'remova', 'exclua', 'ہٹا', 'مٹا', 'rimuovi', 'hapus', '삭제', '削除', 'padam'],
+    restart: ['restart', 'start over', 'begin again', '重新開始', 'फिर से शुरू', 'reinicia', 'recommence', 'আবার শুরু', 'перезапусти', 'reinicie', 'دوبارہ شروع', 'riavvia', 'mulai ulang', '다시 시작', '最初から', 'mula semula'],
+    undo: ['undo', 'पूर्ववत', 'deshaz', 'annule', 'تراجع', 'আনডু', 'отмени', 'desfaça', 'annulla', 'urungkan', '실행 취소', '元に戻す', 'buat asal'],
+    redo: ['redo', 'पुनः करें', 'rehaz', 'rétablis', 'ریڈو', 'রিডু', 'верни', 'refaça', 'ripeti', 'ulangi', '다시 실행', 'やり直す', 'buat semula'],
+    print: ['print', '列印', '打印', 'छापें', 'imprime', 'اطبع', 'প্রিন্ট', 'печатай', 'imprima', 'پرنٹ', 'stampa', 'cetak', '인쇄', '印刷', 'cetak'],
+    copy: ['copy', '複製', 'कॉपी', 'copie', 'انسخ', 'কপি', 'копируй', 'کاپی', 'copia', 'salin', '복사', 'コピー', 'salin'],
+    download: ['download', '下載', 'डाउनलोड', 'télécharge', 'تحميل', 'ডাউনলোড', 'скачай', 'baixe', 'ڈاؤن لوڈ', 'scarica', 'unduh', '다운로드', 'ダウンロード', 'muat turun'],
     stamps: ['timestamp', 'stamps', '時間戳'],
-    theme: ['theme', '主題', 'थीम', 'tema', 'thème', 'সময', 'থিম', 'тема', 'تھیم'],
+    theme: ['theme', '主題', 'थीम', 'tema', 'thème', 'সময', 'থিম', 'тема', 'تھیم', 'tema', '테마', 'テーマ'],
     clearDoc: ['clear', 'wipe'],
     map: words(['map']),
     resync: [...words(['resync']), 'sync'],
@@ -476,7 +476,7 @@
     return `SMate · ${bits.join(' · ')}`;
   }
 
-  /* localized city names so zones can be spoken in any of the ten languages */
+  /* localized city names so zones can be spoken in any of the fifteen languages */
   const CITY_ALIASES = {
     'Asia/Taipei': ['台北', 'ताइपे', 'taipéi', 'تايبيه', 'তাইপেই', 'тайбэй', 'taipé', 'تائپے'],
     'Asia/Jakarta': ['雅加達', 'जकार्ता', 'yakarta', 'جاكرتا', 'জাকার্তা', 'джакарта', 'jacarta', 'جکارتہ'],

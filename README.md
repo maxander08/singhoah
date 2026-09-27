@@ -50,9 +50,9 @@ Tuesday, 25 August 2026                       05:51 UTC
   tz `backward` links map legacy aliases to their countries, and UTC flies
   the UN flag). The big clock, the date line and the
   readouts all follow the selection, which is persisted in `localStorage`.
-- **Ten languages** — a flag toggle for English, Traditional Chinese
+- **Fifteen languages** — a flag toggle for English, Traditional Chinese
   (中文繁體, TW flag), Hindi, Spanish, French, Arabic, Bengali, Russian,
-  Portuguese and Urdu. Every label, status string and the date line follow
+  Portuguese, Urdu, Italian, Indonesian, Korean, Japanese and Malay. Every label, status string and the date line follow
   the choice (via `Intl`); Arabic and Urdu flip the document to RTL while the
   `HH:MM:SS:mmm` clock itself stays left-to-right. Remembered like the rest.
 - **Window formats, no new tabs** — the top-bar *Window* menu reflows the
@@ -116,12 +116,12 @@ Tuesday, 25 August 2026                       05:51 UTC
   plus BTC and ETH with flag, localized name and symbol; the amount field is
   a clean text input with the symbol as prefix and a real *Amount* label (no
   spinner arrows), and the date uses a built-in localized calendar picker.
-  Entries persist locally; every label is translated in all ten languages
+  Entries persist locally; every label is translated in all fifteen languages
   and the app is touch-friendly on phones.
 - **SinghoLaunch** (`launch.html`) — the launchpad: a small live
   HH:MM:SS:mmm clock widget with a hairline analog dial above it and a
   searchable time-zone picker (persisted per browser), cards for the
-  SinghoClock clock and SinghoWallet, translated in all ten languages;
+  SinghoClock clock and SinghoWallet, translated in all fifteen languages;
   the clock's top bar links to it via *Launchpad*. A first-ever visit to
   the site lands here instead of the clock. The wordmarks fly 生活 beside
   *SinghoClock* and 錢包 beside *SinghoWallet*.
@@ -172,9 +172,9 @@ the account when signed in). The toolbar adds **undo / redo**, **find &
 replace** (Ctrl+F / Ctrl+H, highlighted matches with next/previous, replace one
 or all), optional **timestamps** on each dictated paragraph, **import** of
 .txt/.md files and **print** (a print stylesheet yields a clean paper copy).
-All of it follows the UI language in all ten languages. The **spoken
+All of it follows the UI language in all fifteen languages. The **spoken
 language** (recognizer) follows the app's UI language automatically — every
-one of the ten is offered, plus extras like German, simplified Chinese and
+one of the fifteen is offered, plus extras like German, simplified Chinese and
 UK English — and can still be overridden by hand; the **transcript
 language** is independently selectable. When they differ, each finalized
 sentence is translated (MyMemory, free) before being appended. Recognized
@@ -187,7 +187,7 @@ appears where unsupported). On phones the layout adapts: 16px page text
 ## SinghoSettings — the settings page
 
 A fourth app (`settings.html`) gathers every
-preference in one place, in all ten languages: language, appearance (night shift),
+preference in one place, in all fifteen languages: language, appearance (night shift),
 clock city, wallet currency (the search understands aliases — type **NTD** and the
 Taiwan dollar appears), the account note, and a *Reset local data* action that clears
 preferences and per-account snapshots while keeping wallet transactions. Gear buttons
@@ -196,7 +196,7 @@ in the clock / wallet / launchpad headers and a launchpad card link to it.
 ## SMate — the chat assistant
 
 Every page carries a small **SMate** button in the topbar, next to the
-account chip, that opens a chat panel. Type commands in any of the ten
+account chip, that opens a chat panel. Type commands in any of the fifteen
 languages and SMate drives the app through its real controls, fully offline:
 set timers (`timer 5`, `計時器 5`), pause/resume/reset them, add a stopwatch,
 restart or delete timers and stopwatches (`restart timer`, `delete
@@ -212,7 +212,7 @@ the currency. In SinghoScribe it drives the toolbar — `undo`, `redo`,
 it flips the `theme`.
 Commands compose: one sentence can do several things at once —
 `set time zones to Jakarta, Taipei, and Singapore in a 2 by 2 window` —
-and city names work in any of the ten languages (`雅加達、台北、新加坡`).
+and city names work in any of the fifteen languages (`雅加達、台北、新加坡`).
 `clear all` (or the **Clear all** row in the clock's Window menu) resets the
 window to a single home clock; from any other page SMate hops home and
 clears there.
@@ -232,7 +232,7 @@ automatically when you speak first). Beyond commands, SMate answers
 reminders (*“remind me in 10”* — the tab title flashes ⏰ when due), does
 quick math (`25 * 4`), and offers tappable suggestion chips when idle.
 The trash chip in the panel header — or the words `clear chat` — wipes the
-conversation and starts fresh. All of it works in the ten languages, with
+conversation and starts fresh. All of it works in the fifteen languages, with
 or without the AI chip.
 
 **On-device AI, on by default.** The `AI` chip in the panel header is
@@ -253,7 +253,7 @@ chat` and more, composable in one sentence. Clicking the chip turns the AI
 off for good (or back on). No WebGPU? SMate says so in your language and
 the offline brain keeps working — nothing is downloaded, nothing hangs:
 every AI call is capped and falls back silently. The interpreter matches
-against the app's own translated vocabulary in all ten languages, so a
+against the app's own translated vocabulary in all fifteen languages, so a
 Spanish command works while the UI is in Urdu.
 
 ## Optional Google sign-in (portal)

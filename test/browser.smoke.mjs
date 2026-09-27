@@ -408,11 +408,11 @@ await page.locator('#tzBtn').click();
 await page.locator(`.tz-row[data-zone="${sysZone}"]`).click();
 await page.waitForTimeout(200);
 
-/* --- languages: ten options with flags, live translation, RTL --- */
+/* --- languages: fifteen options with flags, live translation, RTL --- */
 await page.locator('#langBtn').click();
 await page.waitForTimeout(150);
 const langRows = await page.locator('#langList .tz-row').count();
-ok('language toggle lists 10 languages', langRows === 10, `${langRows} rows`);
+ok('language toggle lists 15 languages', langRows === 15, `${langRows} rows`);
 ok('every language row carries an SVG flag', await page.evaluate(
   () => [...document.querySelectorAll('#langList img')].every((i) => i.src.startsWith('data:image/svg'))));
 
@@ -694,6 +694,14 @@ await page.evaluate(() => {
 await page.waitForTimeout(400);
 ok('more zoom brings out smaller places', await page.evaluate(() =>
   document.querySelectorAll('#mapCities .map-city').length > 0));
+ok('city dots stay pin-sized even deep-zoomed (no giant-disc regression)', await page.evaluate(() => {
+  const svg = document.getElementById('mapSvg');
+  const ctm = svg.getScreenCTM();
+  const dots = [...document.querySelectorAll('#mapCities .map-city circle')];
+  if (!dots.length || !ctm || !ctm.a) return false;
+  const rs = dots.map((d) => parseFloat(d.getAttribute('r')) * ctm.a);
+  return rs.every((r) => r >= 0.3 && r <= 3);
+}));
 await page.evaluate(() => document.getElementById('mapZoomReset').click());
 await page.waitForTimeout(300);
 ok('the current zone country is highlighted', mp1.sel === mp1.cc, `${mp1.sel} vs ${mp1.cc}`);
@@ -1249,7 +1257,7 @@ await v2p.waitForTimeout(300);
 await v2p.click('#smateBtn');
 await v2p.click('#smateMic');
 await v2p.waitForTimeout(250);
-ok('voice mode follows the UI language (all ten supported)', await v2p.evaluate(() =>
+ok('voice mode follows the UI language (all fifteen supported)', await v2p.evaluate(() =>
   window.__srLang === 'zh-Hant-TW'));
 await v2p.close();
 await v2.close();
