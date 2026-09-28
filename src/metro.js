@@ -178,45 +178,82 @@ function pumpBase(sysId) {
     for (const t of B.tiles[cls]) {
       if (!t.dirty) continue;
       t.dirty = false;
-      if (!t.el) {
-        t.el = document.createElementNS(NS, 'path');
-        t.el.setAttribute('class', 'b-tile');
-        t.el.setAttribute('vector-effect', 'non-scaling-stroke');
-        BHOST[cls]().appendChild(t.el);
-      }
-      t.el.setAttribute('d', t.d);
+      t.p2 = null; /* Path2D rebuilt lazily by renderBase */
     }
-    if (B.bigDirty[cls]) {
-      B.bigDirty[cls] = false;
-      if (!B.bigEl[cls]) {
-        B.bigEl[cls] = document.createElementNS(NS, 'path');
-        B.bigEl[cls].setAttribute('class', 'b-tile');
-        B.bigEl[cls].setAttribute('vector-effect', 'non-scaling-stroke');
-        BHOST[cls]().appendChild(B.bigEl[cls]);
-      }
-      B.bigEl[cls].setAttribute('d', B.big[cls]);
-    }
+    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; B.bigP2 = null; }
   }
-  if (sys === sysId) updateBasePaths();
+  if (sys === sysId && !interacting) scheduleBaseRender(140);
   if (!B.done) setTimeout(() => pumpBase(sysId), 16);
 }
-/* per-frame cost: 64 bbox tests + a few display toggles. That's it. */
-function updateBasePaths() {
-  const B = BASE[sys];
-  if (!B) return;
+/* Raster basemap, Google-Maps style: the street/river network is stroked
+   ONCE per zoom bucket into a bitmap; every frame afterwards just moves
+   that picture (+ the SVG line layer) with one CSS matrix. Vectors only
+   re-rasterize when the bucket changes or coverage runs out. */
+let baseR = null, baseRT = 0;
+function scheduleBaseRender(ms) { clearTimeout(baseRT); baseRT = setTimeout(renderBase, ms); }
+const P2 = (t) => t.p2 || (t.p2 = new Path2D(t.d));
+function renderBase() {
   const v = view[sys], g = vGeom();
-  const m = (interacting ? 1.6 : 0.35) * g.w;
-  const vx0 = v.cx - g.w / 2 - m, vx1 = v.cx + g.w / 2 + m;
-  const vy0 = v.cy - g.h / 2 - m, vy1 = v.cy + g.h / 2 + m;
-  bRm.style.display = v.k >= 2 ? '' : 'none'; /* street grid at close zoom only */
-  for (const cls of ['watf', 'wats', 'maj', 'min']) {
-    for (const t of B.tiles[cls]) {
-      if (!t.el) continue;
-      const b = t.b;
-      const on = b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0;
-      if (t.vis !== on) { t.vis = on; t.el.style.display = on ? '' : 'none'; }
-    }
-  }
+  const B = BASE[sys];
+  const cv = els.metroBaseCv;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.max(2, Math.round(g.rect.width * dpr)), H = Math.max(2, Math.round(g.rect.height * dpr));
+  if (cv.width !== W) cv.width = W;
+  if (cv.height !== H) cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  let strokes = 0;
+  const min = v.k >= 2;
+  if (B) {
+    const m = 0.9; /* render ~2.8x the viewport so pans stay covered */
+    const rw = g.w * (1 + 2 * m), rh = g.h * (1 + 2 * m);
+    const s2 = g.s / (1 + 2 * m);
+    const wx0 = v.cx - rw / 2, wy0 = v.cy - rh / 2;
+    ctx.setTransform(s2 * dpr, 0, 0, s2 * dpr, -wx0 * s2 * dpr, -wy0 * s2 * dpr);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const css = getComputedStyle(document.documentElement);
+    const col = (n, fb) => ((css.getPropertyValue(n) || '').trim() || fb);
+    const cWater = col('--bwater', '#274b63'), cMaj = col('--broadM', '#6a6a6a'), cMin = col('--broadm', '#474747');
+    const vx1 = wx0 + rw, vy1 = wy0 + rh;
+    const paint = (cls, mode, color, wpx) => {
+      if (mode === 's') { ctx.strokeStyle = color; ctx.lineWidth = wpx / s2; }
+      else ctx.fillStyle = color;
+      for (const t of B.tiles[cls]) {
+        if (!t.d) continue;
+        const b = t.b;
+        if (b[0] > vx1 || b[2] < wx0 || b[1] > vy1 || b[3] < wy0) continue;
+        if (mode === 's') ctx.stroke(P2(t)); else ctx.fill(P2(t));
+        strokes++;
+      }
+      if (B.big[cls]) {
+        const p = B.bigP2 || (B.bigP2 = new Path2D(B.big[cls]));
+        if (mode === 's') ctx.stroke(p); else ctx.fill(p);
+        strokes++;
+      }
+    };
+    paint('watf', 'f', cWater);
+    paint('wats', 's', cWater, 1.2);
+    paint('maj', 's', cMaj, 1.5);
+    if (min) paint('min', 's', cMin, 0.9);
+    baseR = { sys, cx: v.cx, cy: v.cy, k: v.k, s2, wx0, wy0, rw, rh, min, strokes };
+  } else baseR = null;
+  window.__METROBASE = baseR || { sys, min, strokes: 0 };
+  els.metroBaseCv.style.transform = baseTransform(v, g);
+}
+function baseTransform(v, g) {
+  if (!baseR || baseR.sys !== sys) return '';
+  const f = g.s / baseR.s2;
+  const tx = g.ox + (baseR.wx0 - (v.cx - g.w / 2)) * g.s;
+  const ty = g.oy + (baseR.wy0 - (v.cy - g.h / 2)) * g.s;
+  return `matrix(${f.toFixed(5)},0,0,${f.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
+}
+function baseCovers(v, g) {
+  if (!baseR || baseR.sys !== sys) return false;
+  const f = g.s / baseR.s2;
+  if (f < 0.55 || f > 1.9) return false;
+  const x0 = v.cx - g.w / 2, x1 = v.cx + g.w / 2, y0 = v.cy - g.h / 2, y1 = v.cy + g.h / 2;
+  return x0 >= baseR.wx0 && x1 <= baseR.wx0 + baseR.rw && y0 >= baseR.wy0 && y1 <= baseR.wy0 + baseR.rh;
 }
 
 /* ---- real curved track geometry per line, projected per system ---- */
@@ -346,21 +383,17 @@ function fare(sys, a, b, r) {
 
 const els = {};
 for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'btnNight', 'nightText',
-  'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
+  'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroBaseCv', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
   'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear',
   'metroBaseWater', 'metroBaseRoads', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
 let bWF, bWS, bRM, bRm;
 function initBase() {
-  const g = (cls) => { const e = document.createElementNS(NS, 'g'); e.setAttribute('class', cls); return e; };
+  /* vector basemap retired — the network lives in the bitmap canvas now */
+  const g = (cls) => { const e = document.createElementNS(NS, 'g'); e.setAttribute('class', cls); e.style.display = 'none'; return e; };
   bWF = g('b-water-f'); bWS = g('b-water-s');
   els.metroBaseWater.append(bWF, bWS);
   bRM = g('b-road-maj'); bRm = g('b-road-min');
   els.metroBaseRoads.append(bRM, bRm);
-  /* screen-constant hairlines: stroke-width inherits to every tile path;
-     vector-effect is not inherited, so tiles set it at creation */
-  for (const [p, w] of [[bWS, 1.2], [bRM, 1.5], [bRm, 0.9]]) {
-    p.setAttribute('stroke-width', String(w));
-  }
 }
 
 function applyLang(id, persist = true) {
@@ -561,7 +594,9 @@ function draw() {
     const a = g0.s / g.s;
     const tx = x01 + (g0.ox - x00 * g0.s - g.ox) / g.s;
     const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
-    worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
+    const tf = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
+    worldG.style.transform = tf;
+    els.metroBaseCv.style.transform = tf;
     return;
   }
   worldG.style.transform = '';
@@ -570,7 +605,6 @@ function draw() {
   /* street basemap: streamed into static tiles, culled by display toggles */
   ensureTracks(sys);
   ensureBase(sys);
-  updateBasePaths();
   const sc = buildScene(sys);
   cullLabels(sc, v, g);
   /* selection highlight + route overlay only when the pair changed */
@@ -583,6 +617,10 @@ function draw() {
     }
     updateRoute();
   }
+  /* basemap bitmap: reuse the picture while it covers the view; re-raster
+     only when the zoom bucket or coverage says it must */
+  if (!baseCovers(v, g)) renderBase();
+  else els.metroBaseCv.style.transform = baseTransform(v, g);
 }
 
 /* gesture lifecycle: live-transform while interacting, re-bake on settle */
@@ -604,7 +642,6 @@ function markInteract() {
     const v = view[sys];
     base = { cx: v.cx, cy: v.cy, k: v.k, sys };
     worldG.style.willChange = 'transform';
-    updateBasePaths(); /* re-cull wide so gesture edges never run empty */
   }
   interacting = true;
   clearTimeout(interT);
