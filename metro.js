@@ -6,7 +6,6 @@
    (English over the original script), pan / zoom / pinch.
    ============================================================ */
 import { METRO } from './metrodata.js';
-import { TRACKS } from './metrotracks.js';
 
 const LIB = globalThis.__SING_LIB;
 const { LANGS, t, langOf, ccFlag, langTitleOf, makeLangPicker, clampPop } = LIB;
@@ -53,7 +52,7 @@ function worldAt(sx, sy, g, v) {
 /* zoom to nk keeping world point (X,Y) glued to screen point (sx,sy) */
 function zoomAnchor(X, Y, sx, sy, nk) {
   const v = view[sys];
-  v.k = Math.min(12, Math.max(0.7, nk));
+  v.k = Math.min(16, Math.max(0.7, nk));
   const g = vGeomFor(v.k);
   v.cx = Math.min(VB.w, Math.max(0, X - (sx - g.rect.left - g.ox) / g.s + g.w / 2));
   v.cy = Math.min(VB.h, Math.max(0, Y - (sy - g.rect.top - g.oy) / g.s + g.h / 2));
@@ -177,8 +176,9 @@ const LIDSYS = {};
 for (const [s, lid] of METRO.lines) LIDSYS[lid] = s;
 const FAMINV = { O: ['O', 'Oz', 'Ol'], R: ['R', 'Rb'], G: ['G', 'Gb'] };
 const TRKD = {};
-for (const sysId of SYSS) {
-  TRKD[sysId] = {};
+const TRK_LOAD = {};
+function decodeTracks(sysId, TRACKS) {
+  const out = {};
   const P = PROJ[sysId];
   const proj = (la, lo) => {
     const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
@@ -189,12 +189,30 @@ for (const sysId of SYSS) {
     let la = tk.p[0] / 1e5, lo = tk.p[1] / 1e5;
     const pts = [proj(la, lo)];
     for (let i = 2; i < tk.p.length; i += 2) { la += tk.p[i] / 1e5; lo += tk.p[i + 1] / 1e5; pts.push(proj(la, lo)); }
-    TRKD[sysId][lid] = {
+    out[lid] = {
       pts,
       st: tk.st,
       d: pts.map((q, i) => `${i ? 'L' : 'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(''),
     };
   }
+  return out;
+}
+/* Track geometry lives in per-system files in the repo (mt_trtc.js, mt_ty.js,
+   mt_ks.js, mt_tc.js), fetched only when that system is first shown — like the
+   street basemaps. Lines fall back to straight chords until the file lands,
+   then the scene is rebuilt with the real curved geometry. */
+function ensureTracks(sysId) {
+  if (!TRKD[sysId]) TRKD[sysId] = {};
+  if (!TRK_LOAD[sysId]) {
+    TRK_LOAD[sysId] = import('./mt_' + sysId.toLowerCase() + '.js')
+      .then((m) => {
+        Object.assign(TRKD[sysId], decodeTracks(sysId, m.default || m));
+        delete SCENE[sysId];      /* rebuild paths with real geometry */
+        if (sys === sysId) { renderBar(); requestDraw(); }
+      })
+      .catch(() => { TRK_LOAD[sysId] = null; });
+  }
+  return TRKD[sysId];
 }
 
 /* graph edges: [a, b, km, lineId] — transfers are zero-km links */
@@ -498,6 +516,7 @@ function draw() {
     els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
     const upx = 1 / g.s;
     /* street basemap: stream + cull to the viewport */
+    ensureTracks(sys);
     ensureBase(sys);
     updateBasePaths();
     bRm.style.display = v.k >= 2 ? '' : 'none';
@@ -571,7 +590,7 @@ function renderBar() {
 
 function setView(nx, ny, nk) {
   const v = view[sys];
-  v.k = Math.min(12, Math.max(0.7, nk));
+  v.k = Math.min(16, Math.max(0.7, nk));
   v.cx = Math.min(VB.w, Math.max(0, nx));
   v.cy = Math.min(VB.h, Math.max(0, ny));
   requestDraw();
