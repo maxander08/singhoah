@@ -483,6 +483,7 @@ function buildScene(sysId) {
     g.appendChild(tx);
     s._lw = Math.max(s.en.length, s.zh.length) * base * 0.62 + base;
     s._lh = base * 2.6;
+    s._lvis = undefined; /* fresh <text> node: cull must write its first state */
     groups.push([g, s, tx]);
     byId[s.id] = c;
   }
