@@ -173,14 +173,15 @@ function pumpBase(sysId) {
     }
     if (!progressed) { B.done = true; break; }
   }
-  /* flush dirty tiles to the DOM (once per tile) */
+  /* parse Path2D here, inside the 6ms decode slice, so gesture/settle
+     frames never pay for d-string parsing */
   for (const cls of ['maj', 'watf', 'wats', 'min']) {
     for (const t of B.tiles[cls]) {
       if (!t.dirty) continue;
       t.dirty = false;
-      t.p2 = null; /* Path2D rebuilt lazily by renderBase */
+      try { t.p2 = new Path2D(t.d); } catch { t.p2 = null; }
     }
-    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; B.bigP2 = null; }
+    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; try { B.bigP2 = new Path2D(B.big[cls]); } catch { B.bigP2 = null; } }
   }
   if (sys === sysId && !interacting) scheduleBaseRender(140);
   if (!B.done) setTimeout(() => pumpBase(sysId), 16);
@@ -192,18 +193,19 @@ function pumpBase(sysId) {
 let baseR = null, baseRT = 0;
 function scheduleBaseRender(ms) { clearTimeout(baseRT); baseRT = setTimeout(renderBase, ms); }
 const P2 = (t) => t.p2 || (t.p2 = new Path2D(t.d));
+let baseBuf = null, baseQ = null;
 function renderBase() {
   const v = view[sys], g = vGeom();
   const B = BASE[sys];
-  const cv = els.metroBaseCv;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const W = Math.max(2, Math.round(g.rect.width * dpr)), H = Math.max(2, Math.round(g.rect.height * dpr));
-  if (cv.width !== W) cv.width = W;
-  if (cv.height !== H) cv.height = H;
-  const ctx = cv.getContext('2d');
+  if (!baseBuf) baseBuf = document.createElement('canvas');
+  if (baseBuf.width !== W) baseBuf.width = W;
+  if (baseBuf.height !== H) baseBuf.height = H;
+  const ctx = baseBuf.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  let strokes = 0;
+  const jobs = [];
   const min = v.k >= 2;
   if (B) {
     const m = 0.9; /* render ~2.8x the viewport so pans stay covered */
@@ -216,30 +218,44 @@ function renderBase() {
     const col = (n, fb) => ((css.getPropertyValue(n) || '').trim() || fb);
     const cWater = col('--bwater', '#274b63'), cMaj = col('--broadM', '#6a6a6a'), cMin = col('--broadm', '#474747');
     const vx1 = wx0 + rw, vy1 = wy0 + rh;
-    const paint = (cls, mode, color, wpx) => {
-      if (mode === 's') { ctx.strokeStyle = color; ctx.lineWidth = wpx / s2; }
-      else ctx.fillStyle = color;
+    const add = (cls, mode, color, wpx) => {
       for (const t of B.tiles[cls]) {
         if (!t.d) continue;
         const b = t.b;
         if (b[0] > vx1 || b[2] < wx0 || b[1] > vy1 || b[3] < wy0) continue;
-        if (mode === 's') ctx.stroke(P2(t)); else ctx.fill(P2(t));
-        strokes++;
+        jobs.push({ mode, color, wpx, p: P2(t) });
       }
-      if (B.big[cls]) {
-        const p = B.bigP2 || (B.bigP2 = new Path2D(B.big[cls]));
-        if (mode === 's') ctx.stroke(p); else ctx.fill(p);
-        strokes++;
-      }
+      if (B.big[cls]) jobs.push({ mode, color, wpx, p: B.bigP2 || (B.bigP2 = new Path2D(B.big[cls])) });
     };
-    paint('watf', 'f', cWater);
-    paint('wats', 's', cWater, 1.2);
-    paint('maj', 's', cMaj, 1.5);
-    if (min) paint('min', 's', cMin, 0.9);
-    baseR = { sys, cx: v.cx, cy: v.cy, k: v.k, s2, wx0, wy0, rw, rh, min, strokes };
-  } else baseR = null;
-  window.__METROBASE = baseR || { sys, min, strokes: 0 };
-  els.metroBaseCv.style.transform = baseTransform(v, g);
+    add('watf', 'f', cWater);
+    add('wats', 's', cWater, 1.2);
+    add('maj', 's', cMaj, 1.5);
+    if (min) add('min', 's', cMin, 0.9);
+    baseQ = { ctx, W, H, jobs, i: 0, s2, wx0, wy0, rw, rh, min, dpr, v: { cx: v.cx, cy: v.cy, k: v.k }, g: { s: g.s, ox: g.ox, oy: g.oy } };
+    requestAnimationFrame(pumpRender);
+  } else { baseR = null; window.__METROBASE = { sys, min, strokes: 0 }; }
+}
+/* strokes in <=5ms slices off an offscreen buffer; the visible canvas keeps
+   showing the old picture until the new one is complete — no frozen frames */
+function pumpRender() {
+  const q = baseQ;
+  if (!q) return;
+  if (interacting) { setTimeout(pumpRender, 24); return; }
+  const t0 = performance.now();
+  while (q.i < q.jobs.length && performance.now() - t0 < 5) {
+    const j = q.jobs[q.i++];
+    if (j.mode === 's') { q.ctx.strokeStyle = j.color; q.ctx.lineWidth = j.wpx / q.s2; q.ctx.stroke(j.p); }
+    else { q.ctx.fillStyle = j.color; q.ctx.fill(j.p); }
+  }
+  if (q.i < q.jobs.length) { requestAnimationFrame(pumpRender); return; }
+  const cv = els.metroBaseCv;
+  if (cv.width !== q.W) cv.width = q.W;
+  if (cv.height !== q.H) cv.height = q.H;
+  cv.getContext('2d').drawImage(baseBuf, 0, 0);
+  baseR = { sys, cx: q.v.cx, cy: q.v.cy, k: q.v.k, s2: q.s2, wx0: q.wx0, wy0: q.wy0, rw: q.rw, rh: q.rh, min: q.min, strokes: q.jobs.length };
+  window.__METROBASE = baseR;
+  els.metroBaseCv.style.transform = baseTransform(view[sys], vGeom());
+  baseQ = null;
 }
 function baseTransform(v, g) {
   if (!baseR || baseR.sys !== sys) return '';
@@ -596,7 +612,9 @@ function draw() {
     const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
     const tf = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
     worldG.style.transform = tf;
-    els.metroBaseCv.style.transform = tf;
+    /* the bitmap was rendered for its own (earlier) view — it needs its
+       own matrix or it lags the line layer mid-pan */
+    els.metroBaseCv.style.transform = baseTransform(v, g);
     return;
   }
   worldG.style.transform = '';
@@ -648,8 +666,7 @@ function markInteract() {
   interT = setTimeout(() => {
     interacting = false;
     base = null;
-    worldG.style.willChange = '';
-    draw(); /* sharp re-bake — cheap now */
+    draw(); /* sharp re-bake — chunked bitmap + light vector work */
     pumpBase(sys);
   }, 200);
 }
