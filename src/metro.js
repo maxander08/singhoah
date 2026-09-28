@@ -190,9 +190,11 @@ function pumpBase(sysId) {
         t.el = document.createElementNS(NS, 'path');
         t.el.setAttribute('class', 'b-tile');
         t.el.setAttribute('vector-effect', 'non-scaling-stroke');
+        t.el.setAttribute('data-sys', sysId);
         BHOST[cls]().appendChild(t.el);
       }
       t.el.setAttribute('d', t.d);
+      if (sysId !== sys) { t.el.style.display = 'none'; t.vis = false; } /* background stream: never paint over the current map */
     }
     if (B.bigDirty[cls]) {
       B.bigDirty[cls] = false;
@@ -200,9 +202,11 @@ function pumpBase(sysId) {
         B.bigEl[cls] = document.createElementNS(NS, 'path');
         B.bigEl[cls].setAttribute('class', 'b-tile');
         B.bigEl[cls].setAttribute('vector-effect', 'non-scaling-stroke');
+        B.bigEl[cls].setAttribute('data-sys', sysId);
         BHOST[cls]().appendChild(B.bigEl[cls]);
       }
       B.bigEl[cls].setAttribute('d', B.big[cls]);
+      if (sysId !== sys) { B.bigEl[cls].style.display = 'none'; }
     }
   }
   if (sys === sysId) updateBasePaths();
@@ -223,6 +227,15 @@ function updateBasePaths() {
       const b = t.b;
       const on = b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0;
       if (t.vis !== on) { t.vis = on; t.el.style.display = on ? '' : 'none'; }
+    }
+  }
+  /* a tab switch must reset the canvas: every other system's baked tiles
+     are hidden so the previous city never bleeds into the current one */
+  for (const [sid, B2] of Object.entries(BASE)) {
+    if (sid === sys) continue;
+    for (const cls of ['watf', 'wats', 'maj', 'min']) {
+      for (const t of B2.tiles[cls]) if (t.el && t.vis !== false) { t.vis = false; t.el.style.display = 'none'; }
+      if (B2.bigEl[cls] && B2.bigEl[cls].style.display !== 'none') B2.bigEl[cls].style.display = 'none';
     }
   }
 }

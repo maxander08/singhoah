@@ -1845,6 +1845,23 @@ try {
   ksBaseOk = true;
 } catch { /* checked below */ }
 ok('Kaohsiung basemap has its own streets and water', ksBaseOk);
+ok('switching systems hides the previous city and resets the view', await mt.evaluate(async () => {
+  const vis = () => {
+    const out = new Set();
+    document.querySelectorAll('.b-tile').forEach((e) => { if (e.style.display !== 'none') out.add(e.getAttribute('data-sys')); });
+    return [...out];
+  };
+  if (vis().some((s) => s !== 'KS')) return false; /* only KS painted while KS is active */
+  const svg = document.getElementById('metroSvg');
+  document.getElementById('metroIn').click();
+  document.getElementById('metroIn').click(); /* zoom deep into KS… */
+  await new Promise((x) => setTimeout(x, 500));
+  const wZoom = svg.getAttribute('viewBox').split(' ').map(Number)[2];
+  document.querySelectorAll('#metroSys .metro-sysbtn')[0].click(); /* …then jump to Taipei */
+  await new Promise((x) => setTimeout(x, 500));
+  const wFit = svg.getAttribute('viewBox').split(' ').map(Number)[2];
+  return wFit > wZoom * 1.2 && vis().length > 0 && vis().every((s) => s === 'TRTC');
+}));
 await mt.evaluate(() => document.querySelectorAll('#metroSys .metro-sysbtn')[3].click());
 await mt.waitForTimeout(200);
 await tapSt('T103a');
