@@ -1961,6 +1961,15 @@ try {
   baseOk = true;
 } catch { /* checked below */ }
 ok('metro basemap draws rivers and roads under the lines', baseOk);
+ok('overview labels never overlap (interchanges win, rest reveal on zoom)', await mbp.evaluate(() => {
+  const vis = [...document.querySelectorAll('#metroStations text')].filter((t) => t.style.display !== 'none');
+  const r = vis.map((t) => t.getBoundingClientRect());
+  for (let a = 0; a < r.length; a++) for (let b = a + 1; b < r.length; b++) {
+    const x = r[a], y = r[b];
+    if (x.left < y.right - 2 && x.right > y.left + 2 && x.top < y.bottom - 2 && x.bottom > y.top + 2) return false;
+  }
+  return vis.length > 5 && vis.length < 135; /* culled, not empty, not all */
+}));
 ok('street grid is hidden at overview zoom', await mbp.evaluate(() =>
   document.querySelector('#metroBaseRoads .b-road-min').style.display === 'none'));
 await mbp.click('#metroIn'); await mbp.click('#metroIn'); await mbp.click('#metroIn');
