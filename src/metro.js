@@ -579,7 +579,6 @@ function setView(nx, ny, nk) {
 
 /* zoom so the current system's stations fill the frame */
 function fitContent() {
-  cancelFling();
   interacting = false;
   clearTimeout(settleT);
   const rect = els.metroSvg.getBoundingClientRect();
@@ -599,18 +598,16 @@ function fitContent() {
   draw();
 }
 
-/* ---- Google-Maps-style gestures: drag w/ fling, anchored wheel & pinch ---- */
+/* ---- gestures, identical to the SinghoClock world map: drag, pinch,
+       anchored wheel, double-click zoom, +/−/⌂ buttons — no fling ---- */
 let drag = null, moved = 0;
 const pointers = new Map();
-let flingRaf = 0;
-function cancelFling() { if (flingRaf) { cancelAnimationFrame(flingRaf); flingRaf = 0; } }
 
 els.metroSvg.addEventListener('pointerdown', (e) => {
-  cancelFling();
   beginGesture();
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { els.metroSvg.setPointerCapture(e.pointerId); } catch { /* synthetic pointers */ }
-  if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY, t: performance.now(), vx: 0, vy: 0 }; moved = 0; pinched = false; }
+  if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY }; moved = 0; pinched = false; }
   else drag = null;
 });
 let pinched = false;
@@ -634,39 +631,19 @@ els.metroSvg.addEventListener('pointermove', (e) => {
   }
   pt.x = e.clientX; pt.y = e.clientY;
   if (!drag) return;
-  const now = performance.now();
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   moved += Math.abs(dx) + Math.abs(dy);
-  const dts = Math.max(1, now - drag.t);
-  drag.vx = 0.8 * drag.vx + 0.2 * (dx / dts);
-  drag.vy = 0.8 * drag.vy + 0.2 * (dy / dts);
-  drag.x = e.clientX; drag.y = e.clientY; drag.t = now;
+  drag.x = e.clientX; drag.y = e.clientY;
   if (moved < 4) return;
   const { v, s } = vGeom();
+  if (v.k <= 1) return; /* like the world map: pan only while zoomed in */
   setView(v.cx - dx / s, v.cy - dy / s, v.k);
 });
 function endPointer(e) {
   pointers.delete(e.pointerId);
   if (pointers.size) return;
-  const d = drag; drag = null;
-  if (d && moved > 6) {
-    /* fling: momentum with exponential decay, cancelled by any new gesture */
-    let vx = d.vx, vy = d.vy;
-    if (Math.hypot(vx, vy) > 0.05) {
-      let last = performance.now();
-      const step = (now) => {
-        const dt = Math.min(48, now - last); last = now;
-        const { v, s } = vGeom();
-        setView(v.cx - vx * dt / s, v.cy - vy * dt / s, v.k);
-        const dec = Math.pow(0.94, dt / 16.7);
-        vx *= dec; vy *= dec;
-        flingRaf = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
-        if (!flingRaf) pokeSettle(60);
-      };
-      flingRaf = requestAnimationFrame(step);
-      return;
-    }
-  }
+  drag = null;
+  /* like the world map: the map stops the instant you let go — no glide */
   if (pinched || moved > 6) { pinched = false; pokeSettle(80); return; }
   interacting = false;
   /* a tap: nearest station within 16px */
@@ -688,31 +665,24 @@ els.metroSvg.addEventListener('pointerup', endPointer);
 els.metroSvg.addEventListener('pointercancel', endPointer);
 els.metroSvg.addEventListener('wheel', (e) => {
   e.preventDefault();
-  cancelFling();
   beginGesture();
   const v = view[sys];
   const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
-  zoomAnchor(X, Y, e.clientX, e.clientY, v.k * (e.deltaY < 0 ? 1.25 : 0.8));
+  /* world-map wheel step: ×1.6 per notch, anchored under the cursor */
+  zoomAnchor(X, Y, e.clientX, e.clientY, v.k * (e.deltaY < 0 ? 1.6 : 0.625));
   pokeSettle(160);
 }, { passive: false });
 els.metroSvg.addEventListener('dblclick', (e) => {
   e.preventDefault();
-  cancelFling();
   beginGesture();
   const v = view[sys];
   const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
-  const k0 = v.k, k1 = Math.min(12, k0 * 2), t0 = performance.now();
-  const step = (now) => {
-    const u = Math.min(1, (now - t0) / 220);
-    const ease = 1 - (1 - u) * (1 - u);
-    zoomAnchor(X, Y, e.clientX, e.clientY, k0 + (k1 - k0) * ease);
-    if (u < 1) requestAnimationFrame(step);
-    else pokeSettle(60);
-  };
-  requestAnimationFrame(step);
+  /* same instant ×1.6 step the SinghoClock world map uses */
+  zoomAnchor(X, Y, e.clientX, e.clientY, v.k * 1.6);
+  pokeSettle(60);
 });
-els.metroIn.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k * 1.4); });
-els.metroOut.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k / 1.4); });
+els.metroIn.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k * 1.5); });
+els.metroOut.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k / 1.5); });
 els.metroFit.addEventListener('click', () => fitContent());
 els.mSwap.addEventListener('click', () => { [from, to] = [to, from]; renderBar(); draw(); });
 els.mClear.addEventListener('click', () => { from = to = null; renderBar(); draw(); });

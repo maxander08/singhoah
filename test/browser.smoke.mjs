@@ -1879,8 +1879,12 @@ ok('pinch spread zooms in about the midpoint', await mt.evaluate(async () => {
   await new Promise((x) => setTimeout(x, 450)); /* settle & re-bake */
   return vw() < w0 - 1;
 }));
-ok('fling keeps the map gliding after release', await mt.evaluate(async () => {
+ok('drag stops instantly at release, like the world map (no fling)', await mt.evaluate(async () => {
   const svg = document.getElementById('metroSvg');
+  const wOf = () => svg.getAttribute('viewBox').split(' ').map(Number)[2];
+  const wFit = wOf();
+  document.getElementById('metroIn').click(); /* pan needs zoom, like the world map */
+  for (let i = 0; i < 40 && wOf() >= wFit; i++) await new Promise((x) => setTimeout(x, 100)); /* wait out the rAF bake */
   const r = svg.getBoundingClientRect();
   const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
   svg.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 13, clientX: cx, clientY: cy, bubbles: true }));
@@ -1888,10 +1892,31 @@ ok('fling keeps the map gliding after release', await mt.evaluate(async () => {
     svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 13, clientX: cx + i * 30, clientY: cy + i * 8, bubbles: true }));
     await new Promise((x) => setTimeout(x, 12));
   }
-  const sx0 = document.querySelector('.metro-st').getBoundingClientRect().x; /* at release */
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 13, clientX: cx + 180, clientY: cy + 48, bubbles: true }));
-  await new Promise((x) => setTimeout(x, 300));
-  return Math.abs(document.querySelector('.metro-st').getBoundingClientRect().x - sx0) > 1; /* glides after release */
+  /* wait out the settle re-bake (worldG transform cleared), then the view
+     must stay perfectly still — a fling would keep moving it */
+  const wg = document.getElementById('metroWorld');
+  for (let i = 0; i < 40 && wg.style.transform !== ''; i++) await new Promise((x) => setTimeout(x, 100));
+  const vbSettled = svg.getAttribute('viewBox');
+  const sx1 = document.querySelector('.metro-st').getBoundingClientRect().x;
+  await new Promise((x) => setTimeout(x, 600));
+  return svg.getAttribute('viewBox') === vbSettled &&
+    Math.abs(document.querySelector('.metro-st').getBoundingClientRect().x - sx1) <= 2; /* no glide */
+}));
+ok('metro zoom buttons step like the world map (+ / − / ⌂)', await mt.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const vw = () => svg.getAttribute('viewBox').split(' ').map(Number)[2];
+  const settleTo = async (pred) => { for (let i = 0; i < 40 && !pred(); i++) await new Promise((x) => setTimeout(x, 100)); };
+  document.getElementById('metroFit').click();
+  await new Promise((x) => setTimeout(x, 600)); /* fit re-bakes */
+  const w0 = vw();
+  document.getElementById('metroIn').click();
+  await settleTo(() => vw() < w0 - 1);
+  const w1 = vw();
+  document.getElementById('metroOut').click();
+  await settleTo(() => vw() > w1 + 1);
+  const w2 = vw();
+  return w1 < w0 && Math.abs(w2 - w0) < w0 * 0.15;
 }));
 ok('metro runs without page errors', metroErrs.length === 0);
 await mt.click('#mCard');
@@ -1921,11 +1946,15 @@ ok('metro basemap draws rivers and roads under the lines', await mbp.evaluate(()
 ok('street grid is hidden at overview zoom', await mbp.evaluate(() =>
   document.querySelector('#metroBaseRoads .b-road-min').style.display === 'none'));
 await mbp.click('#metroIn'); await mbp.click('#metroIn'); await mbp.click('#metroIn');
-await mbp.waitForTimeout(300);
-ok('zooming in reveals the street grid', await mbp.evaluate(() => {
-  const m = document.querySelector('#metroBaseRoads .b-road-min');
-  return m.style.display !== 'none' && m.getAttribute('d').length > 500;
-}));
+let gridOk = false;
+try {
+  await mbp.waitForFunction(() => {
+    const m = document.querySelector('#metroBaseRoads .b-road-min');
+    return m && m.style.display !== 'none' && (m.getAttribute('d') || '').length > 500;
+  }, null, { timeout: 6000, polling: 200 });
+  gridOk = true;
+} catch { /* checked below */ }
+ok('zooming in reveals the street grid', gridOk);
 await mbc.close();
 const mtz = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await mtz.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); });
