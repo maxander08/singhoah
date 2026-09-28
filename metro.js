@@ -179,9 +179,9 @@ function pumpBase(sysId) {
     for (const t of B.tiles[cls]) {
       if (!t.dirty) continue;
       t.dirty = false;
-      try { t.p2 = new Path2D(t.d); } catch { t.p2 = null; }
+      try { t.p2 = new Path2D(t.d); t.d = null; } catch { t.p2 = null; } /* Path2D owns the geometry now; free the string */
     }
-    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; try { B.bigP2 = new Path2D(B.big[cls]); } catch { B.bigP2 = null; } }
+    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; try { B.bigP2 = new Path2D(B.big[cls]); B.big[cls] = null; } catch { B.bigP2 = null; } }
   }
   if (sys === sysId && !interacting) scheduleBaseRender(140);
   if (!B.done) setTimeout(() => pumpBase(sysId), 16);
@@ -220,12 +220,12 @@ function renderBase() {
     const vx1 = wx0 + rw, vy1 = wy0 + rh;
     const add = (cls, mode, color, wpx) => {
       for (const t of B.tiles[cls]) {
-        if (!t.d) continue;
+        if (!t.p2) continue;
         const b = t.b;
         if (b[0] > vx1 || b[2] < wx0 || b[1] > vy1 || b[3] < wy0) continue;
-        jobs.push({ mode, color, wpx, p: P2(t) });
+        jobs.push({ mode, color, wpx, p: t.p2 });
       }
-      if (B.big[cls]) jobs.push({ mode, color, wpx, p: B.bigP2 || (B.bigP2 = new Path2D(B.big[cls])) });
+      if (B.bigP2) jobs.push({ mode, color, wpx, p: B.bigP2 });
     };
     add('watf', 'f', cWater);
     add('wats', 's', cWater, 1.2);
