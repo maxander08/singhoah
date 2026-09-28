@@ -1835,9 +1835,16 @@ await tapSt('KR3');
 await tapSt('KRK1');
 ok('Kaohsiung full Red Line fares at NT$60', await mt.evaluate(() =>
   document.getElementById('mFareVal').textContent.trim() === 'NT$60'));
-ok('Kaohsiung basemap has its own streets and water', await mt.evaluate(() =>
-  document.querySelector('#metroBaseRoads .b-road-maj').getAttribute('d').length > 500 &&
-  document.querySelector('#metroBaseWater path').getAttribute('d').length > 500));
+let ksBaseOk = false;
+try {
+  await mt.waitForFunction(() => {
+    const sum = (el) => el ? [...el.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) : 0;
+    return sum(document.querySelector('#metroBaseRoads .b-road-maj')) > 500 &&
+      sum(document.querySelector('#metroBaseWater .b-water-f')) > 500;
+  }, null, { timeout: 6000, polling: 200 });
+  ksBaseOk = true;
+} catch { /* checked below */ }
+ok('Kaohsiung basemap has its own streets and water', ksBaseOk);
 await mt.evaluate(() => document.querySelectorAll('#metroSys .metro-sysbtn')[3].click());
 await mt.waitForTimeout(200);
 await tapSt('T103a');
@@ -1893,10 +1900,9 @@ ok('drag stops instantly at release, like the world map (no fling)', await mt.ev
     await new Promise((x) => setTimeout(x, 12));
   }
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 13, clientX: cx + 180, clientY: cy + 48, bubbles: true }));
-  /* wait out the settle re-bake (worldG transform cleared), then the view
-     must stay perfectly still — a fling would keep moving it */
-  const wg = document.getElementById('metroWorld');
-  for (let i = 0; i < 40 && wg.style.transform !== ''; i++) await new Promise((x) => setTimeout(x, 100));
+  /* the final frame is rAF-applied (direct model, no transform); let it
+     land, then the view must stay perfectly still — a fling would move it */
+  await new Promise((x) => requestAnimationFrame(() => requestAnimationFrame(x)));
   const vbSettled = svg.getAttribute('viewBox');
   const sx1 = document.querySelector('.metro-st').getBoundingClientRect().x;
   await new Promise((x) => setTimeout(x, 600));
@@ -1938,11 +1944,16 @@ await mbc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
 const mbp = await mbc.newPage();
 await mbp.goto(URL + 'metro.html', { waitUntil: 'load' });
 await mbp.waitForTimeout(500);
-ok('metro basemap draws rivers and roads under the lines', await mbp.evaluate(() => {
-  const w = document.querySelector('#metroBaseWater path');
-  const r = document.querySelector('#metroBaseRoads .b-road-maj');
-  return !!w && !!r && w.getAttribute('d').length > 500 && r.getAttribute('d').length > 500;
-}));
+let baseOk = false;
+try {
+  await mbp.waitForFunction(() => {
+    const sum = (el) => el ? [...el.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) : 0;
+    return sum(document.querySelector('#metroBaseRoads .b-road-maj')) > 500 &&
+      sum(document.querySelector('#metroBaseWater .b-water-f')) > 500;
+  }, null, { timeout: 6000, polling: 200 });
+  baseOk = true;
+} catch { /* checked below */ }
+ok('metro basemap draws rivers and roads under the lines', baseOk);
 ok('street grid is hidden at overview zoom', await mbp.evaluate(() =>
   document.querySelector('#metroBaseRoads .b-road-min').style.display === 'none'));
 await mbp.click('#metroIn'); await mbp.click('#metroIn'); await mbp.click('#metroIn');
@@ -1950,7 +1961,8 @@ let gridOk = false;
 try {
   await mbp.waitForFunction(() => {
     const m = document.querySelector('#metroBaseRoads .b-road-min');
-    return m && m.style.display !== 'none' && (m.getAttribute('d') || '').length > 500;
+    return m && m.style.display !== 'none' &&
+      [...m.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) > 500;
   }, null, { timeout: 6000, polling: 200 });
   gridOk = true;
 } catch { /* checked below */ }

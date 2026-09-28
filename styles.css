@@ -1378,6 +1378,9 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .metro-label-zh { font-weight: 500; opacity: .72; }
 :root { --bwater: #c9dbe7; --broadM: rgba(29,29,27,.22); --broadm: rgba(29,29,27,.13); }
 .dark { --bwater: #1a2732; --broadM: rgba(241,239,232,.17); --broadm: rgba(241,239,232,.10); }
+/* metro station/label groups: static translate + one shared counter-scale
+   variable (--upx), exactly like the world map's marker scaling */
+#metroStations > g > * { transform: scale(var(--upx, 1)); transform-origin: 0 0; }
 .b-water-f { fill: var(--bwater); stroke: none; pointer-events: none; }
 .b-water-s { fill: none; stroke: var(--bwater); pointer-events: none; }
 .b-road-maj, .b-road-min { fill: none; pointer-events: none; stroke-linecap: round; stroke-linejoin: round; }

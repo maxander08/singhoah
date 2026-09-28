@@ -120,36 +120,87 @@ function decodeArr(sysId, cls, a) {
   for (let i = 2; i < a.length; i += 2) { la += a[i] / 1e4; lo += a[i + 1] / 1e4; put(); }
   return { d: seg + (cls === 'watf' ? 'Z' : ''), b: [x0, y0, x1, y1] };
 }
+/* Basemap geometry streams in and is sliced ONCE into a 4×4 bucket of
+   tiles per class (Google-Maps-style pre-slicing). Every tile is a single
+   static <path>; a frame costs a few dozen bbox tests that toggle tile
+   display — no string rebuilding, no walking tens of thousands of pieces,
+   no half-megabyte allocations mid-gesture. */
 const BASE = {};
+const TN = 4; /* tiles per axis */
 function ensureBase(sysId) {
   if (BASE[sysId]) return BASE[sysId];
-  const B = BASE[sysId] = { src: baseArrays(sysId), dec: { maj: [], min: [], watf: [], wats: [] }, qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false };
+  const mk = () => {
+    const t = [];
+    for (let i = 0; i < TN * TN; i++) t.push({ d: '', b: null, el: null, vis: null, dirty: false });
+    return t;
+  };
+  const B = BASE[sysId] = {
+    src: baseArrays(sysId), qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false,
+    tiles: { maj: mk(), min: mk(), watf: mk(), wats: mk() },
+    big: { maj: '', min: '', watf: '', wats: '' },
+    bigEl: { maj: null, min: null, watf: null, wats: null }, bigDirty: {},
+  };
   if (B.src) pumpBase(sysId);
   else loadBase(sysId).then(() => { B.src = baseArrays(sysId); if (B.src) pumpBase(sysId); });
   return B;
 }
+const BHOST = { watf: () => bWF, wats: () => bWS, maj: () => bRM, min: () => bRm };
 function pumpBase(sysId) {
   const B = BASE[sysId];
   if (!B || B.done || !B.src) return;
-  /* never decode mid-gesture: the 90/120 Hz frame budget (11.1/8.3 ms)
-     belongs entirely to the compositor transform while the map is live */
+  /* never decode mid-gesture: the frame budget belongs to painting */
   if (interacting) { setTimeout(() => pumpBase(sysId), 16); return; }
   const t0 = performance.now();
+  const cw = VB.w / TN, ch = VB.h / TN;
   while (performance.now() - t0 < 6) { /* ~6 ms budget per slice */
     let progressed = false;
     for (const cls of ['maj', 'watf', 'wats', 'min']) {
       if (B.qi[cls] < B.src[cls].length) {
-        B.dec[cls].push(decodeArr(sysId, cls, B.src[cls][B.qi[cls]++]));
+        const o = decodeArr(sysId, cls, B.src[cls][B.qi[cls]++]);
         progressed = true;
+        const [x0, y0, x1, y1] = o.b;
+        const c0 = Math.max(0, Math.min(TN - 1, Math.floor(x0 / cw))), c1 = Math.max(0, Math.min(TN - 1, Math.floor(x1 / cw)));
+        const r0 = Math.max(0, Math.min(TN - 1, Math.floor(y0 / ch))), r1 = Math.max(0, Math.min(TN - 1, Math.floor(y1 / ch)));
+        const span = (c1 - c0 + 1) * (r1 - r0 + 1);
+        if (span > 6) { B.big[cls] += o.d; B.bigDirty[cls] = true; continue; } /* long trunk: always-visible bucket */
+        for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+          const t = B.tiles[cls][r * TN + c];
+          t.d += o.d; t.dirty = true;
+          t.b = t.b ? [Math.min(t.b[0], x0), Math.min(t.b[1], y0), Math.max(t.b[2], x1), Math.max(t.b[3], y1)] : [x0, y0, x1, y1];
+        }
         if (performance.now() - t0 > 6) break;
       }
     }
     if (!progressed) { B.done = true; break; }
   }
+  /* flush dirty tiles to the DOM (once per tile) */
+  for (const cls of ['maj', 'watf', 'wats', 'min']) {
+    for (const t of B.tiles[cls]) {
+      if (!t.dirty) continue;
+      t.dirty = false;
+      if (!t.el) {
+        t.el = document.createElementNS(NS, 'path');
+        t.el.setAttribute('class', 'b-tile');
+        t.el.setAttribute('vector-effect', 'non-scaling-stroke');
+        BHOST[cls]().appendChild(t.el);
+      }
+      t.el.setAttribute('d', t.d);
+    }
+    if (B.bigDirty[cls]) {
+      B.bigDirty[cls] = false;
+      if (!B.bigEl[cls]) {
+        B.bigEl[cls] = document.createElementNS(NS, 'path');
+        B.bigEl[cls].setAttribute('class', 'b-tile');
+        B.bigEl[cls].setAttribute('vector-effect', 'non-scaling-stroke');
+        BHOST[cls]().appendChild(B.bigEl[cls]);
+      }
+      B.bigEl[cls].setAttribute('d', B.big[cls]);
+    }
+  }
   if (sys === sysId) updateBasePaths();
   if (!B.done) setTimeout(() => pumpBase(sysId), 16);
 }
-/* attach only viewport-visible decoded pieces (margin covers gestures) */
+/* per-frame cost: 64 bbox tests + a few display toggles. That's it. */
 function updateBasePaths() {
   const B = BASE[sys];
   if (!B) return;
@@ -157,18 +208,15 @@ function updateBasePaths() {
   const m = 0.35 * g.w;
   const vx0 = v.cx - g.w / 2 - m, vx1 = v.cx + g.w / 2 + m;
   const vy0 = v.cy - g.h / 2 - m, vy1 = v.cy + g.h / 2 + m;
-  const pick = (cls) => {
-    let d = '';
-    for (const o of B.dec[cls]) {
-      const b = o.b;
-      if (b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0) d += o.d;
+  bRm.style.display = v.k >= 2 ? '' : 'none'; /* street grid at close zoom only */
+  for (const cls of ['watf', 'wats', 'maj', 'min']) {
+    for (const t of B.tiles[cls]) {
+      if (!t.el) continue;
+      const b = t.b;
+      const on = b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0;
+      if (t.vis !== on) { t.vis = on; t.el.style.display = on ? '' : 'none'; }
     }
-    return d || 'M0 0';
-  };
-  bWF.setAttribute('d', pick('watf'));
-  bWS.setAttribute('d', pick('wats'));
-  bRM.setAttribute('d', pick('maj'));
-  bRm.setAttribute('d', pick('min'));
+  }
 }
 
 /* ---- real curved track geometry per line, projected per system ---- */
@@ -303,15 +351,14 @@ for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'bt
   'metroBaseWater', 'metroBaseRoads', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
 let bWF, bWS, bRM, bRm;
 function initBase() {
-  bWF = document.createElementNS(NS, 'path'); bWF.setAttribute('class', 'b-water-f');
-  bWS = document.createElementNS(NS, 'path'); bWS.setAttribute('class', 'b-water-s');
+  const g = (cls) => { const e = document.createElementNS(NS, 'g'); e.setAttribute('class', cls); return e; };
+  bWF = g('b-water-f'); bWS = g('b-water-s');
   els.metroBaseWater.append(bWF, bWS);
-  bRM = document.createElementNS(NS, 'path'); bRM.setAttribute('class', 'b-road-maj');
-  bRm = document.createElementNS(NS, 'path'); bRm.setAttribute('class', 'b-road-min');
+  bRM = g('b-road-maj'); bRm = g('b-road-min');
   els.metroBaseRoads.append(bRM, bRm);
-  /* screen-constant hairlines: widths are in screen px, the geometry scales */
+  /* screen-constant hairlines: stroke-width inherits to every tile path;
+     vector-effect is not inherited, so tiles set it at creation */
   for (const [p, w] of [[bWS, 1.2], [bRM, 1.5], [bRm, 0.9]]) {
-    p.setAttribute('vector-effect', 'non-scaling-stroke');
     p.setAttribute('stroke-width', String(w));
   }
 }
@@ -443,8 +490,14 @@ function buildScene(sysId) {
   els.metroStations.textContent = '';
   els.metroLabels.textContent = '';
   els.metroLines.appendChild(gLines);
-  for (const [g] of groups) els.metroStations.appendChild(g);
-  SCENE[sysId] = { groups, byId, upx: null, sel: null };
+  /* groups carry a STATIC translate; the 1/zoom counter-scale is one CSS
+     variable (--upx) on the svg root, like the world map's marker scaling —
+     a zoom frame costs one style write, not 130 attribute rewrites */
+  for (const [g, s] of groups) {
+    g.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)})`);
+    els.metroStations.appendChild(g);
+  }
+  SCENE[sysId] = { groups, byId, sel: null };
   return SCENE[sysId];
 }
 
@@ -475,7 +528,7 @@ function updateRoute() {
 }
 
 /* Zoom-dependent label culling: labels are constant-screen-px markers, so
-   visibility is recomputed in screen space on every baked frame — transfers
+   visibility is recomputed in screen space on every frame — transfers
    win first, then remaining stations, and zooming in progressively reveals
    the names that were too dense to show at the overview zoom. */
 function cullLabels(sc, v, g) {
@@ -490,7 +543,7 @@ function cullLabels(sc, v, g) {
       for (const q of placed) if (rx < q.x + q.w && rx + s._lw > q.x && ry < q.y + q.h && ry + s._lh > q.y) { on = false; break; }
       if (on) { placed.push({ x: rx, y: ry, w: s._lw, h: s._lh }); shown++; }
     }
-    tx.style.display = on ? '' : 'none';
+    if (s._lvis !== on) { s._lvis = on; tx.style.display = on ? '' : 'none'; }
   }
 }
 
@@ -498,38 +551,18 @@ function draw() {
   const v = view[sys];
   const g = vGeom();
 
-  /* Google-Maps-style gesture compositing: while a gesture is live we never
-     touch the geometry — one CSS transform on #metroWorld moves the already
-     painted vector buffer (compositor work only). When the gesture settles
-     we re-bake the viewBox for a razor-sharp frame. */
-  if (interacting && baked && baked.sys === sys) {
-    const g0 = vGeomFor(baked.k);
-    const x00 = baked.cx - g0.w / 2, y00 = baked.cy - g0.h / 2;
-    const x01 = v.cx - g.w / 2, y01 = v.cy - g.h / 2;
-    const a = g0.s / g.s;
-    const tx = x01 + (g0.ox - x00 * g0.s - g.ox) / g.s;
-    const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
-    worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
-  } else {
-    baked = { cx: v.cx, cy: v.cy, k: v.k, sys };
-    worldG.style.transform = '';
-    els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
-    const upx = 1 / g.s;
-    /* street basemap: stream + cull to the viewport */
-    ensureTracks(sys);
-    ensureBase(sys);
-    updateBasePaths();
-    bRm.style.display = v.k >= 2 ? '' : 'none';
-    const sc = buildScene(sys);
-    /* counter-scale markers/labels only when the zoom actually changed */
-    if (sc.upx !== upx) {
-      sc.upx = upx;
-      for (const [grp, s] of sc.groups) {
-        grp.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)}) scale(${upx.toFixed(4)})`);
-      }
-    }
-    cullLabels(sc, v, g);
-  }
+  /* Exactly the SinghoClock world-map model: every frame writes one
+     viewBox + one CSS counter-scale variable, then cheap tile/label
+     visibility. No transform stretching, no settle re-bake, no
+     multi-hundred-KB string rebuilds — each frame is small and crisp. */
+  els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
+  els.metroSvg.style.setProperty('--upx', (1 / g.s).toFixed(5));
+  /* street basemap: streamed into static tiles, culled by display toggles */
+  ensureTracks(sys);
+  ensureBase(sys);
+  updateBasePaths();
+  const sc = buildScene(sys);
+  cullLabels(sc, v, g);
   /* selection highlight + route overlay only when the pair changed */
   const sc2 = SCENE[sys];
   const selKey = from && to ? `${from}|${to}` : '';
@@ -543,20 +576,20 @@ function draw() {
 }
 
 /* gesture lifecycle: live-transform while interacting, re-bake on settle */
-let interacting = false, baked = null, settleT = 0, worldG = null;
+let interacting = false, interT = 0, worldG = null;
 function initWorld() {
   worldG = document.createElementNS(NS, 'g');
   worldG.id = 'metroWorld';
   for (const el of [els.metroBaseWater, els.metroBaseRoads, els.metroLines, els.metroStations, els.metroLabels, els.metroRoute]) worldG.appendChild(el);
   els.metroSvg.appendChild(worldG);
-  worldG.style.willChange = 'transform';
 }
-function beginGesture() { interacting = true; clearTimeout(settleT); }
-function pokeSettle(ms = 140) {
-  clearTimeout(settleT);
-  settleT = setTimeout(() => { interacting = false; draw(); }, ms);
+/* 'interacting' only pauses the basemap decoder now; drawing is direct */
+function markInteract() {
+  interacting = true;
+  clearTimeout(interT);
+  interT = setTimeout(() => { interacting = false; pumpBase(sys); }, 220);
 }
-addEventListener('resize', () => { interacting = false; clearTimeout(settleT); requestDraw(); });
+addEventListener('resize', () => { interacting = false; requestDraw(); });
 
 /* coalesce event-driven redraws into one per animation frame */
 let rafId = 0;
@@ -599,7 +632,6 @@ function setView(nx, ny, nk) {
 /* zoom so the current system's stations fill the frame */
 function fitContent() {
   interacting = false;
-  clearTimeout(settleT);
   const rect = els.metroSvg.getBoundingClientRect();
   const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
   let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
@@ -623,7 +655,7 @@ let drag = null, moved = 0;
 const pointers = new Map();
 
 els.metroSvg.addEventListener('pointerdown', (e) => {
-  beginGesture();
+  markInteract();
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { els.metroSvg.setPointerCapture(e.pointerId); } catch { /* synthetic pointers */ }
   if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY }; moved = 0; pinched = false; }
@@ -663,7 +695,7 @@ function endPointer(e) {
   if (pointers.size) return;
   drag = null;
   /* like the world map: the map stops the instant you let go — no glide */
-  if (pinched || moved > 6) { pinched = false; pokeSettle(80); return; }
+  if (pinched || moved > 6) { pinched = false; markInteract(); return; }
   interacting = false;
   /* a tap: nearest station within 16px */
   const { v, w, h, rect, s, ox, oy } = vGeom();
@@ -684,24 +716,22 @@ els.metroSvg.addEventListener('pointerup', endPointer);
 els.metroSvg.addEventListener('pointercancel', endPointer);
 els.metroSvg.addEventListener('wheel', (e) => {
   e.preventDefault();
-  beginGesture();
+  markInteract();
   const v = view[sys];
   const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
   /* world-map wheel step: ×1.6 per notch, anchored under the cursor */
   zoomAnchor(X, Y, e.clientX, e.clientY, v.k * (e.deltaY < 0 ? 1.6 : 0.625));
-  pokeSettle(160);
 }, { passive: false });
 els.metroSvg.addEventListener('dblclick', (e) => {
   e.preventDefault();
-  beginGesture();
+  markInteract();
   const v = view[sys];
   const [X, Y] = worldAt(e.clientX, e.clientY, vGeom(), v);
   /* same instant ×1.6 step the SinghoClock world map uses */
   zoomAnchor(X, Y, e.clientX, e.clientY, v.k * 1.6);
-  pokeSettle(60);
 });
-els.metroIn.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k * 1.5); });
-els.metroOut.addEventListener('click', () => { interacting = false; clearTimeout(settleT); const v = view[sys]; setView(v.cx, v.cy, v.k / 1.5); });
+els.metroIn.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k * 1.5); });
+els.metroOut.addEventListener('click', () => { const v = view[sys]; setView(v.cx, v.cy, v.k / 1.5); });
 els.metroFit.addEventListener('click', () => fitContent());
 els.mSwap.addEventListener('click', () => { [from, to] = [to, from]; renderBar(); draw(); });
 els.mClear.addEventListener('click', () => { from = to = null; renderBar(); draw(); });
@@ -791,6 +821,6 @@ globalThis.__METRO = {
     renderBar(); requestDraw();
     return true;
   },
-  zoomBy(f) { const v = view[sys]; beginGesture(); setView(v.cx, v.cy, v.k * f); requestDraw(); pokeSettle(80); return view[sys].k; },
+  zoomBy(f) { const v = view[sys]; markInteract(); setView(v.cx, v.cy, v.k * f); requestDraw(); return view[sys].k; },
   resetView() { fitContent(); return true; },
 };
