@@ -1954,6 +1954,14 @@ try {
   baseOk = true;
 } catch { /* checked below */ }
 ok('metro basemap draws rivers and roads under the lines', baseOk);
+ok('night toggle re-paints the bitmap basemap', await mbp.evaluate(async () => {
+  const before = window.__METROBASE.th;
+  document.getElementById('btnNight').click();
+  for (let i = 0; i < 40 && window.__METROBASE.th === before; i++) await new Promise((x) => setTimeout(x, 100));
+  const changed = window.__METROBASE.th !== before;
+  document.getElementById('btnNight').click(); /* restore */
+  return changed;
+}));
 ok('overview labels never overlap (interchanges win, rest reveal on zoom)', await mbp.evaluate(() => {
   const vis = [...document.querySelectorAll('#metroStations text')].filter((t) => t.style.display !== 'none');
   const r = vis.map((t) => t.getBoundingClientRect());

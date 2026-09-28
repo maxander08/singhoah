@@ -231,7 +231,7 @@ function renderBase() {
     add('wats', 's', cWater, 1.2);
     add('maj', 's', cMaj, 1.5);
     if (min) add('min', 's', cMin, 0.9);
-    baseQ = { ctx, W, H, jobs, i: 0, s2, wx0, wy0, rw, rh, min, dpr, v: { cx: v.cx, cy: v.cy, k: v.k }, g: { s: g.s, ox: g.ox, oy: g.oy } };
+    baseQ = { ctx, W, H, jobs, i: 0, s2, wx0, wy0, rw, rh, min, dpr, th: cWater, v: { cx: v.cx, cy: v.cy, k: v.k }, g: { s: g.s, ox: g.ox, oy: g.oy } };
     requestAnimationFrame(pumpRender);
   } else { baseR = null; window.__METROBASE = { sys, min, strokes: 0 }; }
 }
@@ -252,7 +252,7 @@ function pumpRender() {
   if (cv.width !== q.W) cv.width = q.W;
   if (cv.height !== q.H) cv.height = q.H;
   cv.getContext('2d').drawImage(baseBuf, 0, 0);
-  baseR = { sys, cx: q.v.cx, cy: q.v.cy, k: q.v.k, s2: q.s2, wx0: q.wx0, wy0: q.wy0, rw: q.rw, rh: q.rh, min: q.min, strokes: q.jobs.length };
+  baseR = { sys, cx: q.v.cx, cy: q.v.cy, k: q.v.k, s2: q.s2, wx0: q.wx0, wy0: q.wy0, rw: q.rw, rh: q.rh, min: q.min, strokes: q.jobs.length, th: q.th };
   window.__METROBASE = baseR;
   els.metroBaseCv.style.transform = baseTransform(view[sys], vGeom());
   baseQ = null;
@@ -876,6 +876,7 @@ els.btnNight.addEventListener('click', () => {
   document.documentElement.classList.toggle('dark');
   try { localStorage.setItem('singhoah:night', document.documentElement.classList.contains('dark') ? '1' : '0'); } catch { /* ignore */ }
   updateThemeBtn();
+  scheduleBaseRender(30); /* bitmap must pick up the new palette */
   draw();
 });
 initBase();
