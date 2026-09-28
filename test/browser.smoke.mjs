@@ -1864,7 +1864,9 @@ ok('wheel zoom stays anchored under the cursor', await mt.evaluate(async () => {
   };
   const before = worldOf(sx, sy);
   svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: sx, clientY: sy, bubbles: true, cancelable: true }));
-  await new Promise((x) => setTimeout(x, 450)); /* let the gesture settle & re-bake */
+  const wg = document.getElementById('metroWorld');
+  for (let i = 0; i < 40 && wg.style.transform !== ''; i++) await new Promise((x) => setTimeout(x, 100));
+  await new Promise((x) => requestAnimationFrame(() => requestAnimationFrame(x))); /* settle re-bake applied */
   const after = worldOf(sx, sy);
   return Math.hypot(before[0] - after[0], before[1] - after[1]) < 2;
 }));
@@ -1883,7 +1885,9 @@ ok('pinch spread zooms in about the midpoint', await mt.evaluate(async () => {
   }
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 11, clientX: cx - 160, clientY: cy, bubbles: true }));
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 12, clientX: cx + 160, clientY: cy, bubbles: true }));
-  await new Promise((x) => setTimeout(x, 450)); /* settle & re-bake */
+  const wg2 = document.getElementById('metroWorld');
+  for (let i = 0; i < 40 && wg2.style.transform !== ''; i++) await new Promise((x) => setTimeout(x, 100));
+  await new Promise((x) => requestAnimationFrame(() => requestAnimationFrame(x))); /* settle re-bake */
   return vw() < w0 - 1;
 }));
 ok('drag stops instantly at release, like the world map (no fling)', await mt.evaluate(async () => {
@@ -1900,8 +1904,11 @@ ok('drag stops instantly at release, like the world map (no fling)', await mt.ev
     await new Promise((x) => setTimeout(x, 12));
   }
   svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 13, clientX: cx + 180, clientY: cy + 48, bubbles: true }));
-  /* the final frame is rAF-applied (direct model, no transform); let it
-     land, then the view must stay perfectly still — a fling would move it */
+  /* wait out the compositor settle (transform cleared + sharp re-bake
+     applied), then the view must stay perfectly still — a fling would
+     keep moving it */
+  const wg = document.getElementById('metroWorld');
+  for (let i = 0; i < 40 && wg.style.transform !== ''; i++) await new Promise((x) => setTimeout(x, 100));
   await new Promise((x) => requestAnimationFrame(() => requestAnimationFrame(x)));
   const vbSettled = svg.getAttribute('viewBox');
   const sx1 = document.querySelector('.metro-st').getBoundingClientRect().x;

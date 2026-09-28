@@ -205,7 +205,7 @@ function updateBasePaths() {
   const B = BASE[sys];
   if (!B) return;
   const v = view[sys], g = vGeom();
-  const m = 0.35 * g.w;
+  const m = (interacting ? 1.6 : 0.35) * g.w;
   const vx0 = v.cx - g.w / 2 - m, vx1 = v.cx + g.w / 2 + m;
   const vy0 = v.cy - g.h / 2 - m, vy1 = v.cy + g.h / 2 + m;
   bRm.style.display = v.k >= 2 ? '' : 'none'; /* street grid at close zoom only */
@@ -551,10 +551,19 @@ function draw() {
   const v = view[sys];
   const g = vGeom();
 
-  /* Exactly the SinghoClock world-map model: every frame writes one
-     viewBox + one CSS counter-scale variable, then cheap tile/label
-     visibility. No transform stretching, no settle re-bake, no
-     multi-hundred-KB string rebuilds — each frame is small and crisp. */
+  /* mid-gesture: stretch the painted layer on the compositor; the sharp
+     direct-apply below runs on the settle frame and on every idle frame */
+  if (interacting && base && base.sys === sys) {
+    const g0 = vGeomFor(base.k);
+    const x00 = base.cx - g0.w / 2, y00 = base.cy - g0.h / 2;
+    const x01 = v.cx - g.w / 2, y01 = v.cy - g.h / 2;
+    const a = g0.s / g.s;
+    const tx = x01 + (g0.ox - x00 * g0.s - g.ox) / g.s;
+    const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
+    worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
+    return;
+  }
+  worldG.style.transform = '';
   els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
   els.metroSvg.style.setProperty('--upx', (1 / g.s).toFixed(5));
   /* street basemap: streamed into static tiles, culled by display toggles */
@@ -583,11 +592,28 @@ function initWorld() {
   for (const el of [els.metroBaseWater, els.metroBaseRoads, els.metroLines, els.metroStations, els.metroLabels, els.metroRoute]) worldG.appendChild(el);
   els.metroSvg.appendChild(worldG);
 }
-/* 'interacting' only pauses the basemap decoder now; drawing is direct */
+/* Google-Maps-style gesture compositing, round two: while a gesture is
+   live one CSS transform on #metroWorld moves the painted layer (pure GPU
+   compositing, zero re-raster). The settle frame re-bakes for sharpness —
+   and unlike the old engine that re-bake is now trivial (one viewBox +
+   tile visibility toggles), so the handoff is invisible. */
+let base = null;
 function markInteract() {
+  if (!interacting) {
+    const v = view[sys];
+    base = { cx: v.cx, cy: v.cy, k: v.k, sys };
+    worldG.style.willChange = 'transform';
+    updateBasePaths(); /* re-cull wide so gesture edges never run empty */
+  }
   interacting = true;
   clearTimeout(interT);
-  interT = setTimeout(() => { interacting = false; pumpBase(sys); }, 220);
+  interT = setTimeout(() => {
+    interacting = false;
+    base = null;
+    worldG.style.willChange = '';
+    draw(); /* sharp re-bake — cheap now */
+    pumpBase(sys);
+  }, 200);
 }
 addEventListener('resize', () => { interacting = false; requestDraw(); });
 
