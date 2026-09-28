@@ -1916,6 +1916,80 @@ ok('drag stops instantly at release, like the world map (no fling)', await mt.ev
   return svg.getAttribute('viewBox') === vbSettled &&
     Math.abs(document.querySelector('.metro-st').getBoundingClientRect().x - sx1) <= 2; /* no glide */
 }));
+ok('live gesture transform is exactly the base→view matrix (no inverted pan/zoom)', await mt.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const wg = document.getElementById('metroWorld');
+  const r = svg.getBoundingClientRect();
+  const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+  svg.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 21, clientX: cx, clientY: cy, bubbles: true }));
+  for (let i = 1; i <= 3; i++) {
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 21, clientX: cx + i * 40, clientY: cy - i * 25, bubbles: true }));
+    await new Promise((x) => setTimeout(x, 15));
+  }
+  /* zero-delta pings keep the gesture window open while we poll for the
+     frame where the applied transform and the logical view agree */
+  let okm = false, got = null, vb = null, dbg = null;
+  for (let i = 0; i < 10 && !okm; i++) {
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 21, clientX: cx + 120, clientY: cy - 75, bubbles: true }));
+    await new Promise((x) => setTimeout(x, 40));
+    const tm = getComputedStyle(wg).transform;
+    if (tm === 'none') continue;
+    dbg = globalThis.__METRO.dbg;
+    if (!dbg.base) break;
+    vb = svg.getAttribute('viewBox').split(' ').map(Number);
+    got = tm.match(/-?\d*\.?\d+(?:e-?\d+)?/g).map(Number);
+    const g0w = vb[2], g0s = Math.min(r.width / g0w, r.height / vb[3]);
+    const aspect = Math.max(0.6, Math.min(2.6, r.height / r.width));
+    const gw = 1000 / dbg.v.k, gh = gw * aspect;
+    const gs = Math.min(r.width / gw, r.height / gh);
+    const x00 = dbg.base.cx - g0w / 2, y00 = dbg.base.cy - vb[3] / 2;
+    const x01 = dbg.v.cx - gw / 2, y01 = dbg.v.cy - gh / 2;
+    const a = gs / g0s;
+    const tx = x00 + (-x01 * gs) / g0s, ty = y00 + (-y01 * gs) / g0s;
+    okm = Math.abs(got[0] - a) < 0.01 && Math.abs(got[4] - tx) < 1.5 && Math.abs(got[5] - ty) < 1.5;
+  }
+  let consistent = false;
+  if (okm) {
+    const el = document.querySelector('.metro-st');
+    const wm = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(el.closest('g').getAttribute('transform'));
+    const q = el.getBoundingClientRect();
+    const g0s = Math.min(r.width / vb[2], r.height / vb[3]);
+    const px = (got[0] * +wm[1] + got[4] - (dbg.base.cx - vb[2] / 2)) * g0s + (r.width - vb[2] * g0s) / 2 + r.left;
+    const py = (got[0] * +wm[2] + got[5] - (dbg.base.cy - vb[3] / 2)) * g0s + (r.height - vb[3] * g0s) / 2 + r.top;
+    consistent = Math.hypot(px - (q.x + q.width / 2), py - (q.y + q.height / 2)) < 2;
+  }
+  svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 21, clientX: cx + 120, clientY: cy - 75, bubbles: true }));
+  return okm && consistent;
+}));
+ok('pan follows the finger during the drag (content tracks the pointer 1:1)', await mt.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const wg = document.getElementById('metroWorld');
+  const r = svg.getBoundingClientRect();
+  const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+  const el = document.querySelector('.metro-st');
+  const at = () => { const q = el.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2]; };
+  const p0 = at();
+  svg.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 22, clientX: cx, clientY: cy, bubbles: true }));
+  for (let i = 1; i <= 6; i++) {
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 22, clientX: cx - i * 25, clientY: cy + i * 12, bubbles: true }));
+    await new Promise((x) => setTimeout(x, 40));
+  }
+  /* poll (with keep-alive pings) for the live frame where the painted
+     content has caught up to the full drag — proves 1:1 tracking mid-gesture */
+  let live = false;
+  for (let i = 0; i < 12 && !live; i++) {
+    svg.dispatchEvent(new PointerEvent('pointermove', { pointerId: 22, clientX: cx - 150, clientY: cy + 72, bubbles: true }));
+    await new Promise((x) => setTimeout(x, 40));
+    const d = at();
+    live = getComputedStyle(wg).transform !== 'none' &&
+      Math.hypot(d[0] - (p0[0] - 150), d[1] - (p0[1] + 72)) < 2;
+  }
+  svg.dispatchEvent(new PointerEvent('pointerup', { pointerId: 22, clientX: cx - 150, clientY: cy + 72, bubbles: true }));
+  for (let i = 0; i < 40 && getComputedStyle(document.getElementById('metroWorld')).transform !== 'none'; i++) await new Promise((x) => setTimeout(x, 100));
+  await new Promise((x) => requestAnimationFrame(() => requestAnimationFrame(x)));
+  const p1 = at();
+  return live && Math.hypot(p1[0] - p0[0] + 150, p1[1] - p0[1] - 72) < 2;
+}));
 ok('metro zoom buttons step like the world map (+ / − / ⌂)', await mt.evaluate(async () => {
   const svg = document.getElementById('metroSvg');
   const vw = () => svg.getAttribute('viewBox').split(' ').map(Number)[2];

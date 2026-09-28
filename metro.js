@@ -563,13 +563,18 @@ function draw() {
   /* mid-gesture: stretch the painted layer on the compositor; the sharp
      direct-apply below runs on the settle frame and on every idle frame */
   if (interacting && base && base.sys === sys) {
+    /* The painted layer is still the base-view bake; one CSS transform on
+       #metroWorld must reproduce the current view exactly. Screen space of
+       the bake: (a*c + t - x00)*g0.s + ox0. We want (c - x01)*g.s + ox for
+       every world point c, which solves in two lines: */
     const g0 = vGeomFor(base.k);
     const x00 = base.cx - g0.w / 2, y00 = base.cy - g0.h / 2;
     const x01 = v.cx - g.w / 2, y01 = v.cy - g.h / 2;
-    const a = g0.s / g.s;
-    const tx = x01 + (g0.ox - x00 * g0.s - g.ox) / g.s;
-    const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
+    const a = g.s / g0.s;
+    const tx = x00 + (g.ox - g0.ox - x01 * g.s) / g0.s;
+    const ty = y00 + (g.oy - g0.oy - y01 * g.s) / g0.s;
     worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
+    updateBasePaths(); /* long pans: keep tiles under the view (display toggles only) */
     return;
   }
   worldG.style.transform = '';
@@ -700,6 +705,8 @@ let pinched = false;
 els.metroSvg.addEventListener('pointermove', (e) => {
   const pt = pointers.get(e.pointerId);
   if (!pt) return;
+  markInteract(); /* keep the gesture live: settle 200ms after the LAST event,
+                     never mid-drag on long drags */
   if (pointers.size === 2) {
     /* pinch: scale about the live midpoint, like Google Maps */
     const [a, b] = [...pointers.values()];
@@ -840,6 +847,8 @@ fitContent();
 globalThis.__METRO = {
   route, fare, ST,
   get sys() { return sys; },
+  /* test hook: current logical view + the gesture's bake snapshot */
+  get dbg() { return { v: { ...view[sys] }, base: base ? { ...base } : null }; },
   setSys(id) {
     if (!SYSS.includes(id) || id === sys) return id === sys;
     sys = id; from = to = null;
