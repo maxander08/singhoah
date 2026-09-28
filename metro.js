@@ -104,20 +104,28 @@ function loadBase(sysId) {
   }
   return MB_LOAD[key];
 }
+/* quality dial: vectors stay crisp at any zoom, so we spend the perf budget
+   on point density instead — drop vertices closer than EPS (~6px at max
+   zoom, sub-pixel at overview) while decoding */
+const EPS = 0.3;
 function decodeArr(sysId, cls, a) {
   const P = PROJ[sysId];
   let la = a[0] / 1e4, lo = a[1] / 1e4;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, seg = '';
-  const put = () => {
+  let kx = 1e9, ky = 1e9;
+  const put = (force) => {
     const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
     const x = PORTRAIT ? P.ox + ey : P.ox + ex;
     const y = PORTRAIT ? P.oy + ex : P.oy + ey;
     if (x < x0) x0 = x; if (x > x1) x1 = x;
     if (y < y0) y0 = y; if (y > y1) y1 = y;
+    if (!force && !seg) { seg = 'M' + x.toFixed(1) + ' ' + y.toFixed(1); kx = x; ky = y; return; }
+    if (!force && Math.hypot(x - kx, y - ky) < EPS) return;
     seg += (seg ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    kx = x; ky = y;
   };
-  put();
-  for (let i = 2; i < a.length; i += 2) { la += a[i] / 1e4; lo += a[i + 1] / 1e4; put(); }
+  put(false);
+  for (let i = 2; i < a.length; i += 2) { la += a[i] / 1e4; lo += a[i + 1] / 1e4; put(i >= a.length - 2); }
   return { d: seg + (cls === 'watf' ? 'Z' : ''), b: [x0, y0, x1, y1] };
 }
 /* Basemap geometry streams in and is sliced ONCE into a 4×4 bucket of
@@ -173,103 +181,50 @@ function pumpBase(sysId) {
     }
     if (!progressed) { B.done = true; break; }
   }
-  /* parse Path2D here, inside the 6ms decode slice, so gesture/settle
-     frames never pay for d-string parsing */
+  /* flush dirty tiles to the DOM (once per tile) */
   for (const cls of ['maj', 'watf', 'wats', 'min']) {
     for (const t of B.tiles[cls]) {
       if (!t.dirty) continue;
       t.dirty = false;
-      try { t.p2 = new Path2D(t.d); t.d = null; } catch { t.p2 = null; } /* Path2D owns the geometry now; free the string */
+      if (!t.el) {
+        t.el = document.createElementNS(NS, 'path');
+        t.el.setAttribute('class', 'b-tile');
+        t.el.setAttribute('vector-effect', 'non-scaling-stroke');
+        BHOST[cls]().appendChild(t.el);
+      }
+      t.el.setAttribute('d', t.d);
     }
-    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; try { B.bigP2 = new Path2D(B.big[cls]); B.big[cls] = null; } catch { B.bigP2 = null; } }
+    if (B.bigDirty[cls]) {
+      B.bigDirty[cls] = false;
+      if (!B.bigEl[cls]) {
+        B.bigEl[cls] = document.createElementNS(NS, 'path');
+        B.bigEl[cls].setAttribute('class', 'b-tile');
+        B.bigEl[cls].setAttribute('vector-effect', 'non-scaling-stroke');
+        BHOST[cls]().appendChild(B.bigEl[cls]);
+      }
+      B.bigEl[cls].setAttribute('d', B.big[cls]);
+    }
   }
-  if (sys === sysId && !interacting) scheduleBaseRender(140);
+  if (sys === sysId) updateBasePaths();
   if (!B.done) setTimeout(() => pumpBase(sysId), 16);
 }
-/* Raster basemap, Google-Maps style: the street/river network is stroked
-   ONCE per zoom bucket into a bitmap; every frame afterwards just moves
-   that picture (+ the SVG line layer) with one CSS matrix. Vectors only
-   re-rasterize when the bucket changes or coverage runs out. */
-let baseR = null, baseRT = 0;
-function scheduleBaseRender(ms) { clearTimeout(baseRT); baseRT = setTimeout(renderBase, ms); }
-const P2 = (t) => t.p2 || (t.p2 = new Path2D(t.d));
-let baseBuf = null, baseQ = null;
-function renderBase() {
-  const v = view[sys], g = vGeom();
+/* per-frame cost: 64 bbox tests + a few display toggles. That's it. */
+function updateBasePaths() {
   const B = BASE[sys];
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const W = Math.max(2, Math.round(g.rect.width * dpr)), H = Math.max(2, Math.round(g.rect.height * dpr));
-  if (!baseBuf) baseBuf = document.createElement('canvas');
-  if (baseBuf.width !== W) baseBuf.width = W;
-  if (baseBuf.height !== H) baseBuf.height = H;
-  const ctx = baseBuf.getContext('2d');
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-  const jobs = [];
-  const min = v.k >= 2;
-  if (B) {
-    const m = 0.9; /* render ~2.8x the viewport so pans stay covered */
-    const rw = g.w * (1 + 2 * m), rh = g.h * (1 + 2 * m);
-    const s2 = g.s / (1 + 2 * m);
-    const wx0 = v.cx - rw / 2, wy0 = v.cy - rh / 2;
-    ctx.setTransform(s2 * dpr, 0, 0, s2 * dpr, -wx0 * s2 * dpr, -wy0 * s2 * dpr);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    const css = getComputedStyle(document.documentElement);
-    const col = (n, fb) => ((css.getPropertyValue(n) || '').trim() || fb);
-    const cWater = col('--bwater', '#274b63'), cMaj = col('--broadM', '#6a6a6a'), cMin = col('--broadm', '#474747');
-    const vx1 = wx0 + rw, vy1 = wy0 + rh;
-    const add = (cls, mode, color, wpx) => {
-      for (const t of B.tiles[cls]) {
-        if (!t.p2) continue;
-        const b = t.b;
-        if (b[0] > vx1 || b[2] < wx0 || b[1] > vy1 || b[3] < wy0) continue;
-        jobs.push({ mode, color, wpx, p: t.p2 });
-      }
-      if (B.bigP2) jobs.push({ mode, color, wpx, p: B.bigP2 });
-    };
-    add('watf', 'f', cWater);
-    add('wats', 's', cWater, 1.2);
-    add('maj', 's', cMaj, 1.5);
-    if (min) add('min', 's', cMin, 0.9);
-    baseQ = { ctx, W, H, jobs, i: 0, s2, wx0, wy0, rw, rh, min, dpr, th: cWater, v: { cx: v.cx, cy: v.cy, k: v.k }, g: { s: g.s, ox: g.ox, oy: g.oy } };
-    requestAnimationFrame(pumpRender);
-  } else { baseR = null; window.__METROBASE = { sys, min, strokes: 0 }; }
-}
-/* strokes in <=5ms slices off an offscreen buffer; the visible canvas keeps
-   showing the old picture until the new one is complete — no frozen frames */
-function pumpRender() {
-  const q = baseQ;
-  if (!q) return;
-  if (interacting) { setTimeout(pumpRender, 24); return; }
-  const t0 = performance.now();
-  while (q.i < q.jobs.length && performance.now() - t0 < 5) {
-    const j = q.jobs[q.i++];
-    if (j.mode === 's') { q.ctx.strokeStyle = j.color; q.ctx.lineWidth = j.wpx / q.s2; q.ctx.stroke(j.p); }
-    else { q.ctx.fillStyle = j.color; q.ctx.fill(j.p); }
+  if (!B) return;
+  const v = view[sys], g = vGeom();
+  const m = (interacting ? 1.2 : 0.25) * g.w;
+  const vx0 = v.cx - g.w / 2 - m, vx1 = v.cx + g.w / 2 + m;
+  const vy0 = v.cy - g.h / 2 - m, vy1 = v.cy + g.h / 2 + m;
+  bRm.style.display = v.k >= 2.5 ? '' : 'none'; /* street grid at close zoom only */
+  for (const cls of ['watf', 'wats', 'maj', 'min']) {
+    for (const t of B.tiles[cls]) {
+      if (!t.el) continue;
+      const b = t.b;
+      const on = b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0;
+      if (t.vis !== on) { t.vis = on; t.el.style.display = on ? '' : 'none'; }
+    }
   }
-  if (q.i < q.jobs.length) { requestAnimationFrame(pumpRender); return; }
-  const cv = els.metroBaseCv;
-  if (cv.width !== q.W) cv.width = q.W;
-  if (cv.height !== q.H) cv.height = q.H;
-  cv.getContext('2d').drawImage(baseBuf, 0, 0);
-  baseR = { sys, cx: q.v.cx, cy: q.v.cy, k: q.v.k, s2: q.s2, wx0: q.wx0, wy0: q.wy0, rw: q.rw, rh: q.rh, min: q.min, strokes: q.jobs.length, th: q.th };
-  window.__METROBASE = baseR;
-  els.metroBaseCv.style.transform = baseTransform(view[sys], vGeom());
-  baseQ = null;
-}
-function baseTransform(v, g) {
-  if (!baseR || baseR.sys !== sys) return '';
-  const f = g.s / baseR.s2;
-  const tx = g.ox + (baseR.wx0 - (v.cx - g.w / 2)) * g.s;
-  const ty = g.oy + (baseR.wy0 - (v.cy - g.h / 2)) * g.s;
-  return `matrix(${f.toFixed(5)},0,0,${f.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
-}
-function baseCovers(v, g) {
-  if (!baseR || baseR.sys !== sys) return false;
-  const f = g.s / baseR.s2;
-  if (f < 0.55 || f > 1.9) return false;
-  const x0 = v.cx - g.w / 2, x1 = v.cx + g.w / 2, y0 = v.cy - g.h / 2, y1 = v.cy + g.h / 2;
-  return x0 >= baseR.wx0 && x1 <= baseR.wx0 + baseR.rw && y0 >= baseR.wy0 && y1 <= baseR.wy0 + baseR.rh;
 }
 
 /* ---- real curved track geometry per line, projected per system ---- */
@@ -399,17 +354,21 @@ function fare(sys, a, b, r) {
 
 const els = {};
 for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'btnNight', 'nightText',
-  'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroBaseCv', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
+  'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
   'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear',
   'metroBaseWater', 'metroBaseRoads', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
 let bWF, bWS, bRM, bRm;
 function initBase() {
-  /* vector basemap retired — the network lives in the bitmap canvas now */
-  const g = (cls) => { const e = document.createElementNS(NS, 'g'); e.setAttribute('class', cls); e.style.display = 'none'; return e; };
+  const g = (cls) => { const e = document.createElementNS(NS, 'g'); e.setAttribute('class', cls); return e; };
   bWF = g('b-water-f'); bWS = g('b-water-s');
   els.metroBaseWater.append(bWF, bWS);
   bRM = g('b-road-maj'); bRm = g('b-road-min');
   els.metroBaseRoads.append(bRM, bRm);
+  /* screen-constant hairlines: stroke-width inherits to every tile path;
+     vector-effect is not inherited, so tiles set it at creation */
+  for (const [p, w] of [[bWS, 1.2], [bRM, 1.5], [bRm, 0.9]]) {
+    p.setAttribute('stroke-width', String(w));
+  }
 }
 
 function applyLang(id, persist = true) {
@@ -610,11 +569,7 @@ function draw() {
     const a = g0.s / g.s;
     const tx = x01 + (g0.ox - x00 * g0.s - g.ox) / g.s;
     const ty = y01 + (g0.oy - y00 * g0.s - g.oy) / g.s;
-    const tf = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
-    worldG.style.transform = tf;
-    /* the bitmap was rendered for its own (earlier) view — it needs its
-       own matrix or it lags the line layer mid-pan */
-    els.metroBaseCv.style.transform = baseTransform(v, g);
+    worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
     return;
   }
   worldG.style.transform = '';
@@ -623,6 +578,7 @@ function draw() {
   /* street basemap: streamed into static tiles, culled by display toggles */
   ensureTracks(sys);
   ensureBase(sys);
+  updateBasePaths();
   const sc = buildScene(sys);
   cullLabels(sc, v, g);
   /* selection highlight + route overlay only when the pair changed */
@@ -635,10 +591,6 @@ function draw() {
     }
     updateRoute();
   }
-  /* basemap bitmap: reuse the picture while it covers the view; re-raster
-     only when the zoom bucket or coverage says it must */
-  if (!baseCovers(v, g)) renderBase();
-  else els.metroBaseCv.style.transform = baseTransform(v, g);
 }
 
 /* gesture lifecycle: live-transform while interacting, re-bake on settle */
@@ -660,13 +612,15 @@ function markInteract() {
     const v = view[sys];
     base = { cx: v.cx, cy: v.cy, k: v.k, sys };
     worldG.style.willChange = 'transform';
+    updateBasePaths(); /* re-cull wide so gesture edges never run empty */
   }
   interacting = true;
   clearTimeout(interT);
   interT = setTimeout(() => {
     interacting = false;
     base = null;
-    draw(); /* sharp re-bake — chunked bitmap + light vector work */
+    worldG.style.willChange = '';
+    draw(); /* sharp re-bake — cheap now */
     pumpBase(sys);
   }, 200);
 }
@@ -876,7 +830,6 @@ els.btnNight.addEventListener('click', () => {
   document.documentElement.classList.toggle('dark');
   try { localStorage.setItem('singhoah:night', document.documentElement.classList.contains('dark') ? '1' : '0'); } catch { /* ignore */ }
   updateThemeBtn();
-  scheduleBaseRender(30); /* bitmap must pick up the new palette */
   draw();
 });
 initBase();

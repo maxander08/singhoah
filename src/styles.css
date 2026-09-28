@@ -1370,8 +1370,7 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .metro-sys { display: flex; gap: var(--gap); padding: 10px var(--pad-side) 0; }
 .metro-sysbtn { padding: 6px 14px; font-weight: 700; }
 .metro-sysbtn[aria-selected="true"] { background: var(--notification); color: var(--on-notification); }
-.metro-mapwrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-#metroBaseCv { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transform-origin: 0 0; will-change: transform; }
+.metro-mapwrap { position: relative; flex: 1; min-height: 0; }
 .metro-mapwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .metro-st { fill: var(--paper); stroke: var(--black); stroke-width: 1.4; cursor: pointer; }
 .metro-st.from, .metro-st.to { fill: var(--notification); stroke: var(--on-notification); }

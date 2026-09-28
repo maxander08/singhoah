@@ -1837,7 +1837,11 @@ ok('Kaohsiung full Red Line fares at NT$60', await mt.evaluate(() =>
   document.getElementById('mFareVal').textContent.trim() === 'NT$60'));
 let ksBaseOk = false;
 try {
-  await mt.waitForFunction(() => window.__METROBASE && window.__METROBASE.sys === 'KS' && window.__METROBASE.strokes > 10, null, { timeout: 6000, polling: 200 });
+  await mt.waitForFunction(() => {
+    const sum = (el) => el ? [...el.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) : 0;
+    return sum(document.querySelector('#metroBaseRoads .b-road-maj')) > 500 &&
+      sum(document.querySelector('#metroBaseWater .b-water-f')) > 500;
+  }, null, { timeout: 6000, polling: 200 });
   ksBaseOk = true;
 } catch { /* checked below */ }
 ok('Kaohsiung basemap has its own streets and water', ksBaseOk);
@@ -1949,19 +1953,14 @@ await mbp.goto(URL + 'metro.html', { waitUntil: 'load' });
 await mbp.waitForTimeout(500);
 let baseOk = false;
 try {
-  await mbp.waitForFunction(() => window.__METROBASE && window.__METROBASE.strokes > 10 &&
-    document.getElementById('metroBaseCv').width > 10, null, { timeout: 6000, polling: 200 });
+  await mbp.waitForFunction(() => {
+    const sum = (el) => el ? [...el.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) : 0;
+    return sum(document.querySelector('#metroBaseRoads .b-road-maj')) > 500 &&
+      sum(document.querySelector('#metroBaseWater .b-water-f')) > 500;
+  }, null, { timeout: 6000, polling: 200 });
   baseOk = true;
 } catch { /* checked below */ }
 ok('metro basemap draws rivers and roads under the lines', baseOk);
-ok('night toggle re-paints the bitmap basemap', await mbp.evaluate(async () => {
-  const before = window.__METROBASE.th;
-  document.getElementById('btnNight').click();
-  for (let i = 0; i < 40 && window.__METROBASE.th === before; i++) await new Promise((x) => setTimeout(x, 100));
-  const changed = window.__METROBASE.th !== before;
-  document.getElementById('btnNight').click(); /* restore */
-  return changed;
-}));
 ok('overview labels never overlap (interchanges win, rest reveal on zoom)', await mbp.evaluate(() => {
   const vis = [...document.querySelectorAll('#metroStations text')].filter((t) => t.style.display !== 'none');
   const r = vis.map((t) => t.getBoundingClientRect());
@@ -1972,11 +1971,15 @@ ok('overview labels never overlap (interchanges win, rest reveal on zoom)', awai
   return vis.length > 5 && vis.length < 135; /* culled, not empty, not all */
 }));
 ok('street grid is hidden at overview zoom', await mbp.evaluate(() =>
-  window.__METROBASE && window.__METROBASE.min === false));
+  document.querySelector('#metroBaseRoads .b-road-min').style.display === 'none'));
 await mbp.click('#metroIn'); await mbp.click('#metroIn'); await mbp.click('#metroIn');
 let gridOk = false;
 try {
-  await mbp.waitForFunction(() => window.__METROBASE && window.__METROBASE.min === true, null, { timeout: 6000, polling: 200 });
+  await mbp.waitForFunction(() => {
+    const m = document.querySelector('#metroBaseRoads .b-road-min');
+    return m && m.style.display !== 'none' &&
+      [...m.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) > 500;
+  }, null, { timeout: 6000, polling: 200 });
   gridOk = true;
 } catch { /* checked below */ }
 ok('zooming in reveals the street grid', gridOk);
