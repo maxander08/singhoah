@@ -994,6 +994,21 @@ await mob2.close();
 const lp = await context.newPage();
 await lp.goto(URL + 'launch.html', { waitUntil: 'load' });
 await lp.waitForTimeout(300);
+ok('SinghoLaunch greets first-time visitors with a welcome page',
+  await lp.evaluate(() => !document.getElementById('lpWelcome').hidden &&
+    document.getElementById('lpWelS').textContent.length > 10));
+await lp.click('#lpStartBtn');
+ok('the welcome page dismisses and stays dismissed', await lp.evaluate(() =>
+  document.getElementById('lpWelcome').hidden &&
+  localStorage.getItem('singhoah:lpWelcomed') === '1'));
+ok('launchpad shows today plus a live world strip', await lp.evaluate(async () => {
+  const chips = [...document.querySelectorAll('.lp-wchip')];
+  const today = document.getElementById('lpToday').textContent;
+  if (chips.length !== 5 || today.length < 8) return false;
+  const t0 = chips.map((c) => c.querySelector('.lp-wtime').textContent).join('|');
+  await new Promise((x) => setTimeout(x, 1200));
+  return chips.every((c) => /^\d{2}:\d{2}$/.test(c.querySelector('.lp-wtime').textContent));
+}));
 ok('launchpad wordmark reads SinghoLaunch',
   (await lp.locator('.wordmark').textContent()).includes('Launch'));
 ok('the launchpad does not scroll', await lp.evaluate(() =>
@@ -1195,6 +1210,8 @@ ok('SMate lives on every Singho page', smateEverywhere);
 const sq = await sm.newPage();
 await sq.goto(URL + 'index.html', { waitUntil: 'load' });
 await sq.waitForTimeout(300);
+ok('the on-device AI is on-demand (off until asked)', await sq.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
 ok('Launchpad is an icon-only topbar button', await sq.evaluate(() => {
   const b = document.getElementById('btnLaunch');
   return !!b && !b.textContent.trim() && !!b.title && !!b.querySelector('svg');
@@ -1227,6 +1244,8 @@ ok('SMate switches the window layout', await sq.evaluate(() => document.getEleme
 await smSend('zone Taipei');
 await sq.waitForTimeout(250);
 ok('SMate changes the home time zone', await sq.evaluate(() => document.getElementById('tzLabel').textContent === 'Taipei'));
+await sq.click('#smateAI'); /* on demand */
+await sq.waitForTimeout(250);
 await smSend('blorp');
 ok('without a usable GPU SMate explains the AI needs WebGPU', await sq.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
@@ -1320,7 +1339,11 @@ const ap = await ai.newPage();
 await ap.goto(URL + 'index.html', { waitUntil: 'load' });
 await ap.waitForTimeout(300);
 await ap.click('#smateBtn');
-ok('SMate AI is armed by default (free, on-device)', await ap.evaluate(() =>
+ok('SMate AI is on-demand: off until the chip is tapped', await ap.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
+await ap.click('#smateAI');
+await ap.waitForTimeout(200);
+ok('tapping the chip arms the on-device AI right away', await ap.evaluate(() =>
   document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'));
 await ap.fill('#smateIn', 'the room is too bright for my eyes');
 await ap.click('#smateSend');
@@ -1356,7 +1379,14 @@ await a2p.waitForTimeout(300);
 await a2p.click('#smateBtn');
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
-await a2p.waitForTimeout(600);
+await a2p.waitForTimeout(900);
+ok('with AI off, fuzzy input stays on the instant offline interpreter', await a2p.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+await a2p.click('#smateAI'); /* on demand: the user asks for it */
+await a2p.waitForTimeout(300);
+await a2p.fill('#smateIn', 'blorp');
+await a2p.click('#smateSend');
+await a2p.waitForTimeout(900);
 ok('without WebGPU SMate explains instead of downloading anything', await a2p.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
 await a2p.click('#smateAI');
@@ -1382,6 +1412,8 @@ const a3p = await ai3.newPage();
 await a3p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a3p.waitForTimeout(300);
 await a3p.click('#smateBtn');
+await a3p.click('#smateAI'); /* on demand */
+await a3p.waitForTimeout(200);
 await a3p.fill('#smateIn', 'blorp');
 await a3p.click('#smateSend');
 await a3p.waitForTimeout(300);
@@ -1403,6 +1435,8 @@ const a4p = await ai4.newPage();
 await a4p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a4p.waitForTimeout(300);
 await a4p.click('#smateBtn');
+await a4p.click('#smateAI'); /* on demand */
+await a4p.waitForTimeout(200);
 await a4p.fill('#smateIn', 'blorp');
 await a4p.click('#smateSend');
 await a4p.waitForTimeout(300);
@@ -2006,6 +2040,18 @@ ok('pan follows the finger during the drag (content tracks the pointer 1:1)', aw
   await new Promise((x) => requestAnimationFrame(() => requestAnimationFrame(x)));
   const p1 = at();
   return live && Math.hypot(p1[0] - p0[0] + 150, p1[1] - p0[1] - 72) < 2;
+}));
+ok('SMate swaps the fare pair on the metro page', await mt.evaluate(async () => {
+  const M = globalThis.__METRO;
+  M.pick('KR3'); M.pick('KRK1');
+  const a = document.getElementById('mFromName').textContent;
+  document.getElementById('smateBtn').click();
+  document.getElementById('smateIn').value = 'swap';
+  document.getElementById('smateForm').dispatchEvent(new Event('submit', { cancelable: true }));
+  await new Promise((x) => setTimeout(x, 1500));
+  const b = document.getElementById('mFromName').textContent;
+  document.getElementById('smateX').click();
+  return b !== a && b.length > 0;
 }));
 ok('metro zoom buttons step like the world map (+ / − / ⌂)', await mt.evaluate(async () => {
   const svg = document.getElementById('metroSvg');

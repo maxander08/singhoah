@@ -60,6 +60,11 @@
       </div>
     </div>
   </div>
+  <div class="lp-world">
+    <p class="lp-today" id="lpToday"></p>
+    <h2 class="lp-world-t" id="lpWorldT">Around the world</h2>
+    <div class="lp-world-row" id="lpWorldRow"></div>
+  </div>
   <div class="lp-grid">
     <a class="lp-card" id="cardClock" href="index.html">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.5l3.1 1.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -88,6 +93,22 @@
     </a>
   </div>
 </main>
+
+<div class="lp-welcome" id="lpWelcome" hidden>
+  <div class="lp-welcome-card" role="dialog" aria-modal="true" aria-labelledby="lpWelT">
+    <svg class="lp-welcome-mark" width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" fill="none"/><rect x="5" y="5" width="9" height="9" rx="2" fill="var(--notification)"/><rect x="18" y="5" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="18" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="18" y="18" width="9" height="9" rx="2" fill="var(--notification)"/></svg>
+    <h1 id="lpWelT">Welcome to SinghoLaunch</h1>
+    <p id="lpWelS">One launchpad for your world clock, metro fares, wallet, notes and settings — private, offline and yours.</p>
+    <ul class="lp-welcome-list">
+      <li><a href="index.html" id="lpWelClock"></a></li>
+      <li><a href="metro.html" id="lpWelMetro"></a></li>
+      <li><a href="wallet.html" id="lpWelWallet"></a></li>
+      <li><a href="scribe.html" id="lpWelScribe"></a></li>
+      <li><a href="settings.html" id="lpWelSettings"></a></li>
+    </ul>
+    <button type="button" class="btn lp-start" id="lpStartBtn">Get started</button>
+  </div>
+</div>
 
 <script src="flags.js"></script>
 <script type="module" src="app.js"></script>
@@ -225,6 +246,16 @@
     $('lpScribeS').textContent = t(lang, 'lpScribeSub');
     $('lpMetroT').textContent = t(lang, 'lpMetro');
     $('lpMetroS').textContent = t(lang, 'lpMetroSub');
+    $('lpWorldT').textContent = t(lang, 'lpWorld');
+    $('lpWelT').textContent = t(lang, 'lpWelcomeT');
+    $('lpWelS').textContent = t(lang, 'lpWelcomeS');
+    $('lpStartBtn').textContent = t(lang, 'lpStart');
+    $('lpWelClock').textContent = `${t(lang, 'lpClock')} · ${t(lang, 'lpClockSub')}`;
+    $('lpWelMetro').textContent = `${t(lang, 'lpMetro')} · ${t(lang, 'lpMetroSub')}`;
+    $('lpWelWallet').textContent = `${t(lang, 'wallet')} · ${t(lang, 'lpWalletSub')}`;
+    $('lpWelScribe').textContent = `${t(lang, 'lpScribe')} · ${t(lang, 'lpScribeSub')}`;
+    $('lpWelSettings').textContent = `${t(lang, 'settings')} · ${t(lang, 'lpSettingsSub')}`;
+    renderToday();
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');
     lpTzSearch.placeholder = t(lang, 'search');
     lpTzSearch.setAttribute('aria-label', t(lang, 'search'));
@@ -244,6 +275,54 @@
     try { localStorage.setItem('singhoah:night', dark ? '1' : '0'); } catch { /* ignore */ }
     $('nightText').textContent = t(lang, dark ? 'light' : 'night');
   });
+
+  /* ---- today + a live world strip (one interval, five cities) ---- */
+  const WORLD = ['Asia/Taipei', 'Asia/Tokyo', 'Europe/London', 'America/New_York', 'Australia/Sydney'];
+  const worldRow = $('lpWorldRow');
+  const worldChips = [];
+  function renderToday() {
+    const L = langOf(lang);
+    const d = new Intl.DateTimeFormat(L.locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: lpTz || undefined }).format(new Date());
+    $('lpToday').textContent = `${t(lang, 'lpToday')} · ${d}`;
+  }
+  (function buildWorld() {
+    const zones = [localZone, ...WORLD.filter((z) => z !== localZone)].slice(0, 5);
+    for (const z of zones) {
+      const c = document.createElement('div');
+      c.className = 'lp-wchip';
+      const img = document.createElement('img');
+      img.className = 'flag'; img.width = 20; img.height = 15; img.alt = '';
+      img.src = flagSrc(z);
+      const name = document.createElement('span');
+      name.className = 'lp-wcity';
+      name.textContent = cityOf(z);
+      const tm = document.createElement('span');
+      tm.className = 'lp-wtime';
+      c.append(img, name, tm);
+      worldRow.appendChild(c);
+      worldChips.push({ z, tm });
+    }
+  })();
+  function tickWorld() {
+    for (const w of worldChips) {
+      const s = toSegments(new Date(), w.z);
+      w.tm.textContent = `${s.hh}:${s.mm}`;
+    }
+  }
+  tickWorld();
+  setInterval(tickWorld, 1000);
+
+  /* ---- welcome page: first visit, or whenever SMate asks for it ---- */
+  const lpWelcome = $('lpWelcome');
+  const welcomeSeen = () => { try { return localStorage.getItem('singhoah:lpWelcomed') === '1'; } catch { return true; } };
+  const showWelcome = () => { lpWelcome.hidden = false; };
+  const hideWelcome = () => {
+    lpWelcome.hidden = true;
+    try { localStorage.setItem('singhoah:lpWelcomed', '1'); } catch { /* ignore */ }
+  };
+  $('lpStartBtn').addEventListener('click', hideWelcome);
+  document.addEventListener('singhoah:lpWelcome', showWelcome);
+  if (!welcomeSeen()) showWelcome();
 </script>
 </body>
 </html>

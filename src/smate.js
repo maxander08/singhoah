@@ -311,6 +311,13 @@
     currency: [...words(['currency']), 'currency'],
     add: [...words(['walAdd']), 'add', 'add'],
     help: ['help', '幫助', '説明', 'ayuda', 'aide', 'مساعدة', 'সাহায্য', 'помощь', 'ajuda', 'مدد'],
+    swap: [...words(['mSwap']), 'swap', 'interchange', '交換', ' intercambiar', 'échanger', 'tauschen', 'wissel', '스왑', '스왑', 'สลับ', 'hoán đổi'],
+    mclear: [...words(['mClear']), 'clear fare', 'clear selection'],
+    card: ['card', 'ic card', 'easycard', 'ipay', '票卡', '卡片', '悠遊卡', '一卡通', 'بطاقة', 'карта', 'cartão', 'tarjeta', 'carte', 'कार्ड', 'কার্ড', 'کارت', '카드', 'カード', 'บัตร', 'karte', 'karta', 'kaart', 'kort', 'κάρτα'],
+    find: [...words(['scribeFind']), 'find', 'search', '尋找', '検索', 'buscar', 'rechercher', 'suchen', 'zoeken', '찾기', 'بحث', 'खोज', 'поиск', 'procurar', 'cari'],
+    welcome: ['welcome', '歡迎', 'bienvenue', 'bienvenido', 'willkommen', 'welkom', 'benvenuto', 'ようこそ', '환영', 'مرحبا', 'स्वागत', 'স্বাগত', 'خوش آمدید', 'добро пожаловать', 'bem-vindo', 'καλώς ήρθατε', 'velkommen', 'välkommen', 'tervetuloa', 'dobrodošli', 'witaj'],
+    resetData: ['reset data', 'factory reset', 'wipe data', '清除資料', '重置資料', 'borrar datos', 'réinitialiser les données', 'сбросить данные', 'reset de fábrica', 'dados de fábrica', 'dati di fabbrica', 'Daten zurücksetzen', 'gegevens wissen', '데이터 초기화', 'データをリセット'],
+    entry: ['entry', 'entries', 'transaction', 'record', '項目', '記錄', '기록', 'registro', 'entrée', 'запись', 'eintrag', 'registro', 'entri', 'καταχώρηση', 'prone'],
   };
   const OPEN_VERBS = ['open', 'go to', 'goto', 'show', 'open', '打开', '開啟', '開', '去', 'खोलें',
     'abrir', 'ir a', 'ouvrir', 'aller à', 'افتح', 'اذهب إلى', 'খুলুন', 'открыть', 'открой', 'перейти',
@@ -482,7 +489,8 @@
       t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
       t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
       t(curLang, 'wallet'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
-    if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'));
+    if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'), t(curLang, 'mSwap'), t(curLang, 'mClear'), t(curLang, 'mCard'));
+    if (page === 'launch') bits.push(t(curLang, 'lpWelcomeT'));
     return `SMate · ${bits.join(' · ')}`;
   }
 
@@ -590,6 +598,14 @@
         : has(tl, KW.sysTaichung) ? 'TC'
         : has(tl, KW.sysTaoyuan) ? 'TY' : null;
       if (wantSys && M.setSys(wantSys)) note(`${t(curLang, 'done')}: ${t(curLang, 'm' + wantSys)}`);
+      if (has(tl, KW.swap)) { click($('mSwap')); note(t(curLang, 'done')); }
+      if (has(tl, KW.mclear) && !has(tl, ['chat', 'conversation', '對話', '对话'])) { click($('mClear')); note(t(curLang, 'done')); }
+      if (has(tl, KW.card)) {
+        click($('mCard'));
+        const n = num(text);
+        if (n != null) { const b = $('mCardBal'); if (b) { b.value = String(n); b.dispatchEvent(new Event('change', { bubbles: true })); } }
+        note(t(curLang, 'done'));
+      }
       if (has(tl, KW.zoomIn)) { M.zoomBy(1.7); note(t(curLang, 'done')); }
       else if (has(tl, KW.zoomOut)) { M.zoomBy(1 / 1.7); note(t(curLang, 'done')); }
       else if (has(tl, KW.zoomReset)) { M.resetView(); note(t(curLang, 'done')); }
@@ -673,6 +689,7 @@
       if (has(text, KW.download)) note(click($('scrDl')) ? t(curLang, 'done') : null);
       if (has(text, KW.print)) note(click($('scrPrint')) ? t(curLang, 'done') : null);
       if (has(text, KW.stamps)) note(click($('scrStamps')) ? t(curLang, 'done') : null);
+      if (has(text, KW.find)) note(click($('scrFind')) ? t(curLang, 'done') : null);
       if (!has(text, KW.clearAll) && !has(text, KW.clearChat) && has(text, KW.clearDoc)) {
         const oc = window.confirm; window.confirm = () => true;
         note(click($('scrClear')) ? t(curLang, 'done') : null);
@@ -686,6 +703,15 @@
       else note(act.nav('settings'));
     }
     if (page === 'clock' && /\bip\b/.test(text)) note(click($('btnIp')) ? t(curLang, 'done') : null);
+    if (page === 'settings' && has(text, KW.resetData)) {
+      const oc = window.confirm; window.confirm = () => true;
+      note(click($('btnReset')) ? t(curLang, 'done') : null);
+      window.confirm = oc;
+    }
+    if (has(text, KW.welcome)) {
+      if (page === 'launch') { document.dispatchEvent(new CustomEvent('singhoah:lpWelcome')); note(t(curLang, 'done')); }
+      else note(act.nav('launch'));
+    }
         /* timer */
     if (has(text, KW.timer) && num(text) != null) note(act.timerSet(num(text)));
     else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) note(act.timerCtl(text));
@@ -725,6 +751,10 @@
       }
     }
     if (page === 'wallet') {
+      if (has(text, KW.remove) && (has(text, KW.entry) || has(text, KW.expense) || has(text, KW.income))) {
+        const xs = document.querySelectorAll('.wal-x');
+        if (xs.length) { xs[xs.length - 1].click(); note(t(curLang, 'done')); }
+      }
       if (has(text, KW.reports)) note(click($('walTabR')) ? t(curLang, 'done') : null);
       if (has(text, KW.days)) note(click($('walTabD')) ? t(curLang, 'done') : null);
       const cur = findCurrency(text);
@@ -840,8 +870,11 @@
      and either translates it into a canonical command or answers outright. */
   const aiBtn = $('smateAI');
   let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
-  let aiPref = 'on';   /* AI drives everything the interpreter misses; off only by choice */
-  try { if (localStorage.getItem('singhoah:smateAI') === 'off') aiPref = 'off'; } catch { /* ignore */ }
+  /* on-demand: the offline interpreter answers instantly for every command;
+     the model wakes only when the AI chip is tapped. Once enabled it is
+     cached in the browser, so from the second visit on it is ready at once. */
+  let aiPref = 'off';
+  try { if (localStorage.getItem('singhoah:smateAI') === 'on') aiPref = 'on'; } catch { /* ignore */ }
   const AI_TIMEOUT = Number(globalThis.__SMATE_AI_TIMEOUT || 20000);
   const AI_MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1', 'SmolLM2-360M-Instruct-q4f16_1', 'Qwen2.5-0.5B-Instruct-q4f32_1'];
   const aiUI = () => {
@@ -886,11 +919,11 @@
   aiBtn.addEventListener('click', () => {
     if (aiPref === 'on') {
       aiPref = 'off'; aiState = 'off'; aiEngine = null;
-      try { localStorage.setItem('singhoah:smateAI', 'off'); } catch { /* ignore */ }
+      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
       aiUI(); setStatus('smateOnline');
     } else {
-      aiPref = 'on';
-      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
+      aiPref = 'on'; /* on demand: start right away, usable as soon as loaded */
+      try { localStorage.setItem('singhoah:smateAI', 'on'); } catch { /* ignore */ }
       aiUI(); aiInit();
     }
   });
@@ -913,7 +946,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
     'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');

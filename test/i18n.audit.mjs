@@ -59,7 +59,7 @@ for (const id of LIB.langs) {
     await p.goto(URL + page, { waitUntil: 'load' });
     await p.waitForTimeout(450);
     const found = await p.evaluate(() => {
-      const SKIP = '.tz-list, .cur-row, #walDaysBox, #scrDoc, .lp-clock, .lp-clock-zone, .wordmark, .wordmark-zh, .flag, select, .wal-note, .map-tip, #lpZone, .tz-city, .tz-off, .tz-group, #tzLabel, #ipLoc, .smate-msgs, .smate-head';
+      const SKIP = '.tz-list, .cur-row, #walDaysBox, #scrDoc, .lp-clock, .lp-clock-zone, .wordmark, .wordmark-zh, .flag, select, .wal-note, .map-tip, #lpZone, .tz-city, .lp-wcity, .tz-off, .tz-group, #tzLabel, #ipLoc, .smate-msgs, .smate-head'; /* city names are proper nouns, Latin everywhere by convention */
       const out = [];
       const vis = (el) => !!(el.offsetParent || el.getClientRects().length);
       const push = (s, src) => { const v = (s || '').trim(); if (v) out.push([v, src]); };
