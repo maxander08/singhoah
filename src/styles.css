@@ -642,10 +642,14 @@ button { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 24px 16px;
+  justify-content: flex-start;
+  gap: clamp(8px, 1.8vh, 16px);
+  padding: clamp(10px, 2vh, 24px) 16px;
 }
+/* auto margins center when there is room and collapse to 0 when there is
+   not — the column can never clip its own top like justify-content:center */
+.lp-clockwrap { margin-top: auto; }
+.lp-grid { margin-bottom: auto; }
 .lp-clockwrap { text-align: center; }
 .lp-clock {
   margin: 0;
@@ -653,7 +657,7 @@ button { font: inherit; color: inherit; }
   font-variation-settings: "wght" 500, "MONO" 100;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "zero" 1;
-  font-size: clamp(26px, 6vw, 42px);
+  font-size: clamp(24px, min(6vw, 6.5vh), 42px);
   line-height: 1;
   letter-spacing: -.02em;
   direction: ltr;
@@ -671,32 +675,49 @@ button { font: inherit; color: inherit; }
 .lp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
+  gap: clamp(8px, 1.5vh, 12px);
   width: min(720px, 100%);
 }
 .lp-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   border: 2px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: clamp(12px, 2vh, 20px);
   color: inherit;
   text-decoration: none;
 }
 .lp-card:hover { background: var(--notification); border-color: var(--notification); color: var(--on-notification); }
-.lp-card strong { font-size: 19px; font-weight: 750; letter-spacing: -.02em; font-variation-settings: "wght" 750; }
+.lp-card strong { font-size: clamp(16px, 2.4vh, 19px); font-weight: 750; letter-spacing: -.02em; font-variation-settings: "wght" 750; }
 .lp-sub { color: var(--pigeon); font-size: 13px; }
 .lp-card:hover .lp-sub { color: inherit; }
-.lp-dial { width: clamp(96px, 24vw, 128px); aspect-ratio: 1; margin: 0 auto 12px; }
+.lp-dial { width: clamp(72px, min(24vw, 15vh), 128px); aspect-ratio: 1; margin: 0 auto clamp(4px, 1.2vh, 12px); }
 .lp-dial svg { width: 100%; height: 100%; display: block; }
 .lp-tzwrap { position: relative; display: inline-block; }
+/* short desktop windows: compact tier so the whole launchpad fits */
+@media (max-height: 860px) {
+  .lp-dial { width: clamp(64px, min(20vw, 12vh), 96px); }
+  .lp-clock { font-size: clamp(22px, min(6vw, 5.5vh), 36px); }
+  .lp-card { padding: 10px 12px; }
+  .lp-card strong { font-size: 15px; }
+  .lp-sub { font-size: 12px; }
+  .lp-grid svg { width: 22px; height: 22px; }
+  .lp-grid { gap: 8px; }
+  .launch { gap: 8px; }
+  .lp-wchip { padding: 4px 8px; }
+  .lp-today, .lp-world-t { margin-bottom: 4px; }
+  .lp-world { margin-bottom: 6px; }
+}
+@media (max-height: 640px) {
+  .lp-world { display: none; }
+}
 /* today + live world strip */
-.lp-world { width: min(720px, 100%); margin: 2px auto 16px; }
-.lp-today { color: var(--pigeon); font-size: 13px; margin: 0 0 8px; }
-.lp-world-t { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: var(--pigeon); margin: 0 0 8px; }
+.lp-world { width: min(720px, 100%); margin: 0 auto clamp(4px, 1.2vh, 16px); }
+.lp-today { color: var(--pigeon); font-size: 13px; margin: 0 0 6px; }
+.lp-world-t { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: var(--pigeon); margin: 0 0 6px; }
 .lp-world-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.lp-wchip { display: flex; align-items: center; gap: 7px; padding: 8px 12px; background: var(--paper-2); }
+.lp-wchip { display: flex; align-items: center; gap: 7px; padding: 6px 10px; background: var(--paper-2); }
 .lp-wcity { font-size: 13px; font-weight: 600; }
 .lp-wtime { font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; }
 /* welcome page (first visit, or on demand via SMate) */
@@ -1086,6 +1107,11 @@ button { font: inherit; color: inherit; }
   body { min-height: 100vh; min-height: 100svh; }  /* status bar hugs the bottom when short */
   .wallet-app, .launch { overflow: visible; }
   .wal-body { overflow: visible; }
+  .lp-dial { width: 88px; }
+  .lp-clock { font-size: 30px; }
+  .lp-card { padding: 14px; }
+  .lp-grid { gap: 10px; }
+  .lp-clockwrap, .lp-grid { margin: 0; }
   .btn { min-height: 40px; }                 /* comfortable tap targets, no borders to aim at */
   .wal-cal-day { min-height: 40px; }
   .cap-x, .cap-reset { width: 28px; height: 28px; }

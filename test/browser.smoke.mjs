@@ -1009,6 +1009,21 @@ ok('launchpad shows today plus a live world strip', await lp.evaluate(async () =
   await new Promise((x) => setTimeout(x, 1200));
   return chips.every((c) => /^\d{2}:\d{2}$/.test(c.querySelector('.lp-wtime').textContent));
 }));
+ok('launchpad fits short desktop windows without clipping', await (async () => {
+  const c2 = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  await c2.addInitScript(() => localStorage.setItem('singhoah:lpWelcomed', '1'));
+  const p2 = await c2.newPage();
+  await p2.goto(URL + 'launch.html', { waitUntil: 'load' });
+  await p2.waitForTimeout(400);
+  const m = await p2.evaluate(() => {
+    const dial = document.getElementById('lpDial').getBoundingClientRect();
+    const grid = document.querySelector('.lp-grid').getBoundingClientRect();
+    const bar = document.querySelector('.topbar').getBoundingClientRect();
+    return dial.top >= bar.bottom - 1 && grid.bottom <= innerHeight + 1;
+  });
+  await c2.close();
+  return m;
+})());
 ok('launchpad wordmark reads SinghoLaunch',
   (await lp.locator('.wordmark').textContent()).includes('Launch'));
 ok('the launchpad does not scroll', await lp.evaluate(() =>
