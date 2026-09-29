@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the clock app: copy src/* to the site root and inline the webfonts as
 data URIs into fonts.css (the workspace preview has no network access)."""
-import base64, pathlib, shutil, sys
+import base64, hashlib, pathlib, re, shutil, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE / "src"
@@ -45,5 +45,16 @@ SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapda
            "wallet.html", "wallet.js", "launch.html",
            "firebase-config.js", "auth.js", "smate.js", "settings.html", "scribe.html",
            "metro.html", "metro.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]
+# --- cache-busting: version every local asset reference in the shipped HTML
+# (GitHub Pages serves max-age=600; a changed query string forces a refetch
+#  as soon as the HTML itself reloads, so deploys can never look "stuck") ---
+ASSET_RE = re.compile(r'(href|src)="(styles\.css|fonts\.css|app\.js|flags\.js|smate\.js|auth\.js|firebase-config\.js|wallet\.js|metro\.js|mapdata\.js|metrodata\.js)"')
+for html in [n for n in SHIPPED if n.endswith('.html')]:
+    txt = (OUT / html).read_text(encoding='utf8')
+    def bump(m):
+        h = hashlib.md5((OUT / m.group(2)).read_bytes()).hexdigest()[:8]
+        return f'{m.group(1)}="{m.group(2)}?v={h}"'
+    (OUT / html).write_text(ASSET_RE.sub(bump, txt), encoding='utf8')
+
 sizes = {n: (OUT / n).stat().st_size for n in SHIPPED}
 print("built:", ", ".join(f"{k} {v/1024:.0f}KB" for k, v in sizes.items()))
