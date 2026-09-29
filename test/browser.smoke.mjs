@@ -1416,6 +1416,29 @@ ok('the offline interpreter still answers when AI is off', await a2p.evaluate(()
 await a2p.close();
 await ai2.close();
 
+/* a failed model load must never loop "AI is waking up" */
+const ai5 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+await ai5.addInitScript(() => {
+  localStorage.setItem('singhoah:visited', '1');
+  Object.defineProperty(navigator, 'gpu', { value: { requestAdapter: async () => ({}) }, configurable: true });
+});
+await ai5.route(/esm\.run|mlc/, (r) => r.abort());
+const a5p = await ai5.newPage();
+await a5p.goto(URL + 'index.html', { waitUntil: 'load' });
+await a5p.waitForTimeout(300);
+await a5p.click('#smateBtn');
+await a5p.click('#smateAI'); /* on demand */
+await a5p.waitForTimeout(400); /* init fails: CDN blocked */
+await a5p.fill('#smateIn', 'blorp');
+await a5p.click('#smateSend');
+await a5p.waitForTimeout(1200);
+ok('a failed AI load falls back to the interpreter instead of looping "waking up"', await a5p.evaluate(() => {
+  const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
+  return last.toLowerCase().includes('help') && !/waking up/i.test(last);
+}));
+await a5p.close();
+await ai5.close();
+
 /* a failing or stalling AI brain can never hang the chat */
 const ai3 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await ai3.addInitScript(() => {

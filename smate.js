@@ -801,11 +801,16 @@
         } else {
           let can = !!globalThis.__SMATE_AI_ENGINE;
           if (!can && navigator.gpu) { try { can = !!(await navigator.gpu.requestAdapter()); } catch { can = false; } }
-          if (can) {
+          if (!can) {
+            out = t(curLang, 'aiNoGpu');
+          } else if (aiState === 'err') {
+            /* the model failed to load (blocked CDN, download error, …):
+               never tease with "waking up" again — the offline brain answers
+               and the AI chip shows its error state until the user retries */
+            out = null;
+          } else {
             aiInit();            /* first fuzzy message wakes the model */
             out = t(curLang, 'aiLoad');
-          } else {
-            out = t(curLang, 'aiNoGpu');
           }
         }
       }
@@ -893,10 +898,12 @@
         aiEngine = globalThis.__SMATE_AI_ENGINE; /* test/extension hook */
       } else {
         const mod = await import('https://esm.run/@mlc-ai/web-llm');
+        const create = mod.CreateWebLLMEngine || mod.CreateMLCEngine;
+        if (!create) throw new Error('web-llm has no engine factory');
         let lastErr = null;
         for (const id of AI_MODELS) {
           try {
-            aiEngine = await mod.CreateMLCEngine(id, {
+            aiEngine = await create(id, {
               initProgressCallback: (r) => {
                 const st = $('smateStatus');
                 if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
