@@ -2512,6 +2512,50 @@ await prn.close();
   await mp.close();
 }
 
+/* --- SMate drives the cash tab: live mini in chat + real tab in the window --- */
+{
+  const smc = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+  const sc = await smc.newPage();
+  await sc.goto(URL + 'wallet.html', { waitUntil: 'load' });
+  await sc.evaluate(() => localStorage.setItem('singhoah:wallet',
+    JSON.stringify({ cur: 'TWD', tx: [{ type: 'in', amt: 3876 }] })));
+  await sc.reload({ waitUntil: 'load' });
+  await sc.waitForTimeout(400);
+  await sc.click('#smateBtn');
+  await sc.waitForTimeout(250);
+  await sc.fill('#smateIn', 'cash');
+  await sc.click('#smateSend');
+  await sc.waitForTimeout(1100);
+  ok('SMate "cash" opens the Cash tab in the main window', await sc.evaluate(() =>
+    document.getElementById('walTabC').getAttribute('aria-pressed') === 'true' &&
+    document.querySelectorAll('#walCashBox .cash-note').length === 5));
+  ok('SMate "cash" shows the live cash mini-UI as an action block', await sc.evaluate(() => {
+    const f = [...document.querySelectorAll('.smate-block iframe')].find((x) => x.src.includes('wallet.html?mini=1#tab=cash'));
+    return !!f && f.getBoundingClientRect().width > 200;
+  }));
+  await sc.fill('#smateIn', 'cash in jpy');
+  await sc.click('#smateSend');
+  await sc.waitForTimeout(1100);
+  ok('SMate compounds: "cash in jpy" switches currency then opens cash', await sc.evaluate(() =>
+    document.getElementById('walCurBtn').textContent.includes('JPY') &&
+    document.getElementById('walTabC').getAttribute('aria-pressed') === 'true'));
+  await sc.close();
+  const sc2 = await smc.newPage();
+  await sc2.goto(URL + 'index.html', { waitUntil: 'load' });
+  await sc2.evaluate(() => localStorage.setItem('singhoah:wallet',
+    JSON.stringify({ cur: 'TWD', tx: [{ type: 'in', amt: 3876 }] })));
+  await sc2.reload({ waitUntil: 'load' });
+  await sc2.waitForTimeout(300);
+  await sc2.click('#smateBtn');
+  await sc2.waitForTimeout(250);
+  await sc2.fill('#smateIn', 'cash');
+  await sc2.click('#smateSend');
+  await sc2.waitForTimeout(1800);
+  ok('SMate hands off to the wallet Cash tab from any page', /wallet\.html#tab=cash$/.test(sc2.url()), sc2.url());
+  await sc2.close();
+  await smc.close();
+}
+
 await browser.close();
 
 if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);

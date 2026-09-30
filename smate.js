@@ -333,6 +333,18 @@
       dh2.append(b1, b2);
       day2.appendChild(dh2);
       body.append(day, day2);
+    } else if (spec.k === 'cash') {
+      /* the wallet's Cash tab itself, embedded in mini mode — real notes and
+         coins popping out of the wallet, straight from the live ledger */
+      const f = document.createElement('iframe');
+      f.className = 'ab-frame ab-stage';
+      f.tabIndex = -1;
+      f.setAttribute('loading', 'lazy');
+      f.src = 'wallet.html?mini=1#tab=cash';
+      f.style.width = '420px';
+      f.style.height = '480px';
+      abMount(el, f, 420);
+      if (spec.row) { const row = document.createElement('p'); row.className = 'ab-sub'; row.textContent = spec.row; body.appendChild(row); }
     } else if (spec.k === 'fare') {
       /* the metro page itself, embedded in mini mode — real map, real fare bar */
       const f = document.createElement('iframe');
@@ -600,6 +612,7 @@
     balance: words(['walBalance']),
     days: words(['walDays']),
     reports: words(['walReports']),
+    cash: [...words(['walCash']), 'cash', 'banknote', 'banknotes', 'coin', 'coins', '紙鈔', '钞票', '硬幣', '硬币', 'お札', '硬貨', '지폐', '동전'],
     currency: [...words(['currency']), 'currency'],
     add: [...words(['walAdd']), 'add', 'add'],
     help: ['help', '幫助', '説明', 'ayuda', 'aide', 'مساعدة', 'সাহায্য', 'помощь', 'ajuda', 'مدد'],
@@ -675,12 +688,15 @@
     return null;
   };
   const findCurrency = (text) => {
+    /* CURRENCIES rows are [code, countryCc] pairs (app.js) — never assume
+       object shape, and never throw on plain words like "cash" */
+    const codeOf = (c) => (c && (c.code || c[0])) || '';
     const t2 = text.toLowerCase();
     const m = t2.match(/\b([a-z]{3})\b/);
-    if (m && CURRENCIES.some((c) => c.code === m[1].toUpperCase())) return m[1].toUpperCase();
+    if (m && CURRENCIES.some((c) => codeOf(c) === m[1].toUpperCase())) return m[1].toUpperCase();
     for (const c of CURRENCIES) {
-      if (t2.includes(c.code.toLowerCase())) return c.code;
-      if (t2.includes(` ${c.code.toLowerCase()}`)) return c.code;
+      const code = codeOf(c).toLowerCase();
+      if (code && (t2.includes(code) || t2.includes(` ${code}`))) return codeOf(c);
     }
     return null;
   };
@@ -797,7 +813,7 @@
       t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
       t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
       t(curLang, 'mFare'),
-      t(curLang, 'wallet'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
+      t(curLang, 'wallet'), t(curLang, 'walCash'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
     if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'), t(curLang, 'mSwap'), t(curLang, 'mClear'), t(curLang, 'mCard'));
     if (page === 'launch') bits.push(t(curLang, 'lpWelcomeT'));
     return `SMate · ${bits.join(' · ')}`;
@@ -1155,11 +1171,25 @@
       if (has(text, KW.days)) note(click($('walTabD')) ? t(curLang, 'done') : null);
       const cur = findCurrency(text);
       if (cur && (has(text, KW.currency) || /\b[a-z]{3}\b/.test(text))) note(act.walletCur(cur));
+      if (has(text, KW.cash)) {
+        note(click($('walTabC')) ? t(curLang, 'walCash') : null);
+        abPush({ k: 'cash', row: `${t(curLang, 'walBalance')} · ${$('walBal') ? $('walBal').textContent : ''}` });
+      }
     }
     /* scribe */
     if (page === 'scribe' && (has(text, KW.start) || has(text, KW.pause))) note(act.scribeCtl(text));
+    /* cash — the wallet's Cash tab, from any page: the action block shows
+       the live mini, and the main window hands off to the real thing */
+    let cashNav = false;
+    if (page !== 'wallet' && has(text, KW.cash)) {
+      cashNav = true;
+      const r = `→ ${t(curLang, 'wallet')} · ${t(curLang, 'walCash')}`;
+      note(r);
+      abPush({ k: 'cash' });
+      setTimeout(() => { location.href = 'wallet.html#tab=cash'; }, 700);
+    }
     /* navigation last — it leaves the page */
-    for (const [where, keys] of [['wallet', KW.wallet], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
+    if (!cashNav) for (const [where, keys] of [['wallet', KW.wallet], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
       if (has(text, keys)) { const r = act.nav(where); note(r); if (r) abPush({ k: 'done', t: r }); break; }
     }
     return outs.length ? outs.join(' · ') : null;

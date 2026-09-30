@@ -28,6 +28,7 @@ let walTab = 'days';
 let walPrevTab = 'days';
 let walCurQuery = '';
 let repPeriod = 'week';
+let CASH = null; /* cashart.js, imported lazily on first Cash-tab render */
 let repOff = 0;
 let walDateVal = null;
 let calView = null;
@@ -364,6 +365,16 @@ function updateThemeBtn() {
 
 function init() {
   wallet = loadWallet();
+  /* deep link: #tab=cash|days|reports — SMate lands here on cash commands */
+  const hTab = new URLSearchParams(location.hash.slice(1)).get('tab');
+  if (['days', 'reports', 'cash'].includes(hTab)) {
+    walTab = hTab;
+    els.walTabD.setAttribute('aria-pressed', String(hTab === 'days'));
+    els.walTabR.setAttribute('aria-pressed', String(hTab === 'reports'));
+    els.walTabC.setAttribute('aria-pressed', String(hTab === 'cash'));
+  }
+  /* mini mode: SMate's action block embeds this page as the live cash mini-UI */
+  if (new URLSearchParams(location.search).get('mini')) document.body.classList.add('wal-mini');
   try {
     const rp = localStorage.getItem('singhoah:walrep') || '';
     if (['day', 'week', 'month', 'semester', 'year', 'decade'].includes(rp)) repPeriod = rp;
@@ -487,7 +498,6 @@ document.addEventListener('singhoah:cloudsync', () => {
    imported lazily the first time this tab opens, so no other page or tab
    pays for it. Each denomination is drawn once as an SVG <symbol> and
    stamped with <use>, keeping the DOM tiny; the pop-out is pure CSS. */
-let CASH = null;
 function renderCash() {
   const box = els.walCashBox;
   const total = walBalance(wallet.tx);

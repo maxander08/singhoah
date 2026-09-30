@@ -1490,6 +1490,11 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
   .metro-sys { padding: 8px 12px 0; }
 }
 
+/* ---- the wallet embedded as SMate's cash mini-UI: chromeless, tab only ---- */
+.wal-mini .topbar, .wal-mini .wal-form, .wal-mini .wal-tabs { display: none; }
+.wal-mini .wallet-app { padding: 10px 10px 16px; }
+.wal-mini .wal-panel { max-width: 100%; margin: 0; }
+
 /* ---- wallet cash: banknotes & coins popping out of a wallet ---- */
 .cash-scene { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0 16px; }
 .cash-wallet { width: min(340px, 80%); height: auto; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .35)); }
