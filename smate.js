@@ -239,8 +239,10 @@
     const n = zones.length;
     const cells = [];
     let grid = null;
+    const rootCls = document.documentElement.classList;
+    const chrome = (rootCls.contains('multi') ? 'multi ' : '') + (rootCls.contains('zen') ? 'zen ' : '');
     const st = document.createElement('div');
-    st.className = 'ab-stage multi' + (modeCls ? ' ' + modeCls : '');
+    st.className = 'ab-stage ' + chrome + (modeCls ? ' ' + modeCls : '');
     if (n === 1) {
       st.style.cssText += 'width:420px;height:300px;';
       const c = abCell();
@@ -451,7 +453,7 @@
   function abStart() {
     if (AB_STARTED) return;
     AB_STARTED = true;
-    if (LIB.onFrame) {
+    if (LIB.onFrame && window.__clock) {
       /* clock page: ride the app's own render frame — same date as the main
          cells, so mini digits are byte-identical to the window's */
       LIB.onFrame((date) => abDrive(date));
