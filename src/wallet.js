@@ -510,12 +510,14 @@ function renderCash() {
   let i = 0;
   for (const it of out) {
     if (it.coin) {
-      defs.push(CASH.coinSVG(wallet.cur, it.v, it.idx));
-      items.push(`<span class="cash-coin" style="--i:${i}" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="${CASH.coinVB()}" aria-hidden="true"><use href="#cc-${CASH.cashId(wallet.cur, 1, it.v)}"/></svg>${it.n > 1 ? `<i>×${it.n}</i>` : ''}</span>`);
+      const pile = it.n >= 9;
+      defs.push(pile ? CASH.pileSVG(wallet.cur, it.v, it.idx) : CASH.coinSVG(wallet.cur, it.v, it.idx));
+      items.push(`<span class="${pile ? 'cash-pile' : 'cash-coin'}" style="--i:${i}" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="${pile ? '0 0 120 88' : CASH.coinVB()}" aria-hidden="true"><use href="#c${pile ? 'p' : 'c'}-${CASH.cashId(wallet.cur, 1, it.v)}"/></svg>${it.n > 1 ? `<i>×${CASH.grp(it.n)}</i>` : ''}</span>`);
     } else {
-      defs.push(CASH.noteSVG(wallet.cur, it.v, sym, it.idx));
-      const rot = (i % 2 ? -1 : 1) * (2 + (i * 7) % 5);
-      items.push(`<span class="cash-note" style="--i:${i};--r:${rot}deg" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="${CASH.noteVB(wallet.cur)}" aria-hidden="true"><use href="#cn-${CASH.cashId(wallet.cur, 0, it.v)}"/></svg>${it.n > 1 ? `<i>×${it.n}</i>` : ''}</span>`);
+      const stack = it.n >= 9;
+      defs.push(stack ? CASH.stackSVG(wallet.cur, it.v, it.n, sym, it.idx) : CASH.noteSVG(wallet.cur, it.v, sym, it.idx));
+      const rot = stack ? 0 : (i % 2 ? -1 : 1) * (2 + (i * 7) % 5);
+      items.push(`<span class="${stack ? 'cash-stack' : 'cash-note'}" style="--i:${i};--r:${rot}deg" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="${stack ? '0 0 240 96' : CASH.noteVB(wallet.cur)}" aria-hidden="true"><use href="#c${stack ? 's' : 'n'}-${CASH.cashId(wallet.cur, 0, it.v)}"/></svg>${it.n > 1 ? `<i>×${CASH.grp(it.n)}</i>` : ''}</span>`);
     }
     i++;
   }

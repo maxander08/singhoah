@@ -1011,6 +1011,26 @@ const holes = await wpage.evaluate(() => {
   return jpy5.includes('r="13"') && cny.includes('width="20" height="20"') && gbp.includes('polygon');
 });
 ok('real coin shapes: holed yen, square-hole yuan, heptagonal 20p', holes);
+/* --- no limit: a millionaire balance is fully represented, as bundles --- */
+await wpage.evaluate(() => localStorage.setItem('singhoah:wallet',
+  JSON.stringify({ cur: 'TWD', tx: [{ type: 'in', amt: 1000000 }] })));
+await wpage.reload({ waitUntil: 'load' });
+await wpage.waitForTimeout(400);
+await wpage.click('#walTabC');
+await wpage.waitForSelector('.cash-stack', { timeout: 3000 });
+const big = await wpage.evaluate(() => {
+  let sum = 0;
+  for (const n of document.querySelectorAll('.cash-note,.cash-coin,.cash-stack,.cash-pile')) {
+    const m = /^(\d+)× /.exec(n.title);
+    sum += Number(m[1]) * parseFloat(n.title.split('× ').pop().replace(/[^0-9.]/g, ''));
+  }
+  const more = document.querySelector('.cash-more');
+  if (more) sum += parseFloat(more.textContent.replace(/[^0-9.]/g, ''));
+  return { sum, stacks: document.querySelectorAll('.cash-stack').length, more: !!more,
+    nodes: document.querySelectorAll('#walCashBox *').length };
+});
+ok('a millionaire balance is fully represented with no cap',
+  big.sum === 1000000 && big.stacks === 1 && !big.more && big.nodes < 200, JSON.stringify(big));
 await wpage.evaluate(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
 await wpage.reload({ waitUntil: 'load' });
 await wpage.waitForTimeout(300);

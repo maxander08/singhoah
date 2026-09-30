@@ -429,7 +429,7 @@ export const S = {
 export const COIN_SHAPE = { CNY: { all: 'sq' }, JPY: { 5: 'h', 50: 'h' }, GBP: { 0.2: 'hept' } };
 
 /* ---------------- drawing ------------------------------------------------ */
-const grp = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
+export const grp = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
 export const cashId = (cur, coin, v) => `${cur}-${coin ? 'c' : 'n'}-${String(v).replace('.', '_')}`;
 const serial = (cur, v) => { let h = 7; const s = cur + v; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1e6; return `${cur.slice(0, 2)} ${(h % 900) + 100} ${(h * 7 % 900000 + 100000)}`; };
 
@@ -466,6 +466,24 @@ export function coinSVG(cur, v, idx) {
   return `<symbol id="cc-${cashId(cur, 1, v)}" viewBox="0 0 88 88">${base}<circle cx="44" cy="44" r="31" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="2" stroke-dasharray="2 4"/><text x="44" y="${t}" text-anchor="middle" font-size="21" font-weight="700" fill="rgba(70,45,0,.75)">${grp(v)}</text></symbol>`;
 }
 
+/* a strapped bundle of banknotes — how real cash is stored once a single
+   denomination outgrows the wallet: layered side view + currency strap */
+export function stackSVG(cur, v, n, sym, idx) {
+  const st = S[cur] || S.USD;
+  const col = st[2][idx % st[2].length];
+  const label = `${grp(n)} × ${grp(v)}`;
+  const fs = label.length <= 14 ? 21 : label.length <= 18 ? 17 : 14;
+  const layers = [];
+  for (let k = 0; k < 9; k++) layers.push(`<path d="M7 ${33 + k * 6} H233" stroke="rgba(0,0,0,.15)" stroke-width="1.4"/>`);
+  return `<symbol id="cs-${cashId(cur, 0, v)}" viewBox="0 0 240 96"><rect x="3" y="26" width="234" height="64" rx="7" fill="${col}" stroke="rgba(0,0,0,.45)" stroke-width="3"/><g>${layers.join('')}</g><rect x="8" y="13" width="224" height="17" rx="5" fill="${col}" stroke="rgba(0,0,0,.35)" stroke-width="2"/><rect x="8" y="13" width="224" height="17" rx="5" fill="rgba(255,255,255,.16)"/><rect x="160" y="8" width="20" height="84" fill="#caa24a" stroke="rgba(0,0,0,.4)" stroke-width="2"/><rect x="160" y="8" width="20" height="84" fill="rgba(255,255,255,.22)"/><text x="22" y="59" font-size="${fs}" font-weight="700" fill="rgba(255,255,255,.95)">${label}</text><text x="22" y="78" font-size="12" fill="rgba(255,255,255,.75)">${sym} · ${cur}</text></symbol>`;
+}
+
+/* a pile of coins — same metal rule as single coins, drawn as a small heap */
+export function pileSVG(cur, v, idx) {
+  const metal = idx <= 1 ? 'gold' : idx <= 3 ? 'silver' : 'copper';
+  return `<symbol id="cp-${cashId(cur, 1, v)}" viewBox="0 0 120 88"><circle cx="32" cy="38" r="24" fill="url(#cg-${metal})" stroke="rgba(0,0,0,.4)" stroke-width="3"/><circle cx="88" cy="42" r="22" fill="url(#cg-${metal})" stroke="rgba(0,0,0,.4)" stroke-width="3"/><circle cx="60" cy="54" r="29" fill="url(#cg-${metal})" stroke="rgba(0,0,0,.45)" stroke-width="3"/><circle cx="60" cy="54" r="21" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="2" stroke-dasharray="2 4"/><text x="60" y="60" text-anchor="middle" font-size="17" font-weight="700" fill="rgba(70,45,0,.75)">${grp(v)}</text></symbol>`;
+}
+
 /* the leather wallet they pop out of + metal gradients for the coins */
 export const GRADS = `<radialGradient id="cg-gold" cx="35%" cy="30%"><stop offset="0" stop-color="#f7e08b"/><stop offset="1" stop-color="#b8860b"/></radialGradient><radialGradient id="cg-silver" cx="35%" cy="30%"><stop offset="0" stop-color="#f0f2f4"/><stop offset="1" stop-color="#8e979f"/></radialGradient><radialGradient id="cg-copper" cx="35%" cy="30%"><stop offset="0" stop-color="#e2a378"/><stop offset="1" stop-color="#a35a2c"/></radialGradient>`;
 export const WALLET_ART = `<defs><linearGradient id="cwl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a33"/><stop offset="1" stop-color="#5f3a1e"/></linearGradient></defs><rect x="20" y="58" width="300" height="146" rx="20" fill="url(#cwl)"/><rect x="20" y="58" width="300" height="26" rx="12" fill="rgba(0,0,0,.42)"/><rect x="28" y="92" width="284" height="104" rx="14" fill="none" stroke="rgba(255,224,170,.35)" stroke-width="2" stroke-dasharray="6 5"/><rect x="150" y="128" width="170" height="56" rx="14" fill="rgba(0,0,0,.16)"/><rect x="252" y="140" width="50" height="30" rx="9" fill="#caa24a"/><circle cx="277" cy="155" r="5" fill="#8a5a33"/>`;
@@ -480,16 +498,17 @@ export function splitCash(cur, total) {
   const sc = 10 ** dec;
   let rem = Math.round(total * sc);
   const out = [];
+  /* no caps: any amount splits exactly into real denominations. Large
+     counts are rendered as strapped stacks / coin piles, so the DOM never
+     grows with the balance. */
   Ld[0].forEach((v, idx) => {
-    if (out.length >= 22) return;
     const unit = Math.round(v * sc);
-    const n = Math.min(Math.floor(rem / unit), 30);
+    const n = Math.floor(rem / unit);
     if (n > 0) { out.push({ v, n, coin: false, idx }); rem -= unit * n; }
   });
   Ld[1].forEach((v, idx) => {
-    if (out.length >= 32) return;
     const unit = Math.round(v * sc);
-    const n = Math.min(Math.floor(rem / unit), 20);
+    const n = Math.floor(rem / unit);
     if (n > 0) { out.push({ v, n, coin: true, idx }); rem -= unit * n; }
   });
   return { out, rest: rem / sc };
