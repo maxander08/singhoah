@@ -45,6 +45,13 @@ SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapda
            "wallet.html", "wallet.js", "launch.html",
            "firebase-config.js", "auth.js", "smate.js", "settings.html", "scribe.html",
            "metro.html", "metro.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]
+# --- data-module versions: lets the metro page cache decoded geometry per
+#     content hash, so a data update invalidates the cache automatically ---
+for n in ["mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
+    data = (OUT / n).read_bytes()
+    h = hashlib.md5(data).hexdigest()[:8]
+    (OUT / n).write_text(f'export const __V = "{h}";\n' + data.decode("utf-8"), encoding="utf-8")
+
 # --- cache-busting: version every local asset reference in the shipped HTML
 # (GitHub Pages serves max-age=600; a changed query string forces a refetch
 #  as soon as the HTML itself reloads, so deploys can never look "stuck") ---

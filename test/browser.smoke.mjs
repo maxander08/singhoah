@@ -2119,6 +2119,25 @@ ok('card balance is kept on-device', await mt.evaluate(() => {
   const st = JSON.parse(localStorage.getItem('singhoah:cardbal') || '{}');
   return st.manual === '250';
 }));
+ok('metro preloads the active system data modules', await mt.evaluate(() =>
+  [...document.querySelectorAll('link[rel="modulepreload"]')].some((l) => /mb_(trtc|ks|tc)\.js$/.test(l.href))));
+ok('the decoded basemap is cached in IndexedDB', await mt.evaluate(async () => {
+  document.querySelectorAll('#metroSys .metro-sysbtn')[0].click();
+  await new Promise((x) => setTimeout(x, 800));
+  const db = await new Promise((res) => { const rq = indexedDB.open('singhoah-metro'); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); });
+  if (!db) return false;
+  const keys = await new Promise((res) => { const rq = db.transaction('base').objectStore('base').getAllKeys(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => res([]); });
+  return keys.length >= 1;
+}));
+ok('a revisit paints the basemap straight from the cache', await (async () => {
+  await mt.reload({ waitUntil: 'load' });
+  await mt.waitForTimeout(500);
+  return mt.evaluate(async () => {
+    for (let i = 0; i < 40 && !globalThis.__METRO.baseCached; i++) await new Promise((x) => setTimeout(x, 100));
+    const vis = [...document.querySelectorAll('.b-tile')].some((e) => e.style.display !== 'none' && (e.getAttribute('d') || '').length > 200);
+    return globalThis.__METRO.baseCached && vis;
+  });
+})());
 await mt.click('#mCard');
 await mtctx.close();
 const mbc = await browser.newContext({ viewport: { width: 1280, height: 850 } });

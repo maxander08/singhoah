@@ -88,18 +88,18 @@ for (const sys of SYSS) {
    attached to the DOM — re-culled whenever a gesture settles. Zoomed in,
    the paint tree holds a fraction of the city instead of all of it. */
 function baseArrays(sysId) {
-  const key = (sysId === 'KS' || sysId === 'TC') ? sysId : 'TRTC';
-  return MB_CACHE[key] || null;
+  return MB_CACHE[baseKey(sysId)] || null;
 }
 /* Basemap data lives in per-system modules (mb_trtc.js / mb_ks.js / mb_tc.js)
    fetched only when that system is first shown — the page itself stays light. */
-const MB_CACHE = {}, MB_LOAD = {};
+const MB_CACHE = {}, MB_LOAD = {}, MB_VER = {};
+const baseKey = (sysId) => (sysId === 'KS' || sysId === 'TC') ? sysId : 'TRTC';
 function loadBase(sysId) {
-  const key = (sysId === 'KS' || sysId === 'TC') ? sysId : 'TRTC';
+  const key = baseKey(sysId);
   if (MB_CACHE[key]) return Promise.resolve(MB_CACHE[key]);
   if (!MB_LOAD[key]) {
     MB_LOAD[key] = import('./mb_' + key.toLowerCase() + '.js')
-      .then((m) => { MB_CACHE[key] = m.default || m; return MB_CACHE[key]; })
+      .then((m) => { MB_VER[key] = m.__V || '0'; MB_CACHE[key] = m.default || m; return MB_CACHE[key]; })
       .catch(() => { MB_LOAD[key] = null; return null; });
   }
   return MB_LOAD[key];
@@ -143,15 +143,58 @@ function ensureBase(sysId) {
     return t;
   };
   const B = BASE[sysId] = {
-    src: baseArrays(sysId), qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false,
+    src: baseArrays(sysId), qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false, fromCache: false,
     tiles: { maj: mk(), min: mk(), watf: mk(), wats: mk() },
     big: { maj: '', min: '', watf: '', wats: '' },
     bigEl: { maj: null, min: null, watf: null, wats: null }, bigDirty: {},
   };
-  if (B.src) pumpBase(sysId);
-  else loadBase(sysId).then(() => { B.src = baseArrays(sysId); if (B.src) pumpBase(sysId); });
+  const start = (src) => {
+    B.src = src;
+    if (!src) return;
+    B.key = sysId + ':' + (MB_VER[baseKey(sysId)] || '0') + (PORTRAIT ? 'p' : 'l');
+    idbGet(B.key).then((hit) => {
+      if (!hit || B.done || BASE[sysId] !== B) { if (!B.done) pumpBase(sysId); return; }
+      for (const cls of ['maj', 'watf', 'wats', 'min']) {
+        B.tiles[cls] = hit.t[cls].map((t) => ({ d: t.d, b: t.b, el: null, vis: null, dirty: true }));
+        B.big[cls] = hit.big[cls] || '';
+        if (B.big[cls]) B.bigDirty[cls] = true;
+      }
+      B.done = true; B.fromCache = true;
+      flushBase(sysId);
+      if (sys === sysId) updateBasePaths();
+    });
+  };
+  if (B.src) start(B.src);
+  else loadBase(sysId).then(() => start(baseArrays(sysId)));
   return B;
 }
+function saveBase(sysId) {
+  const B = BASE[sysId];
+  if (!B || !B.key || B.saved) return;
+  B.saved = true;
+  const t = {};
+  for (const cls of ['maj', 'watf', 'wats', 'min']) t[cls] = B.tiles[cls].map((q) => ({ d: q.d, b: q.b }));
+  idbSet(B.key, { t, big: { ...B.big } });
+}
+/* ---- IndexedDB cache: revisits skip the decode and paint instantly ----
+   First visit decodes the delta-encoded streets in 6 ms slices; the finished
+   tile buckets are then stored per system+data-version+orientation, so the
+   next visit hydrates straight from disk — no decode CPU, no lag. */
+let IDB_DB;
+const idb = () => new Promise((res) => {
+  if (IDB_DB) return res(IDB_DB);
+  try {
+    const rq = indexedDB.open('singhoah-metro', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('base');
+    rq.onsuccess = () => { IDB_DB = rq.result; res(IDB_DB); };
+    rq.onerror = () => res(null);
+  } catch { res(null); }
+});
+const idbGet = (k) => idb().then((db) => (db ? new Promise((res) => {
+  try { const rq = db.transaction('base').objectStore('base').get(k); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => res(null); } catch { res(null); }
+}) : null));
+const idbSet = (k, v) => idb().then((db) => { if (db) { try { db.transaction('base', 'readwrite').objectStore('base').put(v, k); } catch { /* ignore */ } } });
+
 const BHOST = { watf: () => bWF, wats: () => bWS, maj: () => bRM, min: () => bRm };
 function pumpBase(sysId) {
   const B = BASE[sysId];
@@ -181,6 +224,13 @@ function pumpBase(sysId) {
     }
     if (!progressed) { B.done = true; break; }
   }
+  flushBase(sysId);
+  if (sys === sysId) updateBasePaths();
+  if (!B.done) setTimeout(() => pumpBase(sysId), 16);
+  else saveBase(sysId);
+}
+function flushBase(sysId) {
+  const B = BASE[sysId];
   /* flush dirty tiles to the DOM (once per tile) */
   for (const cls of ['maj', 'watf', 'wats', 'min']) {
     for (const t of B.tiles[cls]) {
@@ -209,8 +259,6 @@ function pumpBase(sysId) {
       if (sysId !== sys) { B.bigEl[cls].style.display = 'none'; }
     }
   }
-  if (sys === sysId) updateBasePaths();
-  if (!B.done) setTimeout(() => pumpBase(sysId), 16);
 }
 /* per-frame cost: 64 bbox tests + a few display toggles. That's it. */
 function updateBasePaths() {
@@ -862,6 +910,7 @@ globalThis.__METRO = {
   get sys() { return sys; },
   /* test hook: current logical view + the gesture's bake snapshot */
   get dbg() { return { v: { ...view[sys] }, base: base ? { ...base } : null }; },
+  get baseCached() { return Object.values(BASE).some((b) => b.fromCache); },
   setSys(id) {
     if (!SYSS.includes(id) || id === sys) return id === sys;
     sys = id; from = to = null;
