@@ -196,8 +196,8 @@
      mini route map. The same action always happens in the main window too
      (navigating, or pending-* handoffs across pages). Questions stay plain
      text; only requests get blocks. */
-  let AB_TICK = 0;
   let ABQ = [];
+  const AB_LIVE = [];
   const abPush = (spec) => ABQ.push(spec);
   const abDrain = () => { const q = ABQ; ABQ = []; return q; };
   function abNode(spec) {
@@ -210,6 +210,8 @@
     const body = document.createElement('div'); body.className = 'ab-body';
     el.append(head, body);
     abFill(el);
+    AB_LIVE.push(el);
+    abObserve(el);
     return el;
   }
   /* ---- true-mini stages: the REAL component, built by the clock app's own
@@ -360,14 +362,12 @@
     } else {
       const sub = document.createElement('p'); sub.className = 'ab-sub'; sub.textContent = spec.b || ''; body.appendChild(sub);
     }
-    abTick1(el);
+    abTick1(el, LIB.coreNow(), LIB.coreNow().getTime());
     abFit(el);
   }
-  function abTick1(el) {
+  function abTick1(el, now, ts) {
     const spec = JSON.parse(el.dataset.spec);
     const dot = el.querySelector('.ab-dot');
-    const now = new Date();
-    const ts = now.getTime();
     const cells = el.__cells || [];
 
     if (spec.k === 'timer' || spec.k === 'remind') {
@@ -416,15 +416,52 @@
       if (dot) dot.classList.add('live');
     }
   }
+  /* Same cadence as the main window: ClockCore ticks on requestAnimationFrame,
+     so the minis do too — ms digits and dial hands move in lockstep with the
+     real cells. Phones only pay for blocks actually on screen (IO gate), and
+     nothing ticks while the tab or the popup is hidden. */
+  let AB_STARTED = false;
+  let AB_FRAME = 0;
+  const AB_SEEN = new Set();
+  let AB_IO = null;
+  function abObserve(el) {
+    if (!AB_IO) {
+      AB_IO = new IntersectionObserver((ents) => {
+        for (const e of ents) { if (e.isIntersecting) AB_SEEN.add(e.target); else AB_SEEN.delete(e.target); }
+      }, { root: msgs, threshold: 0 });
+    }
+    AB_IO.observe(el);
+    AB_SEEN.add(el);
+  }
+  function abDrive(now) {
+    if (document.hidden || pop.hidden) return;
+    const ts = now.getTime();
+    AB_FRAME++;
+    const house = AB_FRAME % 30 === 0; /* ~2 Hz: fit/measure work stays cheap */
+    for (let i = AB_LIVE.length - 1; i >= 0; i--) {
+      const el = AB_LIVE[i];
+      if (!el.isConnected) { AB_LIVE.splice(i, 1); if (AB_IO) AB_IO.unobserve(el); AB_SEEN.delete(el); continue; }
+      if (!AB_SEEN.has(el)) continue;
+      try {
+        abTick1(el, now, ts);
+        if (house) abFit(el);
+      } catch { /* block mid-teardown */ }
+    }
+  }
   function abStart() {
-    if (AB_TICK) return;
-    AB_TICK = setInterval(() => {
-      document.querySelectorAll('.smate-msgs .smate-block').forEach((el) => {
-        try { abTick1(el); abFit(el); } catch { /* block removed */ }
-      });
-    }, 500);
+    if (AB_STARTED) return;
+    AB_STARTED = true;
+    if (LIB.onFrame) {
+      /* clock page: ride the app's own render frame — same date as the main
+         cells, so mini digits are byte-identical to the window's */
+      LIB.onFrame((date) => abDrive(date));
+    } else {
+      /* other pages: own rAF loop at the same cadence */
+      const loop = () => { requestAnimationFrame(loop); abDrive(LIB.coreNow()); };
+      requestAnimationFrame(loop);
+    }
     window.addEventListener('resize', () => {
-      document.querySelectorAll('.smate-msgs .smate-block').forEach((el) => { try { abFit(el); } catch { /* block removed */ } });
+      AB_LIVE.forEach((el) => { try { abFit(el); } catch { /* block removed */ } });
     });
   }
   function sayBlock(spec) { const el = abNode(spec); msgs.appendChild(el); msgs.scrollTop = msgs.scrollHeight; LOG.push({ block: spec }); saveLog(); abStart(); }

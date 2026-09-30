@@ -1684,6 +1684,14 @@ function updateZoneCell(cell, z, date, locale) {
     cell.dspan.textContent = formatDateLong(date, { timeZone: z, locale });
     cell.tspan.textContent = `${formatTimeShort(date, { timeZone: z, locale })} ${zoneInfo(date, z).abbr}`.trim();
   }
+  /* analog hands live here too, so minis sweep exactly like the window */
+  if (document.documentElement.classList.contains('analog')) {
+    const a = handAngles(date, z);
+    cell.hands.hour.setAttribute('transform', `rotate(${a.hour} 100 100)`);
+    cell.hands.minute.setAttribute('transform', `rotate(${a.minute} 100 100)`);
+    cell.hands.second.setAttribute('transform', `rotate(${a.second} 100 100)`);
+    cell.hands.milli.setAttribute('transform', `rotate(${a.milli} 100 100)`);
+  }
 }
 
 function updateCell(cell, i, date, locale) {
@@ -1751,19 +1759,18 @@ function maybeRenderMeta(date) {
   renderMeta(date);
 }
 
+/* SMate minis ride the SAME frame + the SAME corrected date as the main
+   cells, so their digits are always identical to what the window shows. */
+const frameListeners = new Set();
+export function onFrame(fn) { frameListeners.add(fn); return () => frameListeners.delete(fn); }
+
 export function render(date) {
   const locale = langOf(lang).locale;
   const analog = document.documentElement.classList.contains('analog');
-  cells.forEach((cell, i) => {
-    updateCell(cell, i, date, locale);
-    if (analog && cellZone(i) && !isSession(cellZone(i))) {
-      const a = handAngles(date, cellZone(i));
-      cell.hands.hour.setAttribute('transform', `rotate(${a.hour} 100 100)`);
-      cell.hands.minute.setAttribute('transform', `rotate(${a.minute} 100 100)`);
-      cell.hands.second.setAttribute('transform', `rotate(${a.second} 100 100)`);
-      cell.hands.milli.setAttribute('transform', `rotate(${a.milli} 100 100)`);
-    }
-  });
+  cells.forEach((cell, i) => updateCell(cell, i, date, locale));
+  if (frameListeners.size) {
+    for (const fn of [...frameListeners]) { try { fn(date); } catch { /* a listener bug must never stop the clock */ } }
+  }
   maybeRenderMeta(date);
   const progress = (date.getSeconds() * 1000 + date.getMilliseconds()) / 60000;
   els.secondFill.style.transform = `scaleX(${progress.toFixed(4)})`;
@@ -3016,6 +3023,9 @@ globalThis.__SING_LIB = {
   smateWindow, clearWindow, smateRemove, smateRestart, brandFix, mapGoCity,
   /* same builders the main window uses — SMate Action Blocks are true minis */
   buildCell: makeCell, updTimerCell: updateTimerCell, updStopCell: updateStopCell, updZoneCell: updateZoneCell, fitCell,
+  /* the SAME corrected time the main window renders — minis stay in lockstep */
+  coreNow: () => (window.__clock ? window.__clock.now() : new Date()),
+  onFrame,
   timerAt: (i) => [...timers.values()][i] || null, stopAt: (i) => [...stops.values()][i] || null,
   /* live state views for SMate Action Blocks */
   timersView: () => [...timers.values()].map((t) => ({ d: t.duration, e: t.endsAt, r: t.remaining, on: t.running })),
