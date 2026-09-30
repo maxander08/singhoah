@@ -97,3 +97,4 @@ export function fare(sys, a, b, r) {
   for (const [lim, f] of METRO.bands) if (d <= lim) return f;
   return 65;
 }
+export { METRO };

@@ -1368,6 +1368,28 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .smate-clear { display: grid; place-items: center; padding: 0 7px; }
 .smate-speak[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }
 .smate-chips { display: flex; gap: 6px; flex-wrap: wrap; align-self: flex-start; }
+/* ---- Action Blocks: live mini-UI cards for do-something requests ---- */
+.smate-block { border: 1.5px solid var(--border); border-radius: 10px; margin: 6px 0; padding: 7px 9px; background: var(--paper-2); max-width: 100%; align-self: stretch; }
+.ab-head { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; min-width: 0; }
+.ab-head strong { font-size: 12px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex: none; }
+.ab-dot.live { background: #19b26b; animation: smateBlink 1.2s infinite ease-in-out; }
+.smate-block.ab-done .ab-dot { animation: none; background: var(--border); }
+.ab-body { min-width: 0; }
+.ab-big { margin: 0; font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.ab-sub { margin: 2px 0 0; font-size: 12px; opacity: .82; overflow-wrap: anywhere; }
+.ab-bar { display: block; height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.ab-bar > i { display: block; height: 100%; background: var(--notification); width: 100%; transition: width .45s linear; }
+.ab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.ab-grid p { margin: 0; display: flex; justify-content: space-between; gap: 8px; font-size: 12px; min-width: 0; }
+.ab-grid b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-grid span { font-variant-numeric: tabular-nums; }
+.ab-map { width: 100%; height: auto; display: block; border-radius: 6px; background: var(--paper); color: var(--black); }
+.ab-dial { width: 64px; height: 64px; display: block; color: var(--black); }
+.ab-city { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 13px; min-width: 0; }
+.ab-city b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-city span { margin-left: auto; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .ab-dot.live { animation: none; } }
 .smate-chip { min-height: 26px; padding: 0 10px; font-size: 12px; background: var(--paper-2); }
 .smate-mic[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }
 .smate-dots { display: flex; align-items: center; gap: 5px; padding: 11px 12px; }

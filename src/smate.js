@@ -189,6 +189,141 @@
     return i === src.length && Number.isFinite(v) ? v : null;
   };
 
+
+  /* ---------------- Action Blocks: a live mini-UI for every action ----------
+     A "do something" request answers with a small live card in the chat that
+     mirrors REAL app state — timers count down, clocks tick, fares draw a
+     mini route map. The same action always happens in the main window too
+     (navigating, or pending-* handoffs across pages). Questions stay plain
+     text; only requests get blocks. */
+  let AB_TICK = 0;
+  let ABQ = [];
+  const abPush = (spec) => ABQ.push(spec);
+  const abDrain = () => { const q = ABQ; ABQ = []; return q; };
+  const abP2 = (n) => String(n).padStart(2, '0');
+  const abMS = (ms) => { const x = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(x / 3600); return h ? `${h}:${abP2(Math.floor((x % 3600) / 60))}:${abP2(x % 60)}` : `${abP2(Math.floor(x / 60))}:${abP2(x % 60)}`; };
+  const AB_TF = {};
+  const abTime = (z) => { try { (AB_TF[z] ||= new Intl.DateTimeFormat(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', timeZone: z })); return AB_TF[z].format(new Date()); } catch { return ''; } };
+  function abNode(spec) {
+    const el = document.createElement('div');
+    el.className = 'smate-block'; el.dataset.ab = spec.k; el.dataset.spec = JSON.stringify(spec);
+    const head = document.createElement('p'); head.className = 'ab-head';
+    const dot = document.createElement('i'); dot.className = 'ab-dot';
+    const ti = document.createElement('strong'); ti.textContent = spec.t || '';
+    head.append(dot, ti);
+    const body = document.createElement('div'); body.className = 'ab-body';
+    el.append(head, body);
+    abFill(el);
+    return el;
+  }
+  function abFill(el) {
+    const spec = JSON.parse(el.dataset.spec); const body = el.querySelector('.ab-body');
+    body.textContent = '';
+    if (spec.k === 'timer' || spec.k === 'stop' || spec.k === 'remind') {
+      const big = document.createElement('p'); big.className = 'ab-big'; big.textContent = '00:00';
+      body.appendChild(big);
+      if (spec.k === 'timer') { const bar = document.createElement('i'); bar.className = 'ab-bar'; bar.appendChild(document.createElement('i')); body.appendChild(bar); }
+    } else if (spec.k === 'clocks') {
+      const grid = document.createElement('div'); grid.className = 'ab-grid';
+      for (const z of (spec.z || []).slice(0, 4)) {
+        const c = document.createElement('p'); c.dataset.z = z;
+        const b = document.createElement('b'); b.textContent = cityOf(z);
+        c.append(b, document.createElement('span'));
+        grid.appendChild(c);
+      }
+      if ((spec.z || []).length > 4) { const m = document.createElement('p'); m.className = 'ab-sub'; m.textContent = `+${spec.z.length - 4}`; grid.appendChild(m); }
+      body.appendChild(grid);
+    } else if (spec.k === 'wallet') {
+      const big = document.createElement('p'); big.className = 'ab-big'; big.textContent = `${spec.inn ? '+' : '\u2212'}${spec.amt}`;
+      const sub = document.createElement('p'); sub.className = 'ab-sub'; sub.textContent = spec.bal;
+      body.append(big, sub);
+    } else if (spec.k === 'fare') {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'ab-map'); svg.setAttribute('viewBox', '0 0 150 110');
+      const row = document.createElement('p'); row.className = 'ab-sub'; row.textContent = spec.row;
+      body.append(svg, row);
+      abMapDraw(el);
+    } else if (spec.k === 'mapnav') {
+      const row = document.createElement('p'); row.className = 'ab-city';
+      const img = document.createElement('img'); img.alt = ''; img.width = 20; img.height = 15;
+      row.append(img, document.createElement('b'), document.createElement('span'));
+      body.appendChild(row);
+    } else if (spec.k === 'mode' && spec.an) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'ab-dial'); svg.setAttribute('viewBox', '0 0 60 60');
+      svg.innerHTML = '<circle cx="30" cy="30" r="27" fill="none" stroke="currentColor" stroke-width="2"/><line class="hh" x1="30" y1="30" x2="30" y2="16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line class="hm" x1="30" y1="30" x2="30" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="hs" x1="30" y1="30" x2="30" y2="8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>';
+      body.appendChild(svg);
+    } else if (spec.k === 'mode') {
+      const big = document.createElement('p'); big.className = 'ab-big'; body.appendChild(big);
+    } else {
+      const sub = document.createElement('p'); sub.className = 'ab-sub'; sub.textContent = spec.b || ''; body.appendChild(sub);
+    }
+    abTick1(el);
+  }
+  async function abMapDraw(el) {
+    const spec = JSON.parse(el.dataset.spec);
+    const F = await fareMod(); if (!F) return;
+    const M = F.METRO, st = F.ST;
+    const pts = Object.values(st).filter((q) => q.sys === spec.sys);
+    if (!pts.length) return;
+    const las = pts.map((q) => q.lat), los = pts.map((q) => q.lon);
+    const la0 = Math.min(...las), la1 = Math.max(...las), lo0 = Math.min(...los), lo1 = Math.max(...los);
+    const X = (lo) => 6 + ((lo - lo0) / ((lo1 - lo0) || 1)) * 138, Y = (la) => 6 + ((la1 - la) / ((la1 - la0) || 1)) * 98;
+    const svg = el.querySelector('svg.ab-map'); if (!svg) return;
+    let out = '';
+    for (const [sy, , col, refs] of M.lines) {
+      if (sy !== spec.sys) continue;
+      out += `<polyline points="${refs.filter((r) => st[r]).map((r) => `${X(st[r].lon).toFixed(1)},${Y(st[r].lat).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>`;
+    }
+    for (const id of (spec.path || [])) if (st[id]) out += `<circle cx="${X(st[id].lon).toFixed(1)}" cy="${Y(st[id].lat).toFixed(1)}" r="2" fill="var(--paper)" stroke="currentColor" stroke-width=".9"/>`;
+    for (const id of [spec.a, spec.b]) if (st[id]) out += `<circle cx="${X(st[id].lon).toFixed(1)}" cy="${Y(st[id].lat).toFixed(1)}" r="3.6" fill="currentColor" stroke="var(--paper)" stroke-width="1.4"/>`;
+    svg.innerHTML = out;
+  }
+  function abTick1(el) {
+    const spec = JSON.parse(el.dataset.spec);
+    const dot = el.querySelector('.ab-dot'); const big = el.querySelector('.ab-big');
+    const now = Date.now();
+    if (spec.k === 'timer') {
+      const v = LIB.timersView().find((x) => Math.abs(x.e - spec.e) < 2000);
+      const left = v ? (v.on ? v.e - now : v.r) : spec.e - now;
+      if (big) big.textContent = abMS(left);
+      const bar = el.querySelector('.ab-bar > i'); if (bar && spec.d) bar.style.width = `${Math.max(0, Math.min(100, (left / spec.d) * 100))}%`;
+      const done = left <= 0;
+      el.classList.toggle('ab-done', done);
+      if (dot) dot.classList.toggle('live', (v ? v.on : true) && !done);
+    } else if (spec.k === 'stop') {
+      const v = LIB.stopsView().find((x) => spec.s == null || Math.abs(x.s - spec.s) < 2000);
+      const e2 = v ? (v.on ? v.a + now - v.s : v.a) : (spec.s ? now - spec.s : 0);
+      if (big) big.textContent = abMS(e2);
+      if (dot) dot.classList.toggle('live', !!v && v.on);
+    } else if (spec.k === 'remind') {
+      const left = spec.at - now;
+      if (big) big.textContent = abMS(left);
+      el.classList.toggle('ab-done', left <= 0);
+      if (dot) dot.classList.toggle('live', left > 0);
+    } else if (spec.k === 'clocks') {
+      el.querySelectorAll('.ab-grid p[data-z]').forEach((c) => { const sp = c.querySelector('span'); if (sp) sp.textContent = abTime(c.dataset.z); });
+      if (dot) dot.classList.add('live');
+    } else if (spec.k === 'mapnav') {
+      const img = el.querySelector('img'); const b = el.querySelector('b'); const sp = el.querySelector('span');
+      if (spec.z) {
+        try { if (img) img.src = LIB.flagSrc(LIB.zoneCountry(spec.z)); } catch { /* ignore */ }
+        if (b) b.textContent = cityOf(spec.z);
+        if (sp) sp.textContent = abTime(spec.z);
+      } else if (b) b.textContent = spec.c || '';
+      if (dot) dot.classList.add('live');
+    } else if (spec.k === 'mode') {
+      if (spec.an) {
+        const d = new Date();
+        const rot = (cls, a) => { const l = el.querySelector(cls); if (l) l.setAttribute('transform', `rotate(${a.toFixed(1)} 30 30)`); };
+        rot('.hh', (d.getHours() % 12) * 30 + d.getMinutes() / 2); rot('.hm', d.getMinutes() * 6); rot('.hs', d.getSeconds() * 6);
+      } else if (big) big.textContent = new Date().toLocaleTimeString(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (dot) dot.classList.add('live');
+    }
+  }
+  function abStart() { if (AB_TICK) return; AB_TICK = setInterval(() => { document.querySelectorAll('.smate-msgs .smate-block').forEach(abTick1); }, 500); }
+  function sayBlock(spec) { const el = abNode(spec); msgs.appendChild(el); msgs.scrollTop = msgs.scrollHeight; LOG.push({ block: spec }); saveLog(); abStart(); }
+
   function toggle(open) {
     if (open) place();
     pop.hidden = !open;
@@ -225,6 +360,7 @@
   $('smateX').addEventListener('click', () => toggle(false));
   /* conversation continues across pages and reloads */
   for (const m of LOG) {
+    if (m.block) { msgs.appendChild(abNode(m.block)); abStart(); continue; }
     const p = document.createElement('p');
     p.className = m.me ? 'smate-me' : 'smate-it';
     p.textContent = m.text;
@@ -571,12 +707,15 @@
     if (hits.length < 2) return null;
     const [a, b] = hits;
     const nm = (id) => `${F.ST[id].en} ${F.ST[id].zh}`;
-    if (a.sys !== b.sys) return `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · ${t(curLang, 'fareXsys')}`;
+    if (a.sys !== b.sys) {
+      return { text: `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · ${t(curLang, 'fareXsys')}`, spec: { k: 'fare', sys: a.sys, a: a.id, b: b.id, path: [], row: t(curLang, 'fareXsys'), t: t(curLang, 'mFare') } };
+    }
     const r = F.route(a.id, b.id);
     if (!r) return null;
     const f = F.fare(a.sys, a.id, b.id, r);
     if (f == null) return null;
-    return `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`;
+    const row = `NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`;
+    return { text: `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · ${row}`, spec: { k: 'fare', sys: a.sys, a: a.id, b: b.id, path: r.path, row, t: t(curLang, 'mFare') } };
   }
 
   const BYW = [' by ', ' × ', '乘', ' por ', ' par ', ' на ', ' في ', ' গুণ ', ' ضرب ', ' गुणा ', ' per '];
@@ -628,12 +767,12 @@
     /* language switch */
     const lg = findLang(text);
     if (lg && (has(text, KW.lang) || (LANG_NAMES[lg] || []).some((n) => text.includes(n.toLowerCase())) || text.includes(LANGS.find((l) => l.id === lg).name.toLowerCase()))) {
-      note(setLang(lg) ? `${t(curLang, 'language')}: ${langOf(lg).name}` : null);
+      { const r = setLang(lg); note(r); if (r) abPush({ k: 'done', t: t(curLang, 'language'), b: langOf(lg).name }); }
     }
 
     /* clear all: reset the clock window (from any page) */
     if (has(text, KW.clearAll)) {
-      if (page === 'clock') { LIB.clearWindow(); note(t(curLang, 'done')); }
+      if (page === 'clock') { LIB.clearWindow(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'clearAll') }); }
       else {
         try { localStorage.setItem('singhoah:pendingClear', '1'); } catch { /* ignore */ }
         note(act.nav('clock'));
@@ -651,17 +790,18 @@
         : has(tl, KW.sysTaichung) ? 'TC'
         : has(tl, KW.sysTaoyuan) ? 'TY' : null;
       if (wantSys && M.setSys(wantSys)) note(`${t(curLang, 'done')}: ${t(curLang, 'm' + wantSys)}`);
-      if (has(tl, KW.swap)) { click($('mSwap')); note(t(curLang, 'done')); }
+      if (has(tl, KW.swap)) { click($('mSwap')); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'mSwap') }); }
       if (has(tl, KW.mclear) && !has(tl, ['chat', 'conversation', '對話', '对话'])) { click($('mClear')); note(t(curLang, 'done')); }
       if (has(tl, KW.card)) {
         click($('mCard'));
         const n = num(text);
         if (n != null) { const b = $('mCardBal'); if (b) { b.value = String(n); b.dispatchEvent(new Event('change', { bubbles: true })); } }
         note(t(curLang, 'done'));
+        abPush({ k: 'done', t: `${t(curLang, 'mCard')}${n != null ? ` · ${n}` : ''}`, b: n != null ? `${t(curLang, 'walBalance')} · ${n}` : '' });
       }
-      if (has(tl, KW.zoomIn)) { M.zoomBy(1.7); note(t(curLang, 'done')); }
-      else if (has(tl, KW.zoomOut)) { M.zoomBy(1 / 1.7); note(t(curLang, 'done')); }
-      else if (has(tl, KW.zoomReset)) { M.resetView(); note(t(curLang, 'done')); }
+      if (has(tl, KW.zoomIn)) { M.zoomBy(1.7); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'done'), b: '×1.7' }); }
+      else if (has(tl, KW.zoomOut)) { M.zoomBy(1 / 1.7); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'done'), b: '÷1.7' }); }
+      else if (has(tl, KW.zoomReset)) { M.resetView(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'done'), b: '⌂' }); }
       const hits = findStations(tl, M.sys);
       if (hits.length >= 2) {
         M.pick(hits[0]); M.pick(hits[1]);
@@ -670,6 +810,7 @@
           const f = M.fare(M.sys, hits[0], hits[1], r);
           const nm = (id) => `${M.ST[id].en} ${M.ST[id].zh}`;
           note(`${t(curLang, 'mFare')}: ${nm(hits[0])} → ${nm(hits[1])} · NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`);
+          abPush({ k: 'fare', sys: M.sys, a: hits[0], b: hits[1], path: r.path, row: `NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`, t: t(curLang, 'mFare') });
         }
       } else if (hits.length === 1) M.pick(hits[0]);
     } else if (page !== 'metro' && has(text.toLowerCase(), KW.metro) && has(text.toLowerCase(), OPEN_VERBS)) note(act.nav('metro'));
@@ -687,15 +828,17 @@
     const fareIntent = has(text, KW.fareW) || has(text, ['station', '站']);
     if (!fareIntent && !has(text, KW.remove) && (lay != null || (zones.length && zoneGate))) {
       if (page === 'clock') {
+        abPush({ k: 'clocks', z: zoneGate ? zones : [], t: t(curLang, 'winTitle') });
         LIB.smateWindow(zoneGate ? zones : [], lay);
         const bits = [];
         if (lay != null) bits.push(lay === 16 ? t(curLang, 'grid16') : lay === 4 ? t(curLang, 'quad') : lay === 2 ? t(curLang, 'side') : t(curLang, 'single'));
         if (zoneGate && zones.length) bits.push(zones.map((z) => cityOf(z)).join(', '));
         note(`${t(curLang, 'winTitle')}: ${bits.join(' · ')}`);
       } else if (page === 'settings' && zones.length) {
-        note(setTz(zones[0]) ? `${t(curLang, 'tzTitle')}: ${cityOf(zones[0])}` : null);
+        { const r = setTz(zones[0]); note(r); if (r) abPush({ k: 'clocks', z: [zones[0]], t: t(curLang, 'tzTitle') }); }
       } else {
         try { localStorage.setItem('singhoah:pendingWin', JSON.stringify({ z: zones, l: lay })); } catch { /* ignore */ }
+        abPush({ k: 'clocks', z: zones, t: t(curLang, 'winTitle') });
         note(act.nav('clock'));
       }
     }
@@ -712,6 +855,7 @@
     if (has(text, KW.remind) && num(text) != null) {
       const m = num(text);
       reminders.push({ at: Date.now() + m * 60000 });
+      abPush({ k: 'remind', at: Date.now() + m * 60000, t: t(curLang, 'remindSet').replace('{n}', String(m)) });
       return t(curLang, 'remindSet').replace('{n}', String(m));
     }
     /* assistant: quick math (only when nothing else is meant) */
@@ -731,22 +875,22 @@
     const wantTimer = has(text, KW.timer);
     const wantStop = has(text, KW.stopwatch);
     if (page === 'clock' && has(text, KW.remove) && (wantTimer || wantStop)) {
-      note(LIB.smateRemove(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null);
+      { const r = LIB.smateRemove(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${t(curLang, wantTimer ? 'timer' : 'stopwatch')}` }); }
     } else if (page === 'clock' && has(text, KW.restart) && (wantTimer || wantStop)) {
-      note(LIB.smateRestart(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null);
+      { const r = LIB.smateRestart(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'restart')} · ${t(curLang, wantTimer ? 'timer' : 'stopwatch')}` }); }
     } else if (page === 'clock' && has(text, KW.remove)) {
       const z = findAllZones(text)[0];
-      if (z) note(LIB.smateRemove(z) ? t(curLang, 'done') : null);
+      if (z) { const r = LIB.smateRemove(z) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${cityOf(z)}` }); }
     }
     /* the Scribe toolbar, by voice or text */
     if (page === 'scribe') {
-      if (has(text, KW.undo)) note(click($('scrUndo')) ? t(curLang, 'done') : null);
-      if (has(text, KW.redo)) note(click($('scrRedo')) ? t(curLang, 'done') : null);
-      if (has(text, KW.copy)) note(click($('scrCopy')) ? t(curLang, 'done') : null);
-      if (has(text, KW.download)) note(click($('scrDl')) ? t(curLang, 'done') : null);
-      if (has(text, KW.print)) note(click($('scrPrint')) ? t(curLang, 'done') : null);
-      if (has(text, KW.stamps)) note(click($('scrStamps')) ? t(curLang, 'done') : null);
-      if (has(text, KW.find)) note(click($('scrFind')) ? t(curLang, 'done') : null);
+      if (has(text, KW.undo)) { const r = click($('scrUndo')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'undo') }); }
+      if (has(text, KW.redo)) { const r = click($('scrRedo')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'redo') }); }
+      if (has(text, KW.copy)) { const r = click($('scrCopy')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'copy') }); }
+      if (has(text, KW.download)) { const r = click($('scrDl')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'download') }); }
+      if (has(text, KW.print)) { const r = click($('scrPrint')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'print') }); }
+      if (has(text, KW.stamps)) { const r = click($('scrStamps')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'stamps') }); }
+      if (has(text, KW.find)) { const r = click($('scrFind')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'find') }); }
       if (!has(text, KW.clearAll) && !has(text, KW.clearChat) && has(text, KW.clearDoc)) {
         const oc = window.confirm; window.confirm = () => true;
         note(click($('scrClear')) ? t(curLang, 'done') : null);
@@ -754,7 +898,7 @@
       }
     }
     /* print anywhere else, theme, IP locator */
-    if (has(text, KW.print) && page !== 'scribe') { window.print(); note(t(curLang, 'done')); }
+    if (has(text, KW.print) && page !== 'scribe') { window.print(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'print') }); }
     if (has(text, KW.theme)) {
       if (page === 'settings') note(click($('btnTheme')) ? t(curLang, 'done') : null);
       else note(act.nav('settings'));
@@ -766,34 +910,73 @@
       window.confirm = oc;
     }
     if (has(text, KW.welcome)) {
-      if (page === 'launch') { document.dispatchEvent(new CustomEvent('singhoah:lpWelcome')); note(t(curLang, 'done')); }
+      if (page === 'launch') { document.dispatchEvent(new CustomEvent('singhoah:lpWelcome')); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'lpWelcomeT') }); }
       else note(act.nav('launch'));
     }
         /* timer */
-    if (has(text, KW.timer) && num(text) != null) note(act.timerSet(num(text)));
-    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) note(act.timerCtl(text));
-    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && page === 'clock') note(act.timerCtl(text + ' start'));
+    if (has(text, KW.timer) && num(text) != null) {
+      const n = num(text);
+      if (page === 'clock') {
+        note(act.timerSet(n));
+        const tv = LIB.timersView(); const q = tv[tv.length - 1];
+        abPush({ k: 'timer', e: q ? q.e : Date.now() + n * 60000, d: n * 60000, t: `${t(curLang, 'timer')} · ${n} ${t(curLang, 'minutes')}` });
+      } else {
+        try { localStorage.setItem('singhoah:pendingTimer', JSON.stringify({ m: n })); } catch { /* ignore */ }
+        note(act.nav('clock'));
+        abPush({ k: 'timer', e: Date.now() + n * 60000 + 1500, d: n * 60000, t: `${t(curLang, 'timer')} · ${n} ${t(curLang, 'minutes')}` });
+      }
+    }
+    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) { const r = act.timerCtl(text); note(r); if (r) { const tv = LIB.timersView(); const q = tv[tv.length - 1]; if (q) abPush({ k: 'timer', e: q.e, d: q.d, t: t(curLang, 'timer') }); } }
+    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && page === 'clock') { const r = act.timerCtl(text + ' start'); note(r); if (r) { const tv = LIB.timersView(); const q = tv[tv.length - 1]; if (q) abPush({ k: 'timer', e: q.e, d: q.d, t: t(curLang, 'timer') }); } }
     /* stopwatch */
-    if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.stopwatch)) note(act.stopwatch(text));
+    if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.stopwatch)) {
+      if (page === 'clock') {
+        const r = act.stopwatch(text); note(r);
+        if (r) { const sv = LIB.stopsView(); const q = sv[sv.length - 1]; abPush({ k: 'stop', s: q ? q.s : null, t: t(curLang, 'stopwatch') }); }
+      } else {
+        try { localStorage.setItem('singhoah:pendingStop', '1'); } catch { /* ignore */ }
+        note(act.nav('clock'));
+        abPush({ k: 'stop', s: null, t: t(curLang, 'stopwatch') });
+      }
+    }
     /* display mode */
     if (has(text, KW.analog) || has(text, KW.digital)) {
+      const wantAnalog = has(text, KW.analog);
       const b = $('btnMode');
-      if (b) { const wantAnalog = has(text, KW.analog); const isAnalog = b.getAttribute('aria-pressed') === 'true'; if (wantAnalog !== isAnalog) b.click(); note(t(curLang, 'done')); }
+      if (b) { const isAnalog = b.getAttribute('aria-pressed') === 'true'; if (wantAnalog !== isAnalog) b.click(); }
+      else { try { localStorage.setItem('singhoah:pendingMode', wantAnalog ? 'analog' : 'digital'); } catch { /* ignore */ } }
+      note(t(curLang, 'done'));
+      abPush({ k: 'mode', an: wantAnalog, t: t(curLang, wantAnalog ? 'analog' : 'digital') });
     }
     /* resync / full / map / theme */
-    if (has(text, KW.resync)) note(click($('btnSync')) ? t(curLang, 'done') : null);
-    if (has(text, KW.full)) note(click($('btnFull')) ? t(curLang, 'done') : null);
+    if (has(text, KW.resync)) { const r = click($('btnSync')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'resync') }); }
+    if (has(text, KW.full)) { const r = click($('btnFull')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'full') }); }
     if (has(text, KW.map)) {
-      note(click($('btnMap')) ? t(curLang, 'done') : null);
-      LIB.mapGoCity(text);
+      const zm = findZone(text);
+      if (page === 'clock') { note(click($('btnMap')) ? t(curLang, 'done') : null); LIB.mapGoCity(text); }
+      else { try { localStorage.setItem('singhoah:pendingMap', JSON.stringify({ c: text })); } catch { /* ignore */ } note(act.nav('clock')); }
+      abPush({ k: 'mapnav', z: zm || null, c: zm ? cityOf(zm) : text.slice(0, 24), t: t(curLang, 'map') });
     }
     if (has(text, KW.night) || has(text, KW.light)) {
       const b = $('btnNight');
-      if (b) { const dark = document.documentElement.classList.contains('dark'); const wantDark = has(text, KW.night); if (wantDark !== dark) b.click(); note(t(curLang, 'done')); }
+      if (b) { const dark = document.documentElement.classList.contains('dark'); const wantDark = has(text, KW.night); if (wantDark !== dark) b.click(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, wantDark ? 'night' : 'light') }); }
     }
     /* wallet — the balance answers on every page, straight from the ledger */
-    if (has(text, KW.income) && num(text) != null) note(act.walletAdd(text, 'in'));
-    if (has(text, KW.expense) && num(text) != null) note(act.walletAdd(text, 'out'));
+    const walDo = (type) => {
+      const amt = num(text); if (amt == null) return;
+      const ttl = t(curLang, type === 'in' ? 'walIncome' : 'walExpense');
+      if (page === 'wallet') {
+        note(act.walletAdd(text, type));
+        abPush({ k: 'wallet', inn: type === 'in', amt, bal: `${t(curLang, 'walBalance')} · ${$('walBal') ? $('walBal').textContent : ''}`, t: ttl });
+      } else {
+        const r = LIB.walPush(type, amt, text.replace(/[\d.,]+/g, '').trim());
+        const bal = `${LIB.curSymbol(r.cur)}${r.bal.toLocaleString(langOf(curLang).locale, { minimumFractionDigits: 2 })}`;
+        note(`${t(curLang, 'done')} · ${bal}`);
+        abPush({ k: 'wallet', inn: type === 'in', amt, bal: `${t(curLang, 'walBalance')} · ${bal}`, t: ttl });
+      }
+    };
+    if (has(text, KW.income) && num(text) != null) walDo('in');
+    if (has(text, KW.expense) && num(text) != null) walDo('out');
     if (has(text, KW.balance)) {
       if (page === 'wallet') {
         note($('walBal').textContent);
@@ -821,7 +1004,7 @@
     if (page === 'scribe' && (has(text, KW.start) || has(text, KW.pause))) note(act.scribeCtl(text));
     /* navigation last — it leaves the page */
     for (const [where, keys] of [['wallet', KW.wallet], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
-      if (has(text, keys)) { note(act.nav(where)); break; }
+      if (has(text, keys)) { const r = act.nav(where); note(r); if (r) abPush({ k: 'done', t: r }); break; }
     }
     return outs.length ? outs.join(' · ') : null;
   }
@@ -845,7 +1028,7 @@
       let out = null;
       try { out = run(raw); } catch { out = null; }
       if (!out && (has(raw.toLowerCase(), KW.fareW) || has(raw.toLowerCase(), ['station', '站']))) {
-        try { out = await fareAnywhere(raw); } catch { /* offline interpreter stays the fallback */ }
+        try { const fr = await fareAnywhere(raw); if (fr) { out = fr.text; abPush(fr.spec); } } catch { /* offline interpreter stays the fallback */ }
       }
       if (!out && aiPref !== 'off') {
         if (aiState === 'on' && aiEngine) {
@@ -876,6 +1059,7 @@
       }
       if (dots.isConnected) dots.remove();
       say(out || t(curLang, 'smateUnknown'));
+      for (const sp of abDrain()) sayBlock(sp);
       setStatus('smateOnline');
     }, wait);
   }

@@ -1256,6 +1256,12 @@ ok('SMate understands the same command in Traditional Chinese', await sq.evaluat
   document.querySelectorAll('.cell.timer').length === 2));
 await smSend('side');
 ok('SMate switches the window layout', await sq.evaluate(() => document.getElementById('grid').dataset.layout === '2'));
+ok('timer requests answer with a live Action Block', await (async () => {
+  const a = await sq.evaluate(() => [...document.querySelectorAll('.smate-block[data-ab="timer"] .ab-big')].pop()?.textContent || '');
+  await sq.waitForTimeout(1300);
+  const b = await sq.evaluate(() => [...document.querySelectorAll('.smate-block[data-ab="timer"] .ab-big')].pop()?.textContent || '');
+  return /\d:\d\d/.test(a) && a !== b;
+})());
 await smSend('zone Taipei');
 await sq.waitForTimeout(250);
 ok('SMate changes the home time zone', await sq.evaluate(() => document.getElementById('tzLabel').textContent === 'Taipei'));
@@ -1266,6 +1272,12 @@ ok('SMate builds the spoken window and does NOT open the map (Jakarta regression
   const g = document.getElementById('grid');
   return mapClosed && g.dataset.layout === '2' &&
     g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
+}));
+ok('the window request shows a live clocks Action Block', await sq.evaluate(() => {
+  const bl = [...document.querySelectorAll('.smate-block[data-ab="clocks"]')].pop();
+  if (!bl) return false;
+  const txt = bl.textContent;
+  return txt.includes('Jakarta') && txt.includes('Taipei') && /\d{1,2}:\d{2}/.test(txt);
 }));
 await smSend('時區 雅加達 台北 並排'); await sq.waitForTimeout(450);
 ok('the same window request works in Traditional Chinese', await sq.evaluate(() => {
@@ -1284,6 +1296,25 @@ await sq.waitForTimeout(700);
 ok('SMate answers fare questions on the clock page (any-page fare engine)', await sq.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('NT$') && last.includes('Zhongxiao Xinsheng') && last.includes('Taipei Main');
+}));
+ok('fare answers carry a mini route-map Action Block', await sq.waitForFunction(() => {
+  const bl = [...document.querySelectorAll('.smate-block[data-ab="fare"]')].pop();
+  return !!bl && bl.querySelectorAll('svg.ab-map polyline').length > 3 && bl.querySelectorAll('svg.ab-map circle').length >= 2;
+}, null, { timeout: 5000, polling: 250 }).then(() => true).catch(() => false));
+const txBefore = await sq.evaluate(() => { try { return JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { return 0; } });
+await smSend('add 12 expense');
+await sq.waitForTimeout(500);
+ok('wallet actions from other pages really hit the ledger and show a block', await sq.evaluate((before) => {
+  let after = 0;
+  try { after = JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { /* ignore */ }
+  const bl = [...document.querySelectorAll('.smate-block[data-ab="wallet"]')].pop();
+  return after === before + 1 && !!bl && bl.textContent.includes('12');
+}, txBefore));
+await smSend('map Jakarta');
+await sq.waitForTimeout(900);
+ok('map requests open the map in the main window and show a city block', await sq.evaluate(() => {
+  const bl = [...document.querySelectorAll('.smate-block[data-ab="mapnav"]')].pop();
+  return !!bl && bl.textContent.includes('Jakarta') && !document.getElementById('mapWrap').hidden;
 }));
 await smSend('從忠孝新生到台北車站票價多少？');
 await sq.waitForTimeout(700);
@@ -1310,8 +1341,27 @@ await swq.click('#smateBtn');
 await swq.fill('#smateIn', 'add 250 income');
 await swq.click('#smateSend');
 await swq.waitForTimeout(950);
-ok('SMate adds wallet entries from a sentence', await swq.evaluate(() =>
-  document.getElementById('walBal').textContent.includes('250')));
+ok('SMate adds wallet entries from a sentence', await swq.evaluate(() => {
+  const w = JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}');
+  const lastTx = w.tx[w.tx.length - 1];
+  const total = w.tx.reduce((a, x) => a + (x.type === 'in' ? x.amt : -x.amt), 0);
+  const shown = parseFloat((document.getElementById('walBal').textContent || '').replace(/[^0-9.-]/g, ''));
+  return !!lastTx && lastTx.amt === 250 && lastTx.type === 'in' && Math.abs(shown - total) < 0.01;
+}));
+await swq.fill('#smateIn', 'timer 2');
+await swq.click('#smateSend');
+await swq.waitForTimeout(1500);
+try { await swq.waitForURL('**/index.html', { timeout: 5000 }); } catch { /* asserted below */ }
+await swq.waitForTimeout(900);
+ok('a timer asked on another page starts in the main window with a live block', await swq.evaluate(() => {
+  const cell = document.querySelector('.cell.timer');
+  const bl = [...document.querySelectorAll('.smate-block[data-ab="timer"]')].pop();
+  return !!cell && !!bl && /\d:\d\d/.test(bl.querySelector('.ab-big')?.textContent || '');
+}));
+await swq.goto(URL + 'wallet.html', { waitUntil: 'load' });
+await swq.waitForTimeout(300);
+await swq.click('#smateBtn');
+await swq.waitForTimeout(200);
 await swq.fill('#smateIn', 'time zone window of Jakarta and Taipei, side by side');
 await swq.click('#smateSend');
 await swq.waitForTimeout(1200);
@@ -1349,6 +1399,15 @@ await mq2.waitForTimeout(1900);
 ok('fare questions answer on phones too', await mq2.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('NT$');
+}));
+await mq2.fill('#smateIn', 'timer 2');
+await mq2.click('#smateSend');
+await mq2.waitForTimeout(1700);
+ok('Action Blocks fit the phone bottom sheet', await mq2.evaluate(() => {
+  const bl = [...document.querySelectorAll('.smate-block')].pop();
+  if (!bl) return false;
+  const r = bl.getBoundingClientRect();
+  return r.width > 100 && r.right <= 375 && r.left >= 0;
 }));
 await smc.close();
 

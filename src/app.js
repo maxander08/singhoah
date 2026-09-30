@@ -2844,6 +2844,25 @@ function initUI() {
       localStorage.removeItem('singhoah:pendingWin');
       smateWindow(Array.isArray(pw.z) ? pw.z : [], typeof pw.l === 'number' ? pw.l : null);
     }
+    /* …or ordered a mode, timer, stopwatch or map fly-to */
+    const pmode = localStorage.getItem('singhoah:pendingMode');
+    if (pmode) { localStorage.removeItem('singhoah:pendingMode'); setMode(pmode === 'analog'); }
+    const ptm = JSON.parse(localStorage.getItem('singhoah:pendingTimer') || 'null');
+    if (ptm && typeof ptm.m === 'number') {
+      localStorage.removeItem('singhoah:pendingTimer');
+      addTimerToWindow(Math.round(ptm.m * 60000));
+      const c = [...document.querySelectorAll('.cell.timer')].pop();
+      if (c) c.dataset.smateRun = '1';
+    }
+    const psp = JSON.parse(localStorage.getItem('singhoah:pendingStop') || 'null');
+    if (psp) {
+      localStorage.removeItem('singhoah:pendingStop');
+      addStopwatchToWindow();
+      const c = [...document.querySelectorAll('.cell.stop')].pop();
+      if (c) c.dataset.smateRun = '1';
+    }
+    const pmap = JSON.parse(localStorage.getItem('singhoah:pendingMap') || 'null');
+    if (pmap && typeof pmap.c === 'string') { localStorage.removeItem('singhoah:pendingMap'); mapGoCity(pmap.c); }
   } catch { /* ignore */ }
 
   let savedLang = '';
@@ -2977,6 +2996,19 @@ globalThis.__SING_LIB = {
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,
   smateWindow, clearWindow, smateRemove, smateRestart, brandFix, mapGoCity,
+  /* live state views for SMate Action Blocks */
+  timersView: () => [...timers.values()].map((t) => ({ d: t.duration, e: t.endsAt, r: t.remaining, on: t.running })),
+  stopsView: () => [...stops.values()].map((s) => ({ s: s.startedAt, a: s.accum, on: s.running })),
+  walPush(type, amt, note) {
+    let w = null;
+    try { w = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null'); } catch { /* ignore */ }
+    w = w && Array.isArray(w.tx) ? w : { cur: 'USD', tx: [] };
+    const d = new Date();
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    w.tx.push({ id: `t${Date.now()}-sm`, type, amt, note: String(note || '').slice(0, 40), date, ts: Date.now() });
+    try { localStorage.setItem('singhoah:wallet', JSON.stringify(w)); } catch { /* ignore */ }
+    return { bal: walBalance(w.tx), cur: w.cur };
+  },
 };
 
 if (typeof document !== 'undefined') {
