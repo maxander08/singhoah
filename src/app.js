@@ -250,7 +250,7 @@ export const STRINGS = {
   en: {
     fareXsys: 'different systems — fares are computed within one system',
     wallet: 'Wallet', walBalance: 'Balance', walExpense: 'Expense', walIncome: 'Income',
-    walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', walDays: 'Days', walReports: 'Reports',
+    walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', walDays: 'Days', walReports: 'Reports', walCash: 'Cash',
     walSpent: 'Spent', walMonth: 'This month', walAvg: 'Daily average', walWeek: 'Last 7 days',
     walTop: 'Largest expense', pDay: 'Day', pWeek: 'Week', pMonth: 'Month', pSem: 'Semester', pYear: 'Year', pDec: 'Decade', walNet: 'Net', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…', launchpad: 'Launchpad', lpClock: 'Clock', lpClockSub: 'Drift-corrected world clock', lpWalletSub: 'Balance, daily spending & reports',
     date: 'Date', time: 'Time', window: 'Window', light: 'Light', night: 'Night Shift',
@@ -272,7 +272,7 @@ export const STRINGS = {
   'zh-Hant': {
     fareXsys: '不同系統——票價僅在同一系統內計算',
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
-    walAmount: '金額', walNote: '備註', walAdd: '新增', walDays: '每日', walReports: '報表',
+    walAmount: '金額', walNote: '備註', walAdd: '新增', walDays: '每日', walReports: '報表', walCash: '現金',
     walSpent: '已花費', walMonth: '本月', walAvg: '日均', walWeek: '最近 7 天',
     walTop: '最大支出', pDay: '日', pWeek: '週', pMonth: '月', pSem: '學期', pYear: '年', pDec: '十年', walNet: '淨額', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…', launchpad: '啟動台', lpClock: '時鐘', lpClockSub: '漂移校正世界時鐘', lpWalletSub: '餘額、每日花費與報表',
     date: '日期', time: '時間', window: '視窗', light: '淺色', night: '夜間模式',
@@ -294,7 +294,7 @@ export const STRINGS = {
   hi: {
     fareXsys: 'अलग-अलग सिस्टम — किराया एक ही सिस्टम में तय होता है',
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
-    walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', walDays: 'दिन', walReports: 'रिपोर्ट',
+    walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', walDays: 'दिन', walReports: 'रिपोर्ट', walCash: 'नकद',
     walSpent: 'ख़र्च हुआ', walMonth: 'इस माह', walAvg: 'दैनिक औसत', walWeek: 'पिछले 7 दिन',
     walTop: 'सबसे बड़ा ख़र्च', pDay: 'दिन', pWeek: 'सप्ताह', pMonth: 'महीना', pSem: 'सेमेस्टर', pYear: 'वर्ष', pDec: 'दशक', walNet: 'शुद्ध', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…', launchpad: 'लॉन्चपैड', lpClock: 'घड़ी', lpClockSub: 'ड्रिफ्ट-सुधारी विश्व घड़ी', lpWalletSub: 'बैलेंस, दैनिक ख़र्च और रिपोर्ट',
     date: 'तिथि', time: 'समय', window: 'विंडो', light: 'लाइट', night: 'नाइट शिफ्ट',
@@ -316,7 +316,7 @@ export const STRINGS = {
   es: {
     fareXsys: 'sistemas distintos: la tarifa se calcula dentro de un mismo sistema',
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
-    walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', walDays: 'Días', walReports: 'Informes',
+    walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', walDays: 'Días', walReports: 'Informes', walCash: 'Efectivo',
     walSpent: 'Gastado', walMonth: 'Este mes', walAvg: 'Media diaria', walWeek: 'Últimos 7 días',
     walTop: 'Mayor gasto', pDay: 'Día', pWeek: 'Semana', pMonth: 'Mes', pSem: 'Semestre', pYear: 'Año', pDec: 'Década', walNet: 'Neto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…', launchpad: 'Launchpad', lpClock: 'Reloj', lpClockSub: 'Reloj mundial con deriva corregida', lpWalletSub: 'Saldo, gasto diario e informes',
     date: 'Fecha', time: 'Hora', window: 'Ventana', light: 'Claro', night: 'Turno de noche',
@@ -338,7 +338,7 @@ export const STRINGS = {
   fr: {
     fareXsys: 'systèmes différents — le tarif se calcule dans un même système',
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
-    walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', walDays: 'Jours', walReports: 'Rapports',
+    walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', walDays: 'Jours', walReports: 'Rapports', walCash: 'Espèces',
     walSpent: 'Dépensé', walMonth: 'Ce mois-ci', walAvg: 'Moyenne quotidienne', walWeek: '7 derniers jours',
     walTop: 'Plus grosse dépense', pDay: 'Jour', pWeek: 'Semaine', pMonth: 'Mois', pSem: 'Semestre', pYear: 'Année', pDec: 'Décennie', walNet: 'Net', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…', launchpad: 'Launchpad', lpClock: 'Horloge', lpClockSub: 'Horloge mondiale corrigée de la dérive', lpWalletSub: 'Solde, dépenses du jour et rapports',
     date: 'Date', time: 'Heure', window: 'Fenêtre', light: 'Clair', night: 'Mode nuit',
@@ -360,7 +360,7 @@ export const STRINGS = {
   ar: {
     fareXsys: 'نظامان مختلفان — تُحسب الأجرة داخل نظام واحد',
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
-    walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', walDays: 'الأيام', walReports: 'التقارير',
+    walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', walDays: 'الأيام', walReports: 'التقارير', walCash: 'نقد',
     walSpent: 'أُنفق', walMonth: 'هذا الشهر', walAvg: 'المتوسط اليومي', walWeek: 'آخر 7 أيام',
     walTop: 'أكبر مصروف', pDay: 'يوم', pWeek: 'أسبوع', pMonth: 'شهر', pSem: 'فصل دراسي', pYear: 'سنة', pDec: 'عقد', walNet: 'الصافي', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…', launchpad: 'منصة الإطلاق', lpClock: 'الساعة', lpClockSub: 'ساعة عالمية مصحَّحة الانحراف', lpWalletSub: 'الرصيد والمصروفات اليومية والتقارير',
     date: 'التاريخ', time: 'الوقت', window: 'نافذة', light: 'فاتح', night: 'الوضع الليلي',
@@ -382,7 +382,7 @@ export const STRINGS = {
   bn: {
     fareXsys: 'ভিন্ন সিস্টেম — ভাড়া একই সিস্টেমের মধ্যে হিসাব হয়',
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
-    walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', walDays: 'দিন', walReports: 'রিপোর্ট',
+    walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', walDays: 'দিন', walReports: 'রিপোর্ট', walCash: 'নগদ',
     walSpent: 'খরচ হয়েছে', walMonth: 'এই মাস', walAvg: 'দৈনিক গড়', walWeek: 'শেষ ৭ দিন',
     walTop: 'সবচেয়ে বড় খরচ', pDay: 'দিন', pWeek: 'সপ্তাহ', pMonth: 'মাস', pSem: 'সেমিস্টার', pYear: 'বছর', pDec: 'দশক', walNet: 'নিট', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…', launchpad: 'লঞ্চপ্যাড', lpClock: 'ঘড়ি', lpClockSub: 'ড্রিফট-সংশোধিত বিশ্বঘড়ি', lpWalletSub: 'ব্যালেন্স, দৈনিক খরচ ও রিপোর্ট',
     date: 'তারিখ', time: 'সময়', window: 'উইন্ডো', light: 'লাইট', night: 'নাইট শিফ্ট',
@@ -404,7 +404,7 @@ export const STRINGS = {
   ru: {
     fareXsys: 'разные системы — тариф считается внутри одной системы',
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
-    walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', walDays: 'Дни', walReports: 'Отчёты',
+    walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', walDays: 'Дни', walReports: 'Отчёты', walCash: 'Наличные',
     walSpent: 'Потрачено', walMonth: 'В этом месяце', walAvg: 'Среднее в день', walWeek: 'Последние 7 дней',
     walTop: 'Крупнейшая трата', pDay: 'День', pWeek: 'Неделя', pMonth: 'Месяц', pSem: 'Семестр', pYear: 'Год', pDec: 'Десятилетие', walNet: 'Нетто', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…', launchpad: 'Лаунчпад', lpClock: 'Часы', lpClockSub: 'Всемирные часы с коррекцией дрейфа', lpWalletSub: 'Баланс, расходы по дням и отчёты',
     date: 'Дата', time: 'Время', window: 'Окно', light: 'Светлая', night: 'Ночной режим',
@@ -426,7 +426,7 @@ export const STRINGS = {
   pt: {
     fareXsys: 'sistemas diferentes — a tarifa é calculada dentro de um mesmo sistema',
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
-    walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', walDays: 'Dias', walReports: 'Relatórios',
+    walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', walDays: 'Dias', walReports: 'Relatórios', walCash: 'Dinheiro',
     walSpent: 'Gasto', walMonth: 'Este mês', walAvg: 'Média diária', walWeek: 'Últimos 7 dias',
     walTop: 'Maior gasto', pDay: 'Dia', pWeek: 'Semana', pMonth: 'Mês', pSem: 'Semestre', pYear: 'Ano', pDec: 'Década', walNet: 'Líquido', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…', launchpad: 'Launchpad', lpClock: 'Relógio', lpClockSub: 'Relógio mundial com deriva corrigida', lpWalletSub: 'Saldo, gastos diários e relatórios',
     date: 'Data', time: 'Hora', window: 'Janela', light: 'Claro', night: 'Modo noturno',
@@ -448,7 +448,7 @@ export const STRINGS = {
   ur: {
     fareXsys: 'مختلف نظام — کرایہ ایک ہی نظام کے اندر ہوتا ہے',
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
-    walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', walDays: 'دن', walReports: 'رپورٹس',
+    walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', walDays: 'دن', walReports: 'رپورٹس', walCash: 'نقد',
     walSpent: 'خرچ ہوا', walMonth: 'اس مہینے', walAvg: 'یومیہ اوسط', walWeek: 'پچھلے 7 دن',
     walTop: 'سب سے بڑا خرچ', pDay: 'دن', pWeek: 'ہفتہ', pMonth: 'مہینہ', pSem: 'سیمسٹر', pYear: 'سال', pDec: 'دہائی', walNet: 'خالص', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…', launchpad: 'لائنچ پیڈ', lpClock: 'گھڑی', lpClockSub: 'ڈرفٹ درست شدہ عالمی گھڑی', lpWalletSub: 'بیلنس، یومیہ خرچ اور رپورٹس',
     date: 'تاریخ', time: 'وقت', window: 'ونڈو', light: 'ہلکا', night: 'نائٹ موڈ',
@@ -470,7 +470,7 @@ export const STRINGS = {
   it: {
     fareXsys: 'sistemi diversi — la tariffa si calcola dentro lo stesso sistema',
     wallet: 'Portafoglio', walBalance: 'Saldo', walExpense: 'Spesa', walIncome: 'Entrata',
-    walAmount: 'Importo', walNote: 'Nota', walAdd: 'Aggiungi', walDays: 'Giorni', walReports: 'Report',
+    walAmount: 'Importo', walNote: 'Nota', walAdd: 'Aggiungi', walDays: 'Giorni', walReports: 'Report', walCash: 'Contanti',
     walSpent: 'Speso', walMonth: 'Questo mese', walAvg: 'Media giornaliera', walWeek: 'Ultimi 7 giorni',
     walTop: 'Spesa maggiore', pDay: 'Giorno', pWeek: 'Settimana', pMonth: 'Mese', pSem: 'Semestre', pYear: 'Anno', pDec: 'Decennio', walNet: 'Netto', walEmpty: 'Nessuna transazione', walCurrency: 'Simbolo valuta', walDelete: 'Elimina voce', walCurSearch: 'Cerca valute…', launchpad: 'Launchpad', lpClock: 'Orologio', lpClockSub: 'Orologio mondiale corretto dalla deriva', lpWalletSub: 'Saldo, spese giornaliere e report',
     date: 'Data', time: 'Ora', window: 'Finestra', light: 'Chiaro', night: 'Notte',
@@ -503,7 +503,7 @@ export const STRINGS = {
   id: {
     fareXsys: 'sistem berbeda — tarif dihitung dalam satu sistem',
     wallet: 'Dompet', walBalance: 'Saldo', walExpense: 'Pengeluaran', walIncome: 'Pemasukan',
-    walAmount: 'Jumlah', walNote: 'Catatan', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan',
+    walAmount: 'Jumlah', walNote: 'Catatan', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan', walCash: 'Tunai',
     walSpent: 'Terpakai', walMonth: 'Bulan ini', walAvg: 'Rata-rata harian', walWeek: '7 hari terakhir',
     walTop: 'Pengeluaran terbesar', pDay: 'Hari', pWeek: 'Minggu', pMonth: 'Bulan', pSem: 'Semester', pYear: 'Tahun', pDec: 'Dasawarsa', walNet: 'Bersih', walEmpty: 'Belum ada transaksi', walCurrency: 'Simbol mata uang', walDelete: 'Hapus entri', walCurSearch: 'Cari mata uang…', launchpad: 'Launchpad', lpClock: 'Jam', lpClockSub: 'Jam dunia terkoreksi drift', lpWalletSub: 'Saldo, pengeluaran harian & laporan',
     date: 'Tanggal', time: 'Waktu', window: 'Jendela', light: 'Terang', night: 'Mode Malam',
@@ -536,7 +536,7 @@ export const STRINGS = {
   ko: {
     fareXsys: '서로 다른 노선망 — 운임은 같은 노선망 안에서 계산됩니다',
     wallet: '지갑', walBalance: '잔액', walExpense: '지출', walIncome: '수입',
-    walAmount: '금액', walNote: '메모', walAdd: '추가', walDays: '일별', walReports: '보고서',
+    walAmount: '금액', walNote: '메모', walAdd: '추가', walDays: '일별', walReports: '보고서', walCash: '현금',
     walSpent: '지출액', walMonth: '이번 달', walAvg: '일평균', walWeek: '최근 7일',
     walTop: '최대 지출', pDay: '일', pWeek: '주', pMonth: '월', pSem: '학기', pYear: '년', pDec: '10년', walNet: '순액', walEmpty: '아직 거래가 없어요', walCurrency: '통화 기호', walDelete: '항목 삭제', walCurSearch: '통화 검색…', launchpad: '런치패드', lpClock: '시계', lpClockSub: '오차 보정 월드클락', lpWalletSub: '잔액, 일별 지출 & 보고서',
     date: '날짜', time: '시간', window: '화면', light: '라이트', night: '나이트 시프트',
@@ -569,7 +569,7 @@ export const STRINGS = {
   ja: {
     fareXsys: '異なるシステム — 運賃は同一システム内で計算されます',
     wallet: 'ウォレット', walBalance: '残高', walExpense: '支出', walIncome: '収入',
-    walAmount: '金額', walNote: 'メモ', walAdd: '追加', walDays: '日別', walReports: 'レポート',
+    walAmount: '金額', walNote: 'メモ', walAdd: '追加', walDays: '日別', walReports: 'レポート', walCash: '現金',
     walSpent: '使用額', walMonth: '今月', walAvg: '日均値', walWeek: '過去7日間',
     walTop: '最大の支出', pDay: '日', pWeek: '週', pMonth: '月', pSem: '学期', pYear: '年', pDec: '10年', walNet: '純額', walEmpty: 'まだ取引がありません', walCurrency: '通貨記号', walDelete: '項目を削除', walCurSearch: '通貨を検索…', launchpad: 'ランチパッド', lpClock: '時計', lpClockSub: 'ドリフト補正ワールドクロック', lpWalletSub: '残高・日別支出・レポート',
     date: '日付', time: '時刻', window: 'ウィンドウ', light: 'ライト', night: 'ナイトシフト',
@@ -602,7 +602,7 @@ export const STRINGS = {
   ms: {
     fareXsys: 'sistem berbeza — tambang dikira dalam satu sistem',
     wallet: 'Dompet', walBalance: 'Baki', walExpense: 'Perbelanjaan', walIncome: 'Pendapatan',
-    walAmount: 'Jumlah', walNote: 'Nota', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan',
+    walAmount: 'Jumlah', walNote: 'Nota', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan', walCash: 'Tunai',
     walSpent: 'Dibelanjakan', walMonth: 'Bulan ini', walAvg: 'Purata harian', walWeek: '7 hari lepas',
     walTop: 'Perbelanjaan terbesar', pDay: 'Hari', pWeek: 'Minggu', pMonth: 'Bulan', pSem: 'Semester', pYear: 'Tahun', pDec: 'Dekad', walNet: 'Bersih', walEmpty: 'Tiada transaksi lagi', walCurrency: 'Simbol mata wang', walDelete: 'Padam entri', walCurSearch: 'Cari mata wang…', launchpad: 'Launchpad', lpClock: 'Jam', lpClockSub: 'Jam dunia diperbetul hanyutan', lpWalletSub: 'Baki, perbelanjaan harian & laporan',
     date: 'Tarikh', time: 'Masa', window: 'Tetingkap', light: 'Cerah', night: 'Syif Malam',
@@ -635,7 +635,7 @@ export const STRINGS = {
   de: {
     fareXsys: 'verschiedene Systeme — der Tarif gilt innerhalb eines Systems',
     wallet: 'Geldbörse', walBalance: 'Guthaben', walExpense: 'Ausgabe', walIncome: 'Einnahme',
-    walAmount: 'Betrag', walNote: 'Notiz', walAdd: 'Hinzufügen', walDays: 'Tage', walReports: 'Berichte',
+    walAmount: 'Betrag', walNote: 'Notiz', walAdd: 'Hinzufügen', walDays: 'Tage', walReports: 'Berichte', walCash: 'Bargeld',
     walSpent: 'Ausgegeben', walMonth: 'Dieser Monat', walAvg: 'Tagesdurchschnitt', walWeek: 'Letzte 7 Tage',
     walTop: 'Größte Ausgabe', pDay: 'Tag', pWeek: 'Woche', pMonth: 'Monat', pSem: 'Semester', pYear: 'Jahr', pDec: 'Jahrzehnt', walNet: 'Saldo', walEmpty: 'Noch keine Transaktionen', walCurrency: 'Währungssymbol', walDelete: 'Eintrag löschen', walCurSearch: 'Währungen suchen…', launchpad: 'Launchpad', lpClock: 'Uhr', lpClockSub: 'Drift-korrigierte Weltuhr', lpWalletSub: 'Guthaben, Tagesausgaben & Berichte',
     date: 'Datum', time: 'Zeit', window: 'Fenster', light: 'Hell', night: 'Nachtmodus',
@@ -668,7 +668,7 @@ export const STRINGS = {
   pl: {
     fareXsys: 'różne systemy — taryfa liczona jest w obrębie jednego systemu',
     wallet: 'Portfel', walBalance: 'Saldo', walExpense: 'Wydatek', walIncome: 'Przychód',
-    walAmount: 'Kwota', walNote: 'Notatka', walAdd: 'Dodaj', walDays: 'Dni', walReports: 'Raporty',
+    walAmount: 'Kwota', walNote: 'Notatka', walAdd: 'Dodaj', walDays: 'Dni', walReports: 'Raporty', walCash: 'Gotówka',
     walSpent: 'Wydano', walMonth: 'Ten miesiąc', walAvg: 'Średnia dzienna', walWeek: 'Ostatnie 7 dni',
     walTop: 'Największy wydatek', pDay: 'Dzień', pWeek: 'Tydzień', pMonth: 'Miesiąc', pSem: 'Semestr', pYear: 'Rok', pDec: 'Dekada', walNet: 'Netto', walEmpty: 'Brak transakcji', walCurrency: 'Symbol waluty', walDelete: 'Usuń wpis', walCurSearch: 'Szukaj walut…', launchpad: 'Launchpad', lpClock: 'Zegar', lpClockSub: 'Zegar światowy z korektą dryfu', lpWalletSub: 'Saldo, dzienne wydatki i raporty',
     date: 'Data', time: 'Czas', window: 'Okno', light: 'Jasny', night: 'Tryb nocny',
@@ -701,7 +701,7 @@ export const STRINGS = {
   da: {
     fareXsys: 'forskellige systemer — taksten beregnes inden for ét system',
     wallet: 'Pung', walBalance: 'Saldo', walExpense: 'Udgift', walIncome: 'Indtægt',
-    walAmount: 'Beløb', walNote: 'Note', walAdd: 'Tilføj', walDays: 'Dage', walReports: 'Rapporter',
+    walAmount: 'Beløb', walNote: 'Note', walAdd: 'Tilføj', walDays: 'Dage', walReports: 'Rapporter', walCash: 'Kontanter',
     walSpent: 'Brugt', walMonth: 'Denne måned', walAvg: 'Dagsgennemsnit', walWeek: 'Seneste 7 dage',
     walTop: 'Største udgift', pDay: 'Dag', pWeek: 'Uge', pMonth: 'Måned', pSem: 'Semester', pYear: 'År', pDec: 'Årti', walNet: 'Netto', walEmpty: 'Ingen transaktioner endnu', walCurrency: 'Valutasymbol', walDelete: 'Slet post', walCurSearch: 'Søg valutaer…', launchpad: 'Launchpad', lpClock: 'Ur', lpClockSub: 'Drift-korrigeret verdensur', lpWalletSub: 'Saldo, dagligt forbrug & rapporter',
     date: 'Dato', time: 'Tid', window: 'Vindue', light: 'Lys', night: 'Nattilstand',
@@ -734,7 +734,7 @@ export const STRINGS = {
   nb: {
     fareXsys: 'forskjellige systemer — prisen beregnes innen ett system',
     wallet: 'Lommebok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inntekt',
-    walAmount: 'Beløp', walNote: 'Notat', walAdd: 'Legg til', walDays: 'Dager', walReports: 'Rapporter',
+    walAmount: 'Beløp', walNote: 'Notat', walAdd: 'Legg til', walDays: 'Dager', walReports: 'Rapporter', walCash: 'Kontanter',
     walSpent: 'Brukt', walMonth: 'Denne måneden', walAvg: 'Dagsgjennomsnitt', walWeek: 'Siste 7 dager',
     walTop: 'Største utgift', pDay: 'Dag', pWeek: 'Uke', pMonth: 'Måned', pSem: 'Semester', pYear: 'År', pDec: 'Tiår', walNet: 'Netto', walEmpty: 'Ingen transaksjoner ennå', walCurrency: 'Valutasymbol', walDelete: 'Slett oppføring', walCurSearch: 'Søk valutaer…', launchpad: 'Launchpad', lpClock: 'Klokke', lpClockSub: 'Driftskorrigert verdensur', lpWalletSub: 'Saldo, daglig forbruk & rapporter',
     date: 'Dato', time: 'Tid', window: 'Vindu', light: 'Lys', night: 'Nattmodus',
@@ -767,7 +767,7 @@ export const STRINGS = {
   sv: {
     fareXsys: 'olika system — priset beräknas inom ett system',
     wallet: 'Plånbok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inkomst',
-    walAmount: 'Belopp', walNote: 'Anteckning', walAdd: 'Lägg till', walDays: 'Dagar', walReports: 'Rapporter',
+    walAmount: 'Belopp', walNote: 'Anteckning', walAdd: 'Lägg till', walDays: 'Dagar', walReports: 'Rapporter', walCash: 'Kontanter',
     walSpent: 'Spenderat', walMonth: 'Denna månad', walAvg: 'Dagsgenomsnitt', walWeek: 'Senaste 7 dagarna',
     walTop: 'Största utgift', pDay: 'Dag', pWeek: 'Vecka', pMonth: 'Månad', pSem: 'Termin', pYear: 'År', pDec: 'Årtionde', walNet: 'Netto', walEmpty: 'Inga transaktioner ännu', walCurrency: 'Valutasymbol', walDelete: 'Ta bort post', walCurSearch: 'Sök valutor…', launchpad: 'Launchpad', lpClock: 'Klocka', lpClockSub: 'Driftkorrigerad världsklocka', lpWalletSub: 'Saldo, dagsutgifter & rapporter',
     date: 'Datum', time: 'Tid', window: 'Fönster', light: 'Ljus', night: 'Nattläge',
@@ -800,7 +800,7 @@ export const STRINGS = {
   fi: {
     fareXsys: 'eri järjestelmät — hinta lasketaan saman järjestelmän sisällä',
     wallet: 'Lompakko', walBalance: 'Saldo', walExpense: 'Meno', walIncome: 'Tulo',
-    walAmount: 'Summa', walNote: 'Muistiinpano', walAdd: 'Lisää', walDays: 'Päivät', walReports: 'Raportit',
+    walAmount: 'Summa', walNote: 'Muistiinpano', walAdd: 'Lisää', walDays: 'Päivät', walReports: 'Raportit', walCash: 'Käteinen',
     walSpent: 'Käytetty', walMonth: 'Tämä kuukausi', walAvg: 'Päiväkeskiarvo', walWeek: 'Viimeiset 7 päivää',
     walTop: 'Suurin meno', pDay: 'Päivä', pWeek: 'Viikko', pMonth: 'Kuukausi', pSem: 'Lukukausi', pYear: 'Vuosi', pDec: 'Vuosikymmen', walNet: 'Netto', walEmpty: 'Ei vielä tapahtumia', walCurrency: 'Valuutan symboli', walDelete: 'Poista merkintä', walCurSearch: 'Hae valuuttoja…', launchpad: 'Launchpad', lpClock: 'Kello', lpClockSub: 'Ajautumakorjattu maailmankello', lpWalletSub: 'Saldo, päivittäiset menot & raportit',
     date: 'Päivä', time: 'Aika', window: 'Ikkuna', light: 'Vaalea', night: 'Yötila',
@@ -833,7 +833,7 @@ export const STRINGS = {
   sr: {
     fareXsys: 'različiti sistemi — tarifa se računa unutar jednog sistema',
     wallet: 'Novčanik', walBalance: 'Stanje', walExpense: 'Trošak', walIncome: 'Prihod',
-    walAmount: 'Iznos', walNote: 'Napomena', walAdd: 'Dodaj', walDays: 'Dani', walReports: 'Izveštaji',
+    walAmount: 'Iznos', walNote: 'Napomena', walAdd: 'Dodaj', walDays: 'Dani', walReports: 'Izveštaji', walCash: 'Кеш',
     walSpent: 'Potrošeno', walMonth: 'Ovaj mesec', walAvg: 'Dnevni prosek', walWeek: 'Poslednjih 7 dana',
     walTop: 'Najveći trošak', pDay: 'Dan', pWeek: 'Nedelja', pMonth: 'Mesec', pSem: 'Semestar', pYear: 'Godina', pDec: 'Decenija', walNet: 'Neto', walEmpty: 'Još nema transakcija', walCurrency: 'Simbol valute', walDelete: 'Obriši stavku', walCurSearch: 'Pretraži valute…', launchpad: 'Launchpad', lpClock: 'Sat', lpClockSub: 'Svetski sat sa korekcijom odmaka', lpWalletSub: 'Stanje, dnevna potrošnja i izveštaji',
     date: 'Datum', time: 'Vreme', window: 'Prozor', light: 'Svetla', night: 'Noćni režim',
@@ -866,7 +866,7 @@ export const STRINGS = {
   nl: {
     fareXsys: 'verschillende systemen — tarief geldt binnen één systeem',
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
-    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten',
+    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten', walCash: 'Contant',
     walSpent: 'Uitgegeven', walMonth: 'Deze maand', walAvg: 'Daggemiddelde', walWeek: 'Laatste 7 dagen',
     walTop: 'Grootste uitgave', pDay: 'Dag', pWeek: 'Week', pMonth: 'Maand', pSem: 'Semester', pYear: 'Jaar', pDec: 'Decennium', walNet: 'Netto', walEmpty: 'Nog geen transacties', walCurrency: 'Valutasymbool', walDelete: 'Item verwijderen', walCurSearch: 'Valuta’s zoeken…', launchpad: 'Launchpad', lpClock: 'Klok', lpClockSub: 'Drift-gecorrigeerde wereldklok', lpWalletSub: 'Saldo, daguitgaven & rapporten',
     date: 'Datum', time: 'Tijd', window: 'Venster', light: 'Licht', night: 'Nachtmodus',
@@ -899,7 +899,7 @@ export const STRINGS = {
   'nl-BE': {
     fareXsys: 'verschillende systemen — tarief geldt binnen één systeem',
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
-    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten',
+    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten', walCash: 'Contant',
     walSpent: 'Uitgegeven', walMonth: 'Deze maand', walAvg: 'Daggemiddelde', walWeek: 'Laatste 7 dagen',
     walTop: 'Grootste uitgave', pDay: 'Dag', pWeek: 'Week', pMonth: 'Maand', pSem: 'Semester', pYear: 'Jaar', pDec: 'Decennium', walNet: 'Netto', walEmpty: 'Nog geen transacties', walCurrency: 'Valutasymbool', walDelete: 'Item verwijderen', walCurSearch: 'Valuta’s zoeken…', launchpad: 'Launchpad', lpClock: 'Klok', lpClockSub: 'Drift-gecorrigeerde wereldklok', lpWalletSub: 'Saldo, daguitgaven & rapporten',
     date: 'Datum', time: 'Tijd', window: 'Venster', light: 'Licht', night: 'Nachtmodus',
@@ -932,7 +932,7 @@ export const STRINGS = {
   el: {
     fareXsys: 'διαφορετικά συστήματα — το κόμιστρο υπολογίζεται εντός ενός συστήματος',
     wallet: 'Πορτοφόλι', walBalance: 'Υπόλοιπο', walExpense: 'Έξοδο', walIncome: 'Έσοδο',
-    walAmount: 'Ποσό', walNote: 'Σημείωση', walAdd: 'Προσθήκη', walDays: 'Ημέρες', walReports: 'Αναφορές',
+    walAmount: 'Ποσό', walNote: 'Σημείωση', walAdd: 'Προσθήκη', walDays: 'Ημέρες', walReports: 'Αναφορές', walCash: 'Μετρητά',
     walSpent: 'Ξοδεύτηκαν', walMonth: 'Αυτός ο μήνας', walAvg: 'Ημερήσιος μέσος', walWeek: 'Τελευταίες 7 ημέρες',
     walTop: 'Μεγαλύτερο έξοδο', pDay: 'Ημέρα', pWeek: 'Εβδομάδα', pMonth: 'Μήνας', pSem: 'Εξάμηνο', pYear: 'Χρόνος', pDec: 'Δεκαετία', walNet: 'Καθαρό', walEmpty: 'Δεν υπάρχουν συναλλαγές', walCurrency: 'Σύμβολο νομίσματος', walDelete: 'Διαγραφή καταχώρισης', walCurSearch: 'Αναζήτηση νομισμάτων…', launchpad: 'Αφετηρία', lpClock: 'Ρολόι', lpClockSub: 'Παγκόσμιο ρολόι με διόρθωση παρέκκλισης', lpWalletSub: 'Υπόλοιπο, ημερήσια έξοδα & αναφορές',
     date: 'Ημερομηνία', time: 'Ώρα', window: 'Παράθυρο', light: 'Φωτεινό', night: 'Νυχτερινή λειτουργία',

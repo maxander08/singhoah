@@ -959,6 +959,30 @@ while (await wpage.locator('.wal-x').count()) {
 }
 ok('deleting every entry empties the wallet',
   await wpage.evaluate(() => document.getElementById('walDaysBox').textContent.trim().length > 3));
+/* --- the cash tab: real banknotes & coins pop out of a wallet --- */
+await wpage.evaluate(() => localStorage.setItem('singhoah:wallet',
+  JSON.stringify({ cur: 'USD', tx: [{ type: 'in', amt: 387.65 }] })));
+await wpage.reload({ waitUntil: 'load' });
+await wpage.waitForTimeout(400);
+await wpage.click('#walTabC');
+await wpage.waitForSelector('.cash-note', { timeout: 3000 });
+const cash = await wpage.evaluate(() => {
+  let sum = 0;
+  for (const n of document.querySelectorAll('.cash-note,.cash-coin')) {
+    const m = n.title.match(/^(\d+)× /);
+    const v = parseFloat(n.title.split('× ').pop().replace(/[^0-9.]/g, ''));
+    sum += Number(m[1]) * v;
+  }
+  return { n: document.querySelectorAll('.cash-note').length, c: document.querySelectorAll('.cash-coin').length,
+    sum: Math.round(sum * 100) / 100, wallet: !!document.querySelector('.cash-wallet') };
+});
+ok('the cash tab pops real banknotes and coins out of a wallet',
+  cash.wallet && cash.n === 6 && cash.c === 3 && cash.sum === 387.65, JSON.stringify(cash));
+await wpage.evaluate(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
+await wpage.reload({ waitUntil: 'load' });
+await wpage.waitForTimeout(300);
+ok('the cash tab is translated', (await wpage.locator('#walTabC').textContent()) === '現金',
+  await wpage.locator('#walTabC').textContent());
 ok('no page errors in the wallet app', werrors.length === 0, werrors.join('; '));
 ok('wallet shows the sign-in button too', await wpage.evaluate(() =>
   !!document.querySelector('#authWrap') && !!document.querySelector('#signinBtn')));
