@@ -978,6 +978,39 @@ const cash = await wpage.evaluate(() => {
 });
 ok('the cash tab pops real banknotes and coins out of a wallet',
   cash.wallet && cash.n === 6 && cash.c === 3 && cash.sum === 387.65, JSON.stringify(cash));
+/* every currency on Earth: real ladders, drawable art, consistent split */
+const cashAudit = await wpage.evaluate(() => {
+  const C = globalThis.__SING_CASH;
+  if (!C) return { n: 0, bad: ['module not loaded'] };
+  const r1 = (x) => Math.round(x * 1000) / 1000;
+  const bad = [];
+  for (const cur of Object.keys(C.L)) {
+    const st = C.S[cur];
+    if (!st || !st[1].length || !st[2].length) { bad.push(cur + ':style'); continue; }
+    for (const mo of st[1]) if (!C.MOTIFS[mo]) bad.push(cur + ':' + mo);
+    for (const amount of [1000.57, 0.99]) {
+      const s = C.splitCash(cur, amount);
+      const again = C.splitCash(cur, r1(s.out.reduce((a, x) => a + x.v * x.n, 0) + s.rest));
+      const sum2 = r1(again.out.reduce((a, x) => a + x.v * x.n, 0) + again.rest);
+      if (sum2 !== r1(s.out.reduce((a, x) => a + x.v * x.n, 0) + s.rest)) bad.push(cur + ':resplit');
+      for (const piece of s.out) {
+        const ladder = piece.coin ? C.L[cur][1] : C.L[cur][0];
+        if (!ladder.includes(piece.v)) bad.push(cur + ':' + piece.v);
+      }
+    }
+    const art = C.noteSVG(cur, C.L[cur][0][0], 'X', 0);
+    if (!art.includes('<symbol') || !art.includes('translate(')) bad.push(cur + ':art');
+  }
+  return { n: Object.keys(C.L).length, bad: [...new Set(bad)] };
+});
+ok('every world currency has real denominations and drawable banknote art',
+  cashAudit.n === 155 && cashAudit.bad.length === 0, `${cashAudit.n} currencies; ${cashAudit.bad.slice(0, 5).join(', ')}`);
+const holes = await wpage.evaluate(() => {
+  const C = globalThis.__SING_CASH;
+  const jpy5 = C.coinSVG('JPY', 5, 3), cny = C.coinSVG('CNY', 1, 0), gbp = C.coinSVG('GBP', 0.2, 2);
+  return jpy5.includes('r="13"') && cny.includes('width="20" height="20"') && gbp.includes('polygon');
+});
+ok('real coin shapes: holed yen, square-hole yuan, heptagonal 20p', holes);
 await wpage.evaluate(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
 await wpage.reload({ waitUntil: 'load' });
 await wpage.waitForTimeout(300);

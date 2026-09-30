@@ -482,88 +482,12 @@ document.addEventListener('singhoah:cloudsync', () => {
 });
 
 /* ---------------- cash view: a wallet that pops out real notes & coins ------
-   Notes and coins are hand-drawn inline SVG (one <symbol> per denomination,
-   stamped repeatedly via <use> so the DOM stays tiny), colored after each
-   currency's real banknote ladder where one is known. The balance is split
-   greedily into real denominations; the pop-out is pure CSS, so phones stay
-   smooth. Nothing here loads external images or libraries. */
-const CASH_NOTES = {
-  USD: [100, 50, 20, 10, 5, 2, 1], EUR: [500, 200, 100, 50, 20, 10, 5], TWD: [2000, 1000, 500, 200, 100],
-  JPY: [10000, 5000, 2000, 1000], KRW: [50000, 10000, 5000, 1000], GBP: [50, 20, 10, 5],
-  CNY: [100, 50, 20, 10, 5, 1], INR: [500, 200, 100, 50, 20, 10], HKD: [1000, 500, 100, 50, 20, 10],
-  SGD: [1000, 100, 50, 10, 5, 2], CHF: [1000, 500, 200, 100, 50, 20, 10], CAD: [100, 50, 20, 10, 5],
-  AUD: [100, 50, 20, 10, 5], NZD: [100, 50, 20, 10, 5], THB: [1000, 500, 100, 50, 20],
-  PHP: [1000, 500, 200, 100, 50, 20], MYR: [100, 50, 20, 10, 5, 1], MXN: [1000, 500, 200, 100, 50, 20],
-  BRL: [200, 100, 50, 20, 10, 5, 2], RUB: [5000, 1000, 500, 200, 100, 50, 10], TRY: [200, 100, 50, 20, 10, 5],
-  PLN: [500, 200, 100, 50, 20, 10], SEK: [1000, 500, 200, 100, 50], NOK: [1000, 500, 200, 100, 50],
-  DKK: [1000, 500, 200, 100, 50], CZK: [5000, 2000, 1000, 500, 200, 100], HUF: [20000, 10000, 5000, 2000, 1000],
-  SAR: [500, 100, 50, 10, 5, 1], AED: [1000, 500, 200, 100, 50, 20, 10, 5], IDR: [100000, 50000, 20000, 10000, 5000, 2000, 1000],
-  VND: [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000],
-};
-const CASH_COINS = {
-  USD: [0.25, 0.1, 0.05, 0.01], EUR: [2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], TWD: [50, 10, 5, 1],
-  JPY: [500, 100, 50, 10], KRW: [500, 100, 50, 10], GBP: [2, 1, 0.5, 0.2, 0.1, 0.05],
-  CNY: [0.5, 0.1], INR: [10, 5, 2, 1], HKD: [10, 5, 2, 1], THB: [10, 5, 2, 1],
-  PHP: [10, 5, 1], MXN: [10, 5, 2, 1], BRL: [1, 0.5, 0.25, 0.1, 0.05], RUB: [10, 5, 2, 1],
-  TRY: [1, 0.5, 0.25, 0.1], PLN: [5, 2, 1, 0.5, 0.2, 0.1], CZK: [50, 20, 10, 5, 2, 1],
-  HUF: [200, 100, 50, 20, 10, 5], SAR: [2, 1, 0.5], AED: [1, 0.5, 0.25], SGD: [1, 0.5, 0.2, 0.1, 0.05],
-  CHF: [5, 2, 1, 0.5, 0.2, 0.1, 0.05], CAD: [2, 1, 0.25, 0.1, 0.05], AUD: [2, 1, 0.5, 0.2, 0.1],
-  NZD: [2, 1, 0.5, 0.2, 0.1], SEK: [10, 5, 2, 1], NOK: [20, 10, 5, 1], DKK: [20, 10, 5, 2, 1],
-};
-const CASH_DEC0 = new Set(['JPY', 'KRW', 'VND', 'IDR', 'HUF', 'CLP', 'ISK', 'UGX', 'KES', 'TZS', 'COP', 'XAF', 'XOF', 'PYG', 'GNF', 'RWF', 'BIF', 'DJF', 'XPF', 'VUV']);
-/* real banknote ladders, ordered to match CASH_NOTES above */
-const CASH_NOTE_COL = {
-  USD: ['#5f7d67', '#66846d', '#6d8b74', '#74927b', '#7b9982', '#82a089', '#89a790'],
-  EUR: ['#8f979d', '#b8a04a', '#7fa86b', '#d98b3f', '#4a76b8', '#c96a5e', '#a0a8ae'],
-  TWD: ['#5f9e63', '#3f6bb8', '#8a6f4d', '#8e6bb8', '#c0392b'],
-  JPY: ['#8a6f4d', '#5f9e63', '#9a6bb8', '#4a76b8'],
-  KRW: ['#5f9e63', '#d98b3f', '#8a6f4d', '#4a76b8'],
-  GBP: ['#c0392b', '#9a6bb8', '#d98b3f', '#3fa0a8'],
-  CNY: ['#c0392b', '#5f9e63', '#8a6f4d', '#4a76b8', '#9a6bb8', '#7d8ba0'],
-  INR: ['#8a6f4d', '#3fb8ae', '#9a6bb8', '#d98b3f', '#c96a5e', '#7d8ba0'],
-  HKD: ['#caa24a', '#8a6f4d', '#c0392b', '#5f9e63', '#4a76b8', '#9a6bb8'],
-  THB: ['#8a6f4d', '#9a6bb8', '#c0392b', '#4a76b8', '#5f9e63'],
-  BRL: ['#caa24a', '#3fb8ae', '#8a6f4d', '#caa24a', '#c0392b', '#9a6bb8', '#4a76b8'],
-  RUB: ['#c0392b', '#5f9e63', '#9a6bb8', '#5f9e63', '#c0392b', '#4a76b8', '#5f9e63'],
-  CAD: ['#8a6f4d', '#c0392b', '#5f9e63', '#4a76b8', '#9a6bb8'],
-  AUD: ['#5f9e63', '#caa24a', '#c0392b', '#4a76b8', '#9a6bb8'],
-};
-const cashHue = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; };
-const cashNoteColor = (cur, idx) => (CASH_NOTE_COL[cur] && CASH_NOTE_COL[cur][idx]) || `hsl(${(cashHue(cur) + idx * 42) % 360} 40% 44%)`;
-const cashValText = (v) => (Number.isInteger(v) ? String(v) : String(v));
-const cashSerial = (cur, v) => { let h = cashHue(cur + v) * 991 + v; return `${cur[0]}${(h % 90 + 10)} ${(h % 900000 + 100000)}`; };
-
-/* greedy change-making of the live balance; DOM stays tiny via caps */
-function cashSplit(cur, total) {
-  const notes = CASH_NOTES[cur] || [1000, 500, 200, 100, 50, 20, 10, 5, 1];
-  const dec0 = CASH_DEC0.has(cur);
-  const coins = CASH_COINS[cur] || (dec0 ? [10, 5, 1] : [0.25, 0.1, 0.05, 0.01]);
-  let rest = Math.round(total * 100) / 100;
-  const out = [];
-  for (let i = 0; i < notes.length; i++) {
-    if (out.length >= 22) break;
-    const v = notes[i];
-    const n = Math.min(Math.floor(rest / v + 1e-9), 30);
-    if (n > 0) { out.push({ v, n, coin: false, idx: i }); rest = Math.round((rest - v * n) * 100) / 100; }
-  }
-  for (const v of coins) {
-    if (out.length >= 32) break;
-    const n = Math.min(Math.floor(rest / v + 1e-9), 20);
-    if (n > 0) { out.push({ v, n, coin: true, idx: 0 }); rest = Math.round((rest - v * n) * 100) / 100; }
-  }
-  return { out, rest };
-}
-
-function cashNoteSym(id, v, col, cur) {
-  const sym = curSymbol(cur, langOf(lang).locale);
-  return `<symbol id="cn-${id}" viewBox="0 0 240 108"><rect x="1.5" y="1.5" width="237" height="105" rx="10" fill="${col}" stroke="rgba(0,0,0,.45)" stroke-width="3"/><rect x="8" y="8" width="224" height="92" rx="7" fill="none" stroke="rgba(255,255,255,.85)" stroke-opacity=".45" stroke-width="2" stroke-dasharray="1 5" stroke-linecap="round"/><path d="M14 86 q22 -20 44 0 t44 0 t44 0 t44 0 t44 0" fill="none" stroke="rgba(255,255,255,.85)" stroke-opacity=".28" stroke-width="3"/><circle cx="180" cy="54" r="31" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.85)" stroke-opacity=".55" stroke-width="2"/><circle cx="180" cy="45" r="9" fill="rgba(255,255,255,.6)"/><path d="M164 74 a16 16 0 0 1 32 0 z" fill="rgba(255,255,255,.6)"/><text x="20" y="46" font-size="34" font-weight="700" fill="rgba(255,255,255,.92)">${cashValText(v)}</text><text x="20" y="70" font-size="14" fill="rgba(255,255,255,.85)">${walEsc(sym)} · ${walEsc(cur)}</text><text x="222" y="26" text-anchor="end" font-size="10" letter-spacing="2" fill="rgba(255,255,255,.65)">${cashSerial(cur, v)}</text></symbol>`;
-}
-function cashCoinSym(id, v, metal) {
-  return `<symbol id="cc-${id}" viewBox="0 0 88 88"><circle cx="44" cy="44" r="40" fill="url(#cg-${metal})" stroke="rgba(0,0,0,.4)" stroke-width="3"/><circle cx="44" cy="44" r="30" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="2" stroke-dasharray="2 4"/><text x="44" y="52" text-anchor="middle" font-size="21" font-weight="700" fill="rgba(70,45,0,.75)">${cashValText(v)}</text></symbol>`;
-}
-const CASH_GRADS = `<radialGradient id="cg-gold" cx="35%" cy="30%"><stop offset="0" stop-color="#f7e08b"/><stop offset="1" stop-color="#b8860b"/></radialGradient><radialGradient id="cg-silver" cx="35%" cy="30%"><stop offset="0" stop-color="#f0f2f4"/><stop offset="1" stop-color="#8e979f"/></radialGradient><radialGradient id="cg-copper" cx="35%" cy="30%"><stop offset="0" stop-color="#e2a378"/><stop offset="1" stop-color="#a35a2c"/></radialGradient>`;
-const CASH_WALLET_ART = `<defs><linearGradient id="cwl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a33"/><stop offset="1" stop-color="#5f3a1e"/></linearGradient></defs><rect x="20" y="58" width="300" height="146" rx="20" fill="url(#cwl)"/><rect x="20" y="58" width="300" height="26" rx="12" fill="rgba(0,0,0,.42)"/><rect x="28" y="92" width="284" height="104" rx="14" fill="none" stroke="rgba(255,224,170,.35)" stroke-width="2" stroke-dasharray="6 5"/><rect x="150" y="128" width="170" height="56" rx="14" fill="rgba(0,0,0,.16)"/><rect x="252" y="140" width="50" height="30" rx="9" fill="#caa24a"/><circle cx="277" cy="155" r="5" fill="#8a5a33"/>`;
-
+   The art for all 155 world currencies — real denominations, real banknote
+   colors, hand-drawn motifs, real coin shapes — lives in ./cashart.js and is
+   imported lazily the first time this tab opens, so no other page or tab
+   pays for it. Each denomination is drawn once as an SVG <symbol> and
+   stamped with <use>, keeping the DOM tiny; the pop-out is pure CSS. */
+let CASH = null;
 function renderCash() {
   const box = els.walCashBox;
   const total = walBalance(wallet.tx);
@@ -571,30 +495,36 @@ function renderCash() {
     box.innerHTML = `<p class="wal-empty">${t(lang, 'walEmpty')}</p>`;
     return;
   }
-  const { out, rest } = cashSplit(wallet.cur, total);
-  const coinMax = Math.max.apply(null, (CASH_COINS[wallet.cur] || [1]));
-  const defs = [];
-  const items = [];
+  if (!CASH) {
+    box.innerHTML = `<p class="wal-empty">${t(lang, 'walCash')}…</p>`;
+    import('./cashart.js').then((m) => {
+      CASH = m;
+      globalThis.__SING_CASH = m; /* handy for tests and SMate */
+      if (walTab === 'cash') renderCash();
+    }).catch(() => { if (walTab === 'cash') box.innerHTML = `<p class="wal-empty">${t(lang, 'walEmpty')}</p>`; });
+    return;
+  }
+  const { out, rest } = CASH.splitCash(wallet.cur, total);
+  const sym = walEsc(curSymbol(wallet.cur, langOf(lang).locale));
+  const defs = [], items = [];
   let i = 0;
   for (const it of out) {
-    const id = `${wallet.cur}-${it.coin ? 'c' : 'n'}-${String(it.v).replace('.', '_')}`;
     if (it.coin) {
-      const metal = it.v >= coinMax * 0.5 ? 'gold' : it.v >= coinMax * 0.1 ? 'silver' : 'copper';
-      defs.push(cashCoinSym(id, it.v, metal));
-      items.push(`<span class="cash-coin" style="--i:${i}" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="0 0 88 88" aria-hidden="true"><use href="#cc-${id}"/></svg>${it.n > 1 ? `<i>×${it.n}</i>` : ''}</span>`);
+      defs.push(CASH.coinSVG(wallet.cur, it.v, it.idx));
+      items.push(`<span class="cash-coin" style="--i:${i}" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="${CASH.coinVB()}" aria-hidden="true"><use href="#cc-${CASH.cashId(wallet.cur, 1, it.v)}"/></svg>${it.n > 1 ? `<i>×${it.n}</i>` : ''}</span>`);
     } else {
-      defs.push(cashNoteSym(id, it.v, cashNoteColor(wallet.cur, it.idx), wallet.cur));
+      defs.push(CASH.noteSVG(wallet.cur, it.v, sym, it.idx));
       const rot = (i % 2 ? -1 : 1) * (2 + (i * 7) % 5);
-      items.push(`<span class="cash-note" style="--i:${i};--r:${rot}deg" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="0 0 240 108" aria-hidden="true"><use href="#cn-${id}"/></svg>${it.n > 1 ? `<i>×${it.n}</i>` : ''}</span>`);
+      items.push(`<span class="cash-note" style="--i:${i};--r:${rot}deg" title="${walEsc(`${it.n}× ${fmtMoney(it.v)}`)}"><svg viewBox="${CASH.noteVB(wallet.cur)}" aria-hidden="true"><use href="#cn-${CASH.cashId(wallet.cur, 0, it.v)}"/></svg>${it.n > 1 ? `<i>×${it.n}</i>` : ''}</span>`);
     }
     i++;
   }
-  const more = rest > 0.004 ? `<span class="cash-more">+${walEsc(fmtMoney(rest))}</span>` : '';
+  const more = rest > 0.0005 ? `<span class="cash-more">+${walEsc(fmtMoney(rest))}</span>` : '';
   box.innerHTML = `
   <div class="cash-scene">
-    <svg class="cash-wallet" viewBox="0 0 340 210" aria-hidden="true">${CASH_WALLET_ART}</svg>
+    <svg class="cash-wallet" viewBox="0 0 340 210" aria-hidden="true">${CASH.WALLET_ART}</svg>
     <div class="cash-tray" role="img" aria-label="${walEsc(`${t(lang, 'walCash')} · ${fmtMoney(total)}`)}">
-      <svg class="cash-defs" width="0" height="0" aria-hidden="true"><defs>${CASH_GRADS}${defs.join('')}</defs></svg>
+      <svg class="cash-defs" width="0" height="0" aria-hidden="true"><defs>${CASH.GRADS}${defs.join('')}</defs></svg>
       ${items.join('')}
       ${more}
     </div>
