@@ -248,6 +248,7 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    fareXsys: 'different systems — fares are computed within one system',
     wallet: 'Wallet', walBalance: 'Balance', walExpense: 'Expense', walIncome: 'Income',
     walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', walDays: 'Days', walReports: 'Reports',
     walSpent: 'Spent', walMonth: 'This month', walAvg: 'Daily average', walWeek: 'Last 7 days',
@@ -269,6 +270,7 @@ export const STRINGS = {
     mCard: 'Card', mCardTap: 'Hold the card against the back of the phone…', mCardNone: 'No card reader here — scanning needs a phone with NFC.', mCardSeen: 'Card recognized', mCardBal: 'Balance (NT$)', mCardNote: 'The balance lives on this device only. No website can read it from the card.',
   },
   'zh-Hant': {
+    fareXsys: '不同系統——票價僅在同一系統內計算',
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
     walAmount: '金額', walNote: '備註', walAdd: '新增', walDays: '每日', walReports: '報表',
     walSpent: '已花費', walMonth: '本月', walAvg: '日均', walWeek: '最近 7 天',
@@ -290,6 +292,7 @@ export const STRINGS = {
     mCard: '卡片', mCardTap: '將卡片貼近手機背面…', mCardNone: '此裝置沒有讀卡功能——需要具 NFC 的手機。', mCardSeen: '已辨識卡片', mCardBal: '餘額（NT$）', mCardNote: '餘額只存在此裝置。任何網站都無法從卡片讀取。',
   },
   hi: {
+    fareXsys: 'अलग-अलग सिस्टम — किराया एक ही सिस्टम में तय होता है',
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
     walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', walDays: 'दिन', walReports: 'रिपोर्ट',
     walSpent: 'ख़र्च हुआ', walMonth: 'इस माह', walAvg: 'दैनिक औसत', walWeek: 'पिछले 7 दिन',
@@ -311,6 +314,7 @@ export const STRINGS = {
     mCard: 'कार्ड', mCardTap: 'कार्ड फ़ोन की पीठ से छुएँ…', mCardNone: 'यहाँ कार्ड रीडर नहीं — स्कैन के लिए NFC वाला फ़ोन चाहिए।', mCardSeen: 'कार्ड पहचाना गया', mCardBal: 'बैलेंस (NT$)', mCardNote: 'बैलेंस सिर्फ़ इस डिवाइस पर रहता है। कोई वेबसाइट इसे कार्ड से नहीं पढ़ सकती।',
   },
   es: {
+    fareXsys: 'sistemas distintos: la tarifa se calcula dentro de un mismo sistema',
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
     walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', walDays: 'Días', walReports: 'Informes',
     walSpent: 'Gastado', walMonth: 'Este mes', walAvg: 'Media diaria', walWeek: 'Últimos 7 días',
@@ -332,6 +336,7 @@ export const STRINGS = {
     mCard: 'Tarjeta', mCardTap: 'Acerca la tarjeta al dorso del teléfono…', mCardNone: 'Aquí no hay lector: escanear requiere un teléfono con NFC.', mCardSeen: 'Tarjeta reconocida', mCardBal: 'Saldo (NT$)', mCardNote: 'El saldo vive solo en este dispositivo; ningún sitio puede leerlo de la tarjeta.',
   },
   fr: {
+    fareXsys: 'systèmes différents — le tarif se calcule dans un même système',
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
     walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', walDays: 'Jours', walReports: 'Rapports',
     walSpent: 'Dépensé', walMonth: 'Ce mois-ci', walAvg: 'Moyenne quotidienne', walWeek: '7 derniers jours',
@@ -353,6 +358,7 @@ export const STRINGS = {
     mCard: 'Carte', mCardTap: 'Colle la carte au dos du téléphone…', mCardNone: 'Pas de lecteur ici — il faut un téléphone avec NFC.', mCardSeen: 'Carte reconnue', mCardBal: 'Solde (NT$)', mCardNote: 'Le solde reste sur cet appareil; aucun site ne peut le lire depuis la carte.',
   },
   ar: {
+    fareXsys: 'نظامان مختلفان — تُحسب الأجرة داخل نظام واحد',
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
     walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', walDays: 'الأيام', walReports: 'التقارير',
     walSpent: 'أُنفق', walMonth: 'هذا الشهر', walAvg: 'المتوسط اليومي', walWeek: 'آخر 7 أيام',
@@ -374,6 +380,7 @@ export const STRINGS = {
     mCard: 'بطاقة', mCardTap: 'قرّب البطاقة من ظهر الهاتف…', mCardNone: 'لا قارئ هنا — المسح يتطلب هاتفاً فيه NFC.', mCardSeen: 'تم التعرف على البطاقة', mCardBal: 'الرصيد (NT$)', mCardNote: 'الرصيد يُحفظ على هذا الجهاز فقط؛ لا يستطيع أي موقع قراءته من البطاقة.',
   },
   bn: {
+    fareXsys: 'ভিন্ন সিস্টেম — ভাড়া একই সিস্টেমের মধ্যে হিসাব হয়',
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
     walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', walDays: 'দিন', walReports: 'রিপোর্ট',
     walSpent: 'খরচ হয়েছে', walMonth: 'এই মাস', walAvg: 'দৈনিক গড়', walWeek: 'শেষ ৭ দিন',
@@ -395,6 +402,7 @@ export const STRINGS = {
     mCard: 'কার্ড', mCardTap: 'কার্ডটি ফোনের পেছনে ধরুন…', mCardNone: 'এখানে কার্ড রিডার নেই — স্ক্যানের জন্য NFC ফোন লাগবে।', mCardSeen: 'কার্ড শনাক্ত হয়েছে', mCardBal: 'ব্যালেন্স (NT$)', mCardNote: 'ব্যালেন্স শুধু এই ডিভাইসে থাকে; কোনো ওয়েবসাইট কার্ড থেকে এটি পড়তে পারে না।',
   },
   ru: {
+    fareXsys: 'разные системы — тариф считается внутри одной системы',
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
     walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', walDays: 'Дни', walReports: 'Отчёты',
     walSpent: 'Потрачено', walMonth: 'В этом месяце', walAvg: 'Среднее в день', walWeek: 'Последние 7 дней',
@@ -416,6 +424,7 @@ export const STRINGS = {
     mCard: 'Карта', mCardTap: 'Приложите карту к спинке телефона…', mCardNone: 'Здесь нет считывателя — для скана нужен телефон с NFC.', mCardSeen: 'Карта распознана', mCardBal: 'Баланс (NT$)', mCardNote: 'Баланс хранится только на этом устройстве; сайты не могут читать его с карты.',
   },
   pt: {
+    fareXsys: 'sistemas diferentes — a tarifa é calculada dentro de um mesmo sistema',
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
     walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', walDays: 'Dias', walReports: 'Relatórios',
     walSpent: 'Gasto', walMonth: 'Este mês', walAvg: 'Média diária', walWeek: 'Últimos 7 dias',
@@ -437,6 +446,7 @@ export const STRINGS = {
     mCard: 'Cartão', mCardTap: 'Encoste o cartão na traseira do telefone…', mCardNone: 'Sem leitor aqui — a leitura exige um telefone com NFC.', mCardSeen: 'Cartão reconhecido', mCardBal: 'Saldo (NT$)', mCardNote: 'O saldo fica só neste aparelho; nenhum site consegue lê-lo do cartão.',
   },
   ur: {
+    fareXsys: 'مختلف نظام — کرایہ ایک ہی نظام کے اندر ہوتا ہے',
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
     walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', walDays: 'دن', walReports: 'رپورٹس',
     walSpent: 'خرچ ہوا', walMonth: 'اس مہینے', walAvg: 'یومیہ اوسط', walWeek: 'پچھلے 7 دن',
@@ -458,6 +468,7 @@ export const STRINGS = {
     mCard: 'کارڈ', mCardTap: 'کارڈ فون کی پشت سے لگائیں…', mCardNone: 'یہاں کوئی ریڈر نہیں — اسکین کے لیے NFC والا فون چاہیے۔', mCardSeen: 'کارڈ پہچان لیا گیا', mCardBal: 'بیلنس (NT$)', mCardNote: 'بیلنس صرف اسی ڈیوائس پر رہتا ہے؛ کوئی ویب سائٹ اسے کارڈ سے نہیں پڑھ سکتی۔',
   },
   it: {
+    fareXsys: 'sistemi diversi — la tariffa si calcola dentro lo stesso sistema',
     wallet: 'Portafoglio', walBalance: 'Saldo', walExpense: 'Spesa', walIncome: 'Entrata',
     walAmount: 'Importo', walNote: 'Nota', walAdd: 'Aggiungi', walDays: 'Giorni', walReports: 'Report',
     walSpent: 'Speso', walMonth: 'Questo mese', walAvg: 'Media giornaliera', walWeek: 'Ultimi 7 giorni',
@@ -490,6 +501,7 @@ export const STRINGS = {
     mCard: 'Carta', mCardTap: 'Avvicina la carta al retro del telefono…', mCardNone: 'Niente lettore qui — serve un telefono con NFC.', mCardSeen: 'Carta riconosciuta', mCardBal: 'Saldo (NT$)', mCardNote: 'Il saldo resta su questo dispositivo; nessun sito può leggerlo dalla carta.',
   },
   id: {
+    fareXsys: 'sistem berbeda — tarif dihitung dalam satu sistem',
     wallet: 'Dompet', walBalance: 'Saldo', walExpense: 'Pengeluaran', walIncome: 'Pemasukan',
     walAmount: 'Jumlah', walNote: 'Catatan', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan',
     walSpent: 'Terpakai', walMonth: 'Bulan ini', walAvg: 'Rata-rata harian', walWeek: '7 hari terakhir',
@@ -522,6 +534,7 @@ export const STRINGS = {
     mCard: 'Kartu', mCardTap: 'Tempelkan kartu di belakang ponsel…', mCardNone: 'Tak ada pembaca di sini — pindai butuh ponsel dengan NFC.', mCardSeen: 'Kartu dikenali', mCardBal: 'Saldo (NT$)', mCardNote: 'Saldo hanya di perangkat ini; situs mana pun tak bisa membacanya dari kartu.',
   },
   ko: {
+    fareXsys: '서로 다른 노선망 — 운임은 같은 노선망 안에서 계산됩니다',
     wallet: '지갑', walBalance: '잔액', walExpense: '지출', walIncome: '수입',
     walAmount: '금액', walNote: '메모', walAdd: '추가', walDays: '일별', walReports: '보고서',
     walSpent: '지출액', walMonth: '이번 달', walAvg: '일평균', walWeek: '최근 7일',
@@ -554,6 +567,7 @@ export const STRINGS = {
     mCard: '카드', mCardTap: '카드를 휴대폰 뒷면에 대세요…', mCardNone: '여긴 리더가 없어요 — NFC가 있는 휴대폰이 필요해요.', mCardSeen: '카드 인식됨', mCardBal: '잔액 (NT$)', mCardNote: '잔액은 이 기기에만 저장돼요. 어느 웹사이트도 카드에서 읽을 수 없어요.',
   },
   ja: {
+    fareXsys: '異なるシステム — 運賃は同一システム内で計算されます',
     wallet: 'ウォレット', walBalance: '残高', walExpense: '支出', walIncome: '収入',
     walAmount: '金額', walNote: 'メモ', walAdd: '追加', walDays: '日別', walReports: 'レポート',
     walSpent: '使用額', walMonth: '今月', walAvg: '日均値', walWeek: '過去7日間',
@@ -586,6 +600,7 @@ export const STRINGS = {
     mCard: 'カード', mCardTap: 'カードをスマホの背面に重ねて…', mCardNone: 'ここにはリーダーがありません——NFC対応のスマホが必要です。', mCardSeen: 'カードを認識しました', mCardBal: '残高（NT$）', mCardNote: '残高はこの端末の中にだけ保存されます。ウェブサイトがカードから読むことはできません。',
   },
   ms: {
+    fareXsys: 'sistem berbeza — tambang dikira dalam satu sistem',
     wallet: 'Dompet', walBalance: 'Baki', walExpense: 'Perbelanjaan', walIncome: 'Pendapatan',
     walAmount: 'Jumlah', walNote: 'Nota', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan',
     walSpent: 'Dibelanjakan', walMonth: 'Bulan ini', walAvg: 'Purata harian', walWeek: '7 hari lepas',
@@ -618,6 +633,7 @@ export const STRINGS = {
     mCard: 'Kad', mCardTap: 'Lekapkan kad di belakang telefon…', mCardNone: 'Tiada pembaca di sini — imbasan perlukan telefon dengan NFC.', mCardSeen: 'Kad dikenali', mCardBal: 'Baki (NT$)', mCardNote: 'Baki hanya dalam peranti ini; tiada laman boleh membacanya dari kad.',
   },
   de: {
+    fareXsys: 'verschiedene Systeme — der Tarif gilt innerhalb eines Systems',
     wallet: 'Geldbörse', walBalance: 'Guthaben', walExpense: 'Ausgabe', walIncome: 'Einnahme',
     walAmount: 'Betrag', walNote: 'Notiz', walAdd: 'Hinzufügen', walDays: 'Tage', walReports: 'Berichte',
     walSpent: 'Ausgegeben', walMonth: 'Dieser Monat', walAvg: 'Tagesdurchschnitt', walWeek: 'Letzte 7 Tage',
@@ -650,6 +666,7 @@ export const STRINGS = {
     mCard: 'Karte', mCardTap: 'Halte die Karte an die Rückseite des Telefons…', mCardNone: 'Kein Lesegerät hier — zum Scannen braucht es ein Telefon mit NFC.', mCardSeen: 'Karte erkannt', mCardBal: 'Guthaben (NT$)', mCardNote: 'Das Guthaben bleibt auf diesem Gerät; keine Website kann es von der Karte lesen.',
   },
   pl: {
+    fareXsys: 'różne systemy — taryfa liczona jest w obrębie jednego systemu',
     wallet: 'Portfel', walBalance: 'Saldo', walExpense: 'Wydatek', walIncome: 'Przychód',
     walAmount: 'Kwota', walNote: 'Notatka', walAdd: 'Dodaj', walDays: 'Dni', walReports: 'Raporty',
     walSpent: 'Wydano', walMonth: 'Ten miesiąc', walAvg: 'Średnia dzienna', walWeek: 'Ostatnie 7 dni',
@@ -682,6 +699,7 @@ export const STRINGS = {
     mCard: 'Karta', mCardTap: 'Przyłóż kartę do tyłu telefonu…', mCardNone: 'Tu nie ma czytnika — skan wymaga telefonu z NFC.', mCardSeen: 'Karta rozpoznana', mCardBal: 'Saldo (NT$)', mCardNote: 'Saldo zostaje na tym urządzeniu; żadna strona nie odczyta go z karty.',
   },
   da: {
+    fareXsys: 'forskellige systemer — taksten beregnes inden for ét system',
     wallet: 'Pung', walBalance: 'Saldo', walExpense: 'Udgift', walIncome: 'Indtægt',
     walAmount: 'Beløb', walNote: 'Note', walAdd: 'Tilføj', walDays: 'Dage', walReports: 'Rapporter',
     walSpent: 'Brugt', walMonth: 'Denne måned', walAvg: 'Dagsgennemsnit', walWeek: 'Seneste 7 dage',
@@ -714,6 +732,7 @@ export const STRINGS = {
     mCard: 'Kort', mCardTap: 'Hold kortet mod bagsiden af telefonen…', mCardNone: 'Ingen læser her — scanning kræver en telefon med NFC.', mCardSeen: 'Kort genkendt', mCardBal: 'Saldo (NT$)', mCardNote: 'Saldoen bor kun på denne enhed; ingen hjemmeside kan læse den fra kortet.',
   },
   nb: {
+    fareXsys: 'forskjellige systemer — prisen beregnes innen ett system',
     wallet: 'Lommebok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inntekt',
     walAmount: 'Beløp', walNote: 'Notat', walAdd: 'Legg til', walDays: 'Dager', walReports: 'Rapporter',
     walSpent: 'Brukt', walMonth: 'Denne måneden', walAvg: 'Dagsgjennomsnitt', walWeek: 'Siste 7 dager',
@@ -746,6 +765,7 @@ export const STRINGS = {
     mCard: 'Kort', mCardTap: 'Hold kortet mot baksiden av telefonen…', mCardNone: 'Ingen leser her — skanning krever en telefon med NFC.', mCardSeen: 'Kort gjenkjent', mCardBal: 'Saldo (NT$)', mCardNote: 'Saldoen bor bare på denne enheten; nettsteder kan ikke lese den fra kortet.',
   },
   sv: {
+    fareXsys: 'olika system — priset beräknas inom ett system',
     wallet: 'Plånbok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inkomst',
     walAmount: 'Belopp', walNote: 'Anteckning', walAdd: 'Lägg till', walDays: 'Dagar', walReports: 'Rapporter',
     walSpent: 'Spenderat', walMonth: 'Denna månad', walAvg: 'Dagsgenomsnitt', walWeek: 'Senaste 7 dagarna',
@@ -778,6 +798,7 @@ export const STRINGS = {
     mCard: 'Kort', mCardTap: 'Håll kortet mot baksidan av telefonen…', mCardNone: 'Ingen läsare här — skanning kräver en telefon med NFC.', mCardSeen: 'Kortet kännt igen', mCardBal: 'Saldo (NT$)', mCardNote: 'Saldot bor bara på den här enheten; ingen webbplats kan läsa det från kortet.',
   },
   fi: {
+    fareXsys: 'eri järjestelmät — hinta lasketaan saman järjestelmän sisällä',
     wallet: 'Lompakko', walBalance: 'Saldo', walExpense: 'Meno', walIncome: 'Tulo',
     walAmount: 'Summa', walNote: 'Muistiinpano', walAdd: 'Lisää', walDays: 'Päivät', walReports: 'Raportit',
     walSpent: 'Käytetty', walMonth: 'Tämä kuukausi', walAvg: 'Päiväkeskiarvo', walWeek: 'Viimeiset 7 päivää',
@@ -810,6 +831,7 @@ export const STRINGS = {
     mCard: 'Kortti', mCardTap: 'Pidä korttia puhelimen takana…', mCardNone: 'Täällä ei ole lukijaa — skannaus vaatii puhelimen, jossa on NFC.', mCardSeen: 'Kortti tunnistettu', mCardBal: 'Saldo (NT$)', mCardNote: 'Saldo on vain tällä laitteella; mikään sivusto ei voi lukea sitä kortilta.',
   },
   sr: {
+    fareXsys: 'različiti sistemi — tarifa se računa unutar jednog sistema',
     wallet: 'Novčanik', walBalance: 'Stanje', walExpense: 'Trošak', walIncome: 'Prihod',
     walAmount: 'Iznos', walNote: 'Napomena', walAdd: 'Dodaj', walDays: 'Dani', walReports: 'Izveštaji',
     walSpent: 'Potrošeno', walMonth: 'Ovaj mesec', walAvg: 'Dnevni prosek', walWeek: 'Poslednjih 7 dana',
@@ -842,6 +864,7 @@ export const STRINGS = {
     mCard: 'Kartica', mCardTap: 'Prisloni karticu na poleđinu telefona…', mCardNone: 'Ovde nema čitača — skeniranje traži telefon sa NFC.', mCardSeen: 'Kartica prepoznata', mCardBal: 'Stanje (NT$)', mCardNote: 'Stanje ostaje samo na ovom uređaju; nijedan sajt ne može da ga pročita sa kartice.',
   },
   nl: {
+    fareXsys: 'verschillende systemen — tarief geldt binnen één systeem',
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
     walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten',
     walSpent: 'Uitgegeven', walMonth: 'Deze maand', walAvg: 'Daggemiddelde', walWeek: 'Laatste 7 dagen',
@@ -874,6 +897,7 @@ export const STRINGS = {
     mCard: 'Kaart', mCardTap: 'Houd de kaart tegen de achterkant van de telefoon…', mCardNone: 'Hier is geen lezer — scannen kan alleen op een telefoon met NFC.', mCardSeen: 'Kaart herkend', mCardBal: 'Saldo (NT$)', mCardNote: 'Het saldo blijft op dit toestel; geen website kan het van de kaart lezen.',
   },
   'nl-BE': {
+    fareXsys: 'verschillende systemen — tarief geldt binnen één systeem',
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
     walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten',
     walSpent: 'Uitgegeven', walMonth: 'Deze maand', walAvg: 'Daggemiddelde', walWeek: 'Laatste 7 dagen',
@@ -906,6 +930,7 @@ export const STRINGS = {
     mCard: 'Kaart', mCardTap: 'Houd de kaart tegen de achterkant van de telefoon…', mCardNone: 'Hier is geen lezer — scannen kan alleen op een telefoon met NFC.', mCardSeen: 'Kaart herkend', mCardBal: 'Saldo (NT$)', mCardNote: 'Het saldo blijft op dit toestel; geen website kan het van de kaart lezen.',
   },
   el: {
+    fareXsys: 'διαφορετικά συστήματα — το κόμιστρο υπολογίζεται εντός ενός συστήματος',
     wallet: 'Πορτοφόλι', walBalance: 'Υπόλοιπο', walExpense: 'Έξοδο', walIncome: 'Έσοδο',
     walAmount: 'Ποσό', walNote: 'Σημείωση', walAdd: 'Προσθήκη', walDays: 'Ημέρες', walReports: 'Αναφορές',
     walSpent: 'Ξοδεύτηκαν', walMonth: 'Αυτός ο μήνας', walAvg: 'Ημερήσιος μέσος', walWeek: 'Τελευταίες 7 ημέρες',

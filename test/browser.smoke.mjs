@@ -1279,6 +1279,24 @@ ok('the same window request works in Spanish', await sq.evaluate(() => {
   return document.getElementById('mapWrap').hidden && g.dataset.layout === '2' &&
     g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
 }));
+await smSend('What is the fare from Zhongxiao Xinsheng station to Taipei Main station?');
+await sq.waitForTimeout(700);
+ok('SMate answers fare questions on the clock page (any-page fare engine)', await sq.evaluate(() => {
+  const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
+  return last.includes('NT$') && last.includes('Zhongxiao Xinsheng') && last.includes('Taipei Main');
+}));
+await smSend('從忠孝新生到台北車站票價多少？');
+await sq.waitForTimeout(700);
+ok('the same fare question works in Traditional Chinese', await sq.evaluate(() => {
+  const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
+  return last.includes('NT$') && last.includes('忠孝新生');
+}));
+await smSend('What is the fare from Taipei Main Station to Kaohsiung Main?');
+await sq.waitForTimeout(700);
+ok('cross-system fare questions get an honest one-system answer', await sq.evaluate(() => {
+  const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
+  return last.includes('different systems');
+}));
 await sq.click('#smateAI'); /* on demand */
 await sq.waitForTimeout(250);
 await smSend('blorp');
@@ -1324,6 +1342,13 @@ ok('SMate on a phone keeps the popup on-screen and shapes the window', await mq2
   return p.left >= 0 && p.right <= 375 && p.bottom <= 720 && p.width >= 300 &&
     g.dataset.layout === '2' && g.textContent.includes('Jakarta') &&
     document.documentElement.scrollWidth <= 375;
+}));
+await mq2.fill('#smateIn', 'What is the fare from Zhongxiao Xinsheng station to Taipei Main station?');
+await mq2.click('#smateSend');
+await mq2.waitForTimeout(1900);
+ok('fare questions answer on phones too', await mq2.evaluate(() => {
+  const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
+  return last.includes('NT$');
 }));
 await smc.close();
 

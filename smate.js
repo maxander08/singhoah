@@ -291,7 +291,7 @@
     zoomIn: ['zoom in', 'zoom closer', '放大', '放大', '拡大', 'acercar', 'más cerca', 'zoom avant', 'приблизь', 'укрупни', 'تكبير', 'ज़ूम इन', 'जूम इन', 'inzoomen', 'vergrößern', 'powiększ', 'ingrandisci', '확대', 'besarkan', 'μεγέθυνση'],
     zoomOut: ['zoom out', '縮小', '縮小', '縮小', 'alejar', 'dézoom', 'отдали', 'уменьши', 'تصغير', 'ज़ूम आउट', 'छोटा', 'uitzoomen', 'verkleinern', 'pomniejsz', 'rimpicciolisci', '축소', 'perkecil', 'σμίκρυνση'],
     zoomReset: ['reset zoom', 'zoom reset', 'show all', 'overview', 'fit', '全部顯示', '顯示全部', '全圖', '全图', '重設縮放', '重置缩放', 'restablecer', 'réinitialiser', 'сброс масштаба', 'сбросить масштаб', 'रीसेट ज़ूम', 'zoom zurücksetzen', 'alle anzeigen', '전체 보기', '全体表示', 'tampilkan semua'],
-    fareW: ['fare', '票價', '票价', '요금', '운임', '運賃', 'tarifa', 'tarif', 'tariffa', 'prix', 'preis', 'цена', 'тариф', 'سعر', 'قیمت', 'कीमत', 'দাম', 'harga'],
+    fareW: ['fare', '票價', '票价', '요금', '운임', '運賃', 'tarifa', 'tarif', 'tariffa', 'prix', 'preis', 'цена', 'тариф', 'سعر', 'قیمت', 'कीमत', 'দাম', 'harga', 'how much', 'cuánto', 'cuanto', 'combien', 'сколько', 'كم', 'कितना', 'কত', 'berapa', '얼마', 'いくら', '多少'],
     resync: [...words(['resync']), 'sync'],
     full: words(['full']),
     night: [...words(['night']), 'dark'],
@@ -504,6 +504,7 @@
     const bits = [t(curLang, 'timer'), t(curLang, 'stopwatch'), t(curLang, 'tzTitle'),
       t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
       t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
+      t(curLang, 'mFare'),
       t(curLang, 'wallet'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
     if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'), t(curLang, 'mSwap'), t(curLang, 'mClear'), t(curLang, 'mCard'));
     if (page === 'launch') bits.push(t(curLang, 'lpWelcomeT'));
@@ -542,6 +543,42 @@
     found.sort((a, b) => a.idx - b.idx);
     return found.map((f) => f.z);
   };
+  /* fare questions work on EVERY page: the engine is a small static
+     module (stations + graph + published fare tables), imported on
+     demand the first time a fare question arrives off the metro page */
+  let FAREMOD = null;
+  const fareMod = () => FAREMOD || (FAREMOD = import('./metrofare.js').catch(() => null));
+  const findStationAny = (F, tl) => {
+    const list = Object.values(F.ST).map((st) => ({ id: st.id, sys: st.sys, en: st.en.toLowerCase(), zh: st.zh || '', len: Math.max(st.en.length, (st.zh || '').length) }));
+    list.sort((a, b) => b.len - a.len);
+    const hits = [];
+    for (const st of list) {
+      const iE = st.en && tl.includes(st.en) ? tl.indexOf(st.en) : 1e9;
+      const iZ = st.zh && tl.includes(st.zh) ? tl.indexOf(st.zh) : 1e9;
+      const i = Math.min(iE, iZ);
+      if (i >= 1e9) continue;
+      const len = i === iE ? st.en.length : st.zh.length;
+      if (hits.some((h) => i < h.i + h.len && h.i < i + len)) continue; /* longest name wins */
+      hits.push({ i, len, id: st.id, sys: st.sys });
+    }
+    hits.sort((a, b) => a.i - b.i);
+    return hits;
+  };
+  async function fareAnywhere(rawText) {
+    const F = await fareMod();
+    if (!F) return null;
+    const hits = findStationAny(F, rawText.toLowerCase());
+    if (hits.length < 2) return null;
+    const [a, b] = hits;
+    const nm = (id) => `${F.ST[id].en} ${F.ST[id].zh}`;
+    if (a.sys !== b.sys) return `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · ${t(curLang, 'fareXsys')}`;
+    const r = F.route(a.id, b.id);
+    if (!r) return null;
+    const f = F.fare(a.sys, a.id, b.id, r);
+    if (f == null) return null;
+    return `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`;
+  }
+
   const BYW = [' by ', ' × ', '乘', ' por ', ' par ', ' на ', ' في ', ' গুণ ', ' ضرب ', ' गुणा ', ' per '];
   const layoutIntent = (text) => {
     if (has(text, KW.grid16)) return 16;
@@ -645,7 +682,10 @@
     const zoneGate = page === 'metro'
       ? (has(text, KW.tz) || has(text, KW.clock))
       : (has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3);
-    if (!has(text, KW.remove) && (lay != null || (zones.length && zoneGate))) {
+    /* a fare/station question is station talk, not window talk — let the
+       fare engine answer instead of reshaping the clock window */
+    const fareIntent = has(text, KW.fareW) || has(text, ['station', '站']);
+    if (!fareIntent && !has(text, KW.remove) && (lay != null || (zones.length && zoneGate))) {
       if (page === 'clock') {
         LIB.smateWindow(zoneGate ? zones : [], lay);
         const bits = [];
@@ -804,6 +844,9 @@
     setTimeout(async () => {
       let out = null;
       try { out = run(raw); } catch { out = null; }
+      if (!out && (has(raw.toLowerCase(), KW.fareW) || has(raw.toLowerCase(), ['station', '站']))) {
+        try { out = await fareAnywhere(raw); } catch { /* offline interpreter stays the fallback */ }
+      }
       if (!out && aiPref !== 'off') {
         if (aiState === 'on' && aiEngine) {
           setStatusText('AI …');

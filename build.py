@@ -38,13 +38,13 @@ shutil.copy(SRC / "settings.html", OUT / "settings.html")
 shutil.copy(SRC / "scribe.html", OUT / "scribe.html")
 
 # --- sibling apps: SinghoWallet + SinghoLaunch ---
-for n in ["wallet.html", "wallet.js", "launch.html", "metro.html", "metro.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
+for n in ["wallet.html", "wallet.js", "launch.html", "metro.html", "metro.js", "metrofare.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
     shutil.copy(SRC / n, OUT / n)
 
 SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js",
            "wallet.html", "wallet.js", "launch.html",
            "firebase-config.js", "auth.js", "smate.js", "settings.html", "scribe.html",
-           "metro.html", "metro.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]
+           "metro.html", "metro.js", "metrofare.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]
 # --- data-module versions: lets the metro page cache decoded geometry per
 #     content hash, so a data update invalidates the cache automatically ---
 for n in ["mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
