@@ -1307,6 +1307,14 @@ ok('fare blocks embed the real metro page in mini mode', await sq.waitForFunctio
   const f = bl && bl.querySelector('iframe.ab-frame');
   return !!f && f.src.includes('mini=1') && !!f.src.includes('a=') && !!f.src.includes('b=');
 }, null, { timeout: 5000, polling: 250 }).then(() => true).catch(() => false));
+ok('the fare mini centers the route instead of the whole network', await sq.waitForFunction(() => {
+  const f = [...document.querySelectorAll('.smate-block[data-ab="fare"] iframe.ab-frame')].pop();
+  const M = f && f.contentWindow && f.contentWindow.__METRO;
+  if (!M || !M.dbg) return false;
+  const v = M.dbg.v;
+  const a = M.ST.O07, b = M.ST.R10;
+  return !!a && !!b && v.k > 1.4 && Math.abs(v.cx - (a.x + b.x) / 2) < 120 && Math.abs(v.cy - (a.y + b.y) / 2) < 120;
+}, null, { timeout: 6000, polling: 250 }).then(() => true).catch(() => false));
 const txBefore = await sq.evaluate(() => { try { return JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { return 0; } });
 await smSend('add 12 expense');
 await sq.waitForTimeout(500);

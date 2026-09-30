@@ -526,8 +526,11 @@ function cullLabels(sc, v, g) {
     if (on) {
       const rx = sx - s._lw / 2, ry = sy - 2;
       for (const q of placed) if (rx < q.x + q.w && rx + s._lw > q.x && ry < q.y + q.h && ry + s._lh > q.y) { on = false; break; }
-      if (on) { placed.push({ x: rx, y: ry, w: s._lw, h: s._lh }); shown++; }
     }
+    /* the chosen endpoints always keep their names — a fare view must
+       show where you're going, even if the label crowd would cull them */
+    if (s.id === from || s.id === to) on = true;
+    if (on) { placed.push({ x: sx - s._lw / 2, y: sy - 2, w: s._lw, h: s._lh }); shown++; }
     if (s._lvis !== on) { s._lvis = on; tx.style.display = on ? '' : 'none'; }
   }
 }
@@ -872,6 +875,32 @@ globalThis.__METRO = {
   resetView() { fitContent(); return true; },
 };
 
+/* frame the chosen route instead of the whole network, so the mini
+   actually shows the trip you're taking (same math as fitContent) */
+function fitRoute(a, b) {
+  const r = a && b && a !== b ? route(a, b) : null;
+  const ids = r && r.path && r.path.length ? r.path : (a && b ? [a, b] : []);
+  if (!ids.length) return false;
+  const rect = els.metroSvg.getBoundingClientRect();
+  const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (const id of ids) {
+    const s = ST[id];
+    if (!s) continue;
+    minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x);
+    minY = Math.min(minY, s.y); maxY = Math.max(maxY, s.y);
+  }
+  if (!(minX <= maxX)) return false;
+  const pad = 80;
+  minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+  const v = view[sys];
+  v.k = Math.min(3, Math.max(0.9, Math.min(VB.w / (maxX - minX), (VB.w * aspect) / (maxY - minY))));
+  v.cx = (minX + maxX) / 2;
+  v.cy = (minY + maxY) / 2;
+  draw();
+  return true;
+}
+
 /* SMate Action Block mode: the page itself, embedded as a true mini —
    chrome hidden, fare pair pre-selected from the URL hash */
 if (new URLSearchParams(location.search).get('mini')) {
@@ -882,5 +911,6 @@ if (new URLSearchParams(location.search).get('mini')) {
     if (ST[a].sys !== sys) __METRO.setSys(ST[a].sys);
     __METRO.pick(a);
     if (b && ST[b]) __METRO.pick(b);
+    fitRoute(a, b);
   }
 }
