@@ -526,11 +526,8 @@ function cullLabels(sc, v, g) {
     if (on) {
       const rx = sx - s._lw / 2, ry = sy - 2;
       for (const q of placed) if (rx < q.x + q.w && rx + s._lw > q.x && ry < q.y + q.h && ry + s._lh > q.y) { on = false; break; }
+      if (on) { placed.push({ x: rx, y: ry, w: s._lw, h: s._lh }); shown++; }
     }
-    /* the chosen endpoints always keep their names — a fare view must
-       show where you're going, even if the label crowd would cull them */
-    if (s.id === from || s.id === to) on = true;
-    if (on) { placed.push({ x: sx - s._lw / 2, y: sy - 2, w: s._lw, h: s._lh }); shown++; }
     if (s._lvis !== on) { s._lvis = on; tx.style.display = on ? '' : 'none'; }
   }
 }
@@ -905,6 +902,8 @@ function fitRoute(a, b) {
    chrome hidden, fare pair pre-selected from the URL hash */
 if (new URLSearchParams(location.search).get('mini')) {
   document.body.classList.add('smmini');
+  svgRect = null;   /* chrome just vanished — the cached rect is stale */
+  measureSvg();
   const q = new URLSearchParams(location.hash.slice(1));
   const a = q.get('a'), b = q.get('b');
   if (a && ST[a]) {

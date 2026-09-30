@@ -340,6 +340,18 @@
       f.tabIndex = -1;
       f.setAttribute('loading', 'lazy');
       f.src = `metro.html?mini=1#a=${encodeURIComponent(spec.a || '')}&b=${encodeURIComponent(spec.b || '')}`;
+      /* same viewport shape as opening SinghoMetro: on the metro page read
+         the live map rect; elsewhere estimate the chrome the real page has */
+      let ar = 0.5;
+      const mw = document.querySelector('.metro-mapwrap');
+      if (mw) {
+        const r = mw.getBoundingClientRect();
+        if (r.width > 80 && r.height > 80) ar = r.height / r.width;
+      } else {
+        ar = Math.max(0.45, Math.min(1.35, (window.innerHeight - 170) / Math.max(320, window.innerWidth)));
+      }
+      f.style.width = '640px';
+      f.style.height = `${Math.round(640 * ar)}px`;
       abMount(el, f, 640);
       if (spec.row) { const row = document.createElement('p'); row.className = 'ab-sub'; row.textContent = spec.row; body.appendChild(row); }
     } else if (spec.k === 'mapnav') {

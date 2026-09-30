@@ -1369,7 +1369,7 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .smate-speak[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }
 .smate-chips { display: flex; gap: 6px; flex-wrap: wrap; align-self: flex-start; }
 /* ---- Action Blocks: live mini-UI cards for do-something requests ---- */
-.smate-block { border: 1.5px solid var(--border); border-radius: 10px; margin: 6px 0; padding: 7px 9px; background: var(--paper-2); max-width: 100%; align-self: stretch; }
+.smate-block { border: 1.5px solid var(--border); border-radius: 0; margin: 6px 0; padding: 7px 9px; background: var(--paper-2); max-width: 100%; align-self: stretch; }
 .ab-head { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; min-width: 0; }
 .ab-head strong { font-size: 12px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex: none; }
@@ -1390,7 +1390,7 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .ab-city b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab-city span { margin-left: auto; font-variant-numeric: tabular-nums; }
 /* true minis: the real components, scaled — controls stay visible but inert */
-.ab-mini { overflow: hidden; position: relative; border-radius: 8px; background: var(--paper); }
+.ab-mini { overflow: hidden; position: relative; background: var(--paper); }
 .ab-mini button, .ab-mini .cell-cap { pointer-events: none; }
 .ab-stage { transform-origin: 0 0; position: relative; }
 .ab-stage .grid { flex: none; height: 100%; }
