@@ -2813,6 +2813,12 @@ function initUI() {
       localStorage.removeItem('singhoah:pendingClear');
       clearWindow();
     }
+    /* SMate may have shaped the window from another page */
+    const pw = JSON.parse(localStorage.getItem('singhoah:pendingWin') || 'null');
+    if (pw && (Array.isArray(pw.z) || typeof pw.l === 'number')) {
+      localStorage.removeItem('singhoah:pendingWin');
+      smateWindow(Array.isArray(pw.z) ? pw.z : [], typeof pw.l === 'number' ? pw.l : null);
+    }
   } catch { /* ignore */ }
 
   let savedLang = '';

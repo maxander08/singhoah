@@ -1259,6 +1259,26 @@ ok('SMate switches the window layout', await sq.evaluate(() => document.getEleme
 await smSend('zone Taipei');
 await sq.waitForTimeout(250);
 ok('SMate changes the home time zone', await sq.evaluate(() => document.getElementById('tzLabel').textContent === 'Taipei'));
+await smSend('Set time zone window of Jakarta and Taipei, side by side'); await sq.waitForTimeout(450);
+ok('SMate builds the spoken window and does NOT open the map (Jakarta regression)', await sq.evaluate(() => {
+  const mapClosed = document.getElementById('mapWrap').hidden &&
+    document.getElementById('btnMap').getAttribute('aria-pressed') !== 'true';
+  const g = document.getElementById('grid');
+  return mapClosed && g.dataset.layout === '2' &&
+    g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
+}));
+await smSend('時區 雅加達 台北 並排'); await sq.waitForTimeout(450);
+ok('the same window request works in Traditional Chinese', await sq.evaluate(() => {
+  const g = document.getElementById('grid');
+  return document.getElementById('mapWrap').hidden && g.dataset.layout === '2' &&
+    g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
+}));
+await smSend('zona horaria de Yakarta y Taipéi, lado a lado'); await sq.waitForTimeout(450);
+ok('the same window request works in Spanish', await sq.evaluate(() => {
+  const g = document.getElementById('grid');
+  return document.getElementById('mapWrap').hidden && g.dataset.layout === '2' &&
+    g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
+}));
 await sq.click('#smateAI'); /* on demand */
 await sq.waitForTimeout(250);
 await smSend('blorp');
@@ -1274,8 +1294,38 @@ await swq.click('#smateSend');
 await swq.waitForTimeout(950);
 ok('SMate adds wallet entries from a sentence', await swq.evaluate(() =>
   document.getElementById('walBal').textContent.includes('250')));
+await swq.fill('#smateIn', 'time zone window of Jakarta and Taipei, side by side');
+await swq.click('#smateSend');
+await swq.waitForTimeout(1200);
+try { await swq.waitForURL('**/index.html', { timeout: 5000 }); } catch { /* asserted below */ }
+await swq.waitForTimeout(700);
+ok('a window request from another page survives the trip to the clock', await swq.evaluate(() => {
+  if (!location.pathname.endsWith('index.html')) return false;
+  const g = document.getElementById('grid');
+  return g.dataset.layout === '2' && g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
+}));
 await swq.close();
 await sm.close();
+
+/* --- SMate on a phone: bottom sheet fits, window request works, nothing overflows --- */
+const smc = await browser.newContext({ viewport: { width: 375, height: 720 } });
+await smc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+const mq2 = await smc.newPage();
+await mq2.goto(URL + 'index.html', { waitUntil: 'load' });
+await mq2.waitForTimeout(300);
+await mq2.click('#smateBtn');
+await mq2.waitForTimeout(200);
+await mq2.fill('#smateIn', 'Set time zone window of Jakarta and Taipei, side by side');
+await mq2.click('#smateSend');
+await mq2.waitForTimeout(1600);
+ok('SMate on a phone keeps the popup on-screen and shapes the window', await mq2.evaluate(() => {
+  const p = document.querySelector('.smate-pop').getBoundingClientRect();
+  const g = document.getElementById('grid');
+  return p.left >= 0 && p.right <= 375 && p.bottom <= 720 && p.width >= 300 &&
+    g.dataset.layout === '2' && g.textContent.includes('Jakarta') &&
+    document.documentElement.scrollWidth <= 375;
+}));
+await smc.close();
 
 /* --- SMate voice mode: fake the Web Speech API so the mic path runs end-to-end --- */
 const fakeSR = () => {

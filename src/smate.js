@@ -340,7 +340,23 @@
     for (const [re, fn] of DIGITS) s = s.replace(re, (c) => String(fn(c)));
     return s;
   };
-  const has = (text, list) => list.some((w) => text.includes(w));
+  /* latin keywords match on word boundaries — "karta" (map in several
+     languages) must never fire inside "Jakarta"; scripts without word
+     spaces (CJK etc.) keep substring matching, where partial matches are
+     how those languages work */
+  const LATINISH = /^[a-z0-9\u00C0-\u024F\u1E00-\u1EFF'\u2019 -]+$/;
+  const KW_RX = new Map();
+  const has = (text, list) => list.some((rawW) => {
+    const w = String(rawW).trim().toLowerCase();
+    if (!w) return false;
+    if (!LATINISH.test(w)) return text.includes(w);
+    let rx = KW_RX.get(w);
+    if (!rx) {
+      rx = new RegExp('(?:^|[^\\p{L}\\p{N}])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:$|[^\\p{L}\\p{N}])', 'u');
+      KW_RX.set(w, rx);
+    }
+    return rx.test(text);
+  });
   const num = (text) => {
     const m = latinDigits(text).match(/(\d+(?:[.,]\d+)?)/);
     return m ? parseFloat(m[1].replace(',', '.')) : null;
@@ -566,7 +582,7 @@
 
   /* every detectable intent runs, in one pass — compound sentences work */
   function run(raw) {
-    const text = LIB.brandFix(raw);
+    const text = LIB.brandFix(raw).toLowerCase();
     if (/^(?:hey |hi |hello |ok |okay )?smate[!?.]*$/.test(text)) return helpText();
     if (has(text, KW.help) || text === '?' || text === '؟' || text === '？') return helpText();
     const outs = [];
@@ -639,6 +655,7 @@
       } else if (page === 'settings' && zones.length) {
         note(setTz(zones[0]) ? `${t(curLang, 'tzTitle')}: ${cityOf(zones[0])}` : null);
       } else {
+        try { localStorage.setItem('singhoah:pendingWin', JSON.stringify({ z: zones, l: lay })); } catch { /* ignore */ }
         note(act.nav('clock'));
       }
     }
