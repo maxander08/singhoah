@@ -12,7 +12,7 @@
 </script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2f0e6'/%3E%3Crect x='5' y='5' width='9' height='9' rx='2' fill='%23000dff'/%3E%3Crect x='18' y='5' width='9' height='9' rx='2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Crect x='5' y='18' width='9' height='9' rx='2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Crect x='18' y='18' width='9' height='9' rx='2' fill='%23000dff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="fonts.css?v=a3522058">
-<link rel="stylesheet" href="styles.css?v=18cb8a99">
+<link rel="stylesheet" href="styles.css?v=7ce9965e">
 </head>
 <body data-app="launch">
 
@@ -86,6 +86,11 @@
       <strong>SinghoScribe · <span id="lpScribeT">Scribe</span></strong>
       <span class="lp-sub" id="lpScribeS">Live lecture transcription</span>
     </a>
+    <a class="lp-card" id="cardModule" href="module.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="15" y="14" width="7" height="7" fill="currentColor"/><path d="M11 7h6v7" stroke="currentColor" stroke-width="1.8"/></svg>
+      <strong>SinghoModule · <span id="lpModuleT">Module</span></strong>
+      <span class="lp-sub" id="lpModuleS">Visual automation, n8n style</span>
+    </a>
     <a class="lp-card" id="cardMetro" href="metro.html">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="3" width="12" height="13" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="11" r="1.1" fill="currentColor"/><circle cx="15" cy="11" r="1.1" fill="currentColor"/><path d="M8.5 16 6.5 20.5M15.5 16l2 4.5M8 20.5h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       <strong>SinghoMetro · <span id="lpMetroT">Metro</span></strong>
@@ -104,6 +109,7 @@
       <li><a href="metro.html" id="lpWelMetro"></a></li>
       <li><a href="wallet.html" id="lpWelWallet"></a></li>
       <li><a href="scribe.html" id="lpWelScribe"></a></li>
+      <li><a href="module.html" id="lpWelModule"></a></li>
       <li><a href="settings.html" id="lpWelSettings"></a></li>
     </ul>
     <button type="button" class="btn lp-start" id="lpStartBtn">Get started</button>
@@ -111,10 +117,10 @@
 </div>
 
 <script src="flags.js?v=6af46645"></script>
-<script type="module" src="app.js?v=183bba19"></script>
+<script type="module" src="app.js?v=3f3a3977"></script>
 <script src="firebase-config.js?v=6a6ebbb9"></script>
 <script type="module" src="auth.js?v=c8fcaca3"></script>
-<script type="module" src="smate.js?v=87e2fe25"></script>
+<script type="module" src="smate.js?v=06f94b6e"></script>
 <script type="module">
   const { LANGS, t, langOf, ccFlag, makeLangPicker, toSegments, anglesFromSegments,
           makeDial, allTimeZones, cityOf, flagSrc, zoneInfo, clampPop, langTitleOf } = globalThis.__SING_LIB;
@@ -246,6 +252,8 @@
     $('lpScribeS').textContent = t(lang, 'lpScribeSub');
     $('lpMetroT').textContent = t(lang, 'lpMetro');
     $('lpMetroS').textContent = t(lang, 'lpMetroSub');
+    $('lpModuleT').textContent = t(lang, 'lpModule');
+    $('lpModuleS').textContent = t(lang, 'lpModuleSub');
     $('lpWorldT').textContent = t(lang, 'lpWorld');
     $('lpWelT').textContent = t(lang, 'lpWelcomeT');
     $('lpWelS').textContent = t(lang, 'lpWelcomeS');
@@ -254,6 +262,7 @@
     $('lpWelMetro').textContent = `${t(lang, 'lpMetro')} · ${t(lang, 'lpMetroSub')}`;
     $('lpWelWallet').textContent = `${t(lang, 'wallet')} · ${t(lang, 'lpWalletSub')}`;
     $('lpWelScribe').textContent = `${t(lang, 'lpScribe')} · ${t(lang, 'lpScribeSub')}`;
+    $('lpWelModule').textContent = `${t(lang, 'lpModule')} · ${t(lang, 'lpModuleSub')}`;
     $('lpWelSettings').textContent = `${t(lang, 'settings')} · ${t(lang, 'lpSettingsSub')}`;
     renderToday();
     $('nightText').textContent = t(lang, document.documentElement.classList.contains('dark') ? 'light' : 'night');

@@ -38,11 +38,11 @@ shutil.copy(SRC / "settings.html", OUT / "settings.html")
 shutil.copy(SRC / "scribe.html", OUT / "scribe.html")
 
 # --- sibling apps: SinghoWallet + SinghoLaunch ---
-for n in ["wallet.html", "wallet.js", "cashart.js", "launch.html", "metro.html", "metro.js", "metrofare.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
+for n in ["wallet.html", "wallet.js", "cashart.js", "filesys.js", "module.html", "module.js", "launch.html", "metro.html", "metro.js", "metrofare.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
     shutil.copy(SRC / n, OUT / n)
 
 SHIPPED = ["index.html", "styles.css", "fonts.css", "app.js", "flags.js", "mapdata.js",
-           "wallet.html", "wallet.js", "launch.html",
+           "wallet.html", "wallet.js", "cashart.js", "filesys.js", "module.html", "module.js", "launch.html",
            "firebase-config.js", "auth.js", "smate.js", "settings.html", "scribe.html",
            "metro.html", "metro.js", "metrofare.js", "metrodata.js", "mt_trtc.js", "mt_ty.js", "mt_ks.js", "mt_tc.js", "mb_trtc.js", "mb_ks.js", "mb_tc.js"]
 # --- data-module versions: lets the metro page cache decoded geometry per
@@ -55,7 +55,7 @@ for n in ["mb_trtc.js", "mb_ks.js", "mb_tc.js"]:
 # --- cache-busting: version every local asset reference in the shipped HTML
 # (GitHub Pages serves max-age=600; a changed query string forces a refetch
 #  as soon as the HTML itself reloads, so deploys can never look "stuck") ---
-ASSET_RE = re.compile(r'(href|src)="(styles\.css|fonts\.css|app\.js|flags\.js|smate\.js|auth\.js|firebase-config\.js|wallet\.js|metro\.js|mapdata\.js|metrodata\.js)"')
+ASSET_RE = re.compile(r'(href|src)="(styles\.css|fonts\.css|app\.js|flags\.js|smate\.js|auth\.js|firebase-config\.js|wallet\.js|metro\.js|mapdata\.js|metrodata\.js|module\.js|filesys\.js)"')
 for html in [n for n in SHIPPED if n.endswith('.html')]:
     txt = (OUT / html).read_text(encoding='utf8')
     def bump(m):

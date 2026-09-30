@@ -250,7 +250,7 @@ export const STRINGS = {
   en: {
     fareXsys: 'different systems — fares are computed within one system',
     wallet: 'Wallet', walBalance: 'Balance', walExpense: 'Expense', walIncome: 'Income',
-    walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', walDays: 'Days', walReports: 'Reports', walCash: 'Cash',
+    walAmount: 'Amount', walNote: 'Note', walAdd: 'Add', mAdd: 'Add', zoomIn: 'Zoom in', zoomOut: 'Zoom out', walDays: 'Days', walReports: 'Reports', walCash: 'Cash', lpModule:'Module',lpModuleSub:'Visual automation, n8n style',flFiles:'Files',flNew:'New',flOpen:'Open',flRename:'Rename',flDuplicate:'Duplicate',flDelete:'Delete',flExport:'Export',flImport:'Import',flUpdated:'Edited',flEmpty:'No documents yet',flSearch:'Search',flConfirm:'Delete for good?',flUntitledNote:'Untitled note',flUntitledFlow:'Untitled flow',mRun:'Run',mGrid:'Grid',mText:'Text',mMarkdown:'Markdown',mOutput:'Output',mResult:'Result',encPlain:'Plain',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'HTML entities',encRot:'ROT13',
     walSpent: 'Spent', walMonth: 'This month', walAvg: 'Daily average', walWeek: 'Last 7 days',
     walTop: 'Largest expense', pDay: 'Day', pWeek: 'Week', pMonth: 'Month', pSem: 'Semester', pYear: 'Year', pDec: 'Decade', walNet: 'Net', walEmpty: 'No transactions yet', walCurrency: 'Currency symbol', walDelete: 'Delete entry', walCurSearch: 'Search currencies…', launchpad: 'Launchpad', lpClock: 'Clock', lpClockSub: 'Drift-corrected world clock', lpWalletSub: 'Balance, daily spending & reports',
     date: 'Date', time: 'Time', window: 'Window', light: 'Light', night: 'Night Shift',
@@ -272,7 +272,7 @@ export const STRINGS = {
   'zh-Hant': {
     fareXsys: '不同系統——票價僅在同一系統內計算',
     wallet: '錢包', walBalance: '餘額', walExpense: '支出', walIncome: '收入',
-    walAmount: '金額', walNote: '備註', walAdd: '新增', walDays: '每日', walReports: '報表', walCash: '現金',
+    walAmount: '金額', walNote: '備註', walAdd: '新增', mAdd: '新增', zoomIn: '放大', zoomOut: '縮小', walDays: '每日', walReports: '報表', walCash: '現金', lpModule:'模組',lpModuleSub:'視覺化自動化流程',flFiles:'檔案',flNew:'新增',flOpen:'開啟',flRename:'重新命名',flDuplicate:'建立副本',flDelete:'刪除',flExport:'匯出',flImport:'匯入',flUpdated:'已編輯',flEmpty:'還沒有任何文件',flSearch:'搜尋',flConfirm:'確定要刪除嗎？',flUntitledNote:'未命名筆記',flUntitledFlow:'未命名流程',mRun:'執行',mGrid:'網格',mText:'文字',mMarkdown:'標記',mOutput:'輸出',mResult:'結果',encPlain:'純文字',encB64:'Base64',encUrl:'URL',encHex:'十六進位',encUni:'Unicode',encEnt:'HTML 實體',encRot:'ROT13',
     walSpent: '已花費', walMonth: '本月', walAvg: '日均', walWeek: '最近 7 天',
     walTop: '最大支出', pDay: '日', pWeek: '週', pMonth: '月', pSem: '學期', pYear: '年', pDec: '十年', walNet: '淨額', walEmpty: '尚無交易', walCurrency: '貨幣符號', walDelete: '刪除項目', walCurSearch: '搜尋貨幣…', launchpad: '啟動台', lpClock: '時鐘', lpClockSub: '漂移校正世界時鐘', lpWalletSub: '餘額、每日花費與報表',
     date: '日期', time: '時間', window: '視窗', light: '淺色', night: '夜間模式',
@@ -294,7 +294,7 @@ export const STRINGS = {
   hi: {
     fareXsys: 'अलग-अलग सिस्टम — किराया एक ही सिस्टम में तय होता है',
     wallet: 'वॉलेट', walBalance: 'बैलेंस', walExpense: 'ख़र्च', walIncome: 'आय',
-    walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', walDays: 'दिन', walReports: 'रिपोर्ट', walCash: 'नकद',
+    walAmount: 'राशि', walNote: 'नोट', walAdd: 'जोड़ें', mAdd: 'जोड़ें', zoomIn: 'ज़ूम इन', zoomOut: 'ज़ूम आउट', walDays: 'दिन', walReports: 'रिपोर्ट', walCash: 'नकद', lpModule:'मॉड्यूल',lpModuleSub:'विज़ुअल ऑटोमेशन फ़्लो',flFiles:'फ़ाइलें',flNew:'नया',flOpen:'खोलें',flRename:'नाम बदलें',flDuplicate:'प्रतिलिपि',flDelete:'हटाएँ',flExport:'निर्यात',flImport:'आयात',flUpdated:'संपादित',flEmpty:'अभी कोई दस्तावेज़ नहीं',flSearch:'खोजें',flConfirm:'हमेशा के लिए हटाएँ?',flUntitledNote:'शीर्षकहीन नोट',flUntitledFlow:'शीर्षकहीन फ़्लो',mRun:'चलाएँ',mGrid:'ग्रिड',mText:'पाठ',mMarkdown:'मार्कडाउन',mOutput:'आउटपुट',mResult:'परिणाम',encPlain:'सादा',encB64:'Base64',encUrl:'URL',encHex:'हेक्स',encUni:'यूनिकोड',encEnt:'HTML एंटिटी',encRot:'ROT13',
     walSpent: 'ख़र्च हुआ', walMonth: 'इस माह', walAvg: 'दैनिक औसत', walWeek: 'पिछले 7 दिन',
     walTop: 'सबसे बड़ा ख़र्च', pDay: 'दिन', pWeek: 'सप्ताह', pMonth: 'महीना', pSem: 'सेमेस्टर', pYear: 'वर्ष', pDec: 'दशक', walNet: 'शुद्ध', walEmpty: 'अभी कोई लेन-देन नहीं', walCurrency: 'मुद्रा चिन्ह', walDelete: 'हटाएँ', walCurSearch: 'मुद्राएँ खोजें…', launchpad: 'लॉन्चपैड', lpClock: 'घड़ी', lpClockSub: 'ड्रिफ्ट-सुधारी विश्व घड़ी', lpWalletSub: 'बैलेंस, दैनिक ख़र्च और रिपोर्ट',
     date: 'तिथि', time: 'समय', window: 'विंडो', light: 'लाइट', night: 'नाइट शिफ्ट',
@@ -316,7 +316,7 @@ export const STRINGS = {
   es: {
     fareXsys: 'sistemas distintos: la tarifa se calcula dentro de un mismo sistema',
     wallet: 'Cartera', walBalance: 'Saldo', walExpense: 'Gasto', walIncome: 'Ingreso',
-    walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', walDays: 'Días', walReports: 'Informes', walCash: 'Efectivo',
+    walAmount: 'Importe', walNote: 'Nota', walAdd: 'Añadir', mAdd: 'Añadir', zoomIn: 'Acercar', zoomOut: 'Alejar', walDays: 'Días', walReports: 'Informes', walCash: 'Efectivo', lpModule:'Módulo',lpModuleSub:'Automatización visual estilo n8n',flFiles:'Archivos',flNew:'Nuevo',flOpen:'Abrir',flRename:'Cambiar nombre',flDuplicate:'Duplicar',flDelete:'Eliminar',flExport:'Exportar',flImport:'Importar',flUpdated:'Editado',flEmpty:'Aún no hay documentos',flSearch:'Buscar',flConfirm:'¿Eliminar para siempre?',flUntitledNote:'Nota sin título',flUntitledFlow:'Flujo sin título',mRun:'Ejecutar',mGrid:'Cuadrícula',mText:'Texto',mMarkdown:'Markdown',mOutput:'Salida',mResult:'Resultado',encPlain:'Sin formato',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'Entidades HTML',encRot:'ROT13',
     walSpent: 'Gastado', walMonth: 'Este mes', walAvg: 'Media diaria', walWeek: 'Últimos 7 días',
     walTop: 'Mayor gasto', pDay: 'Día', pWeek: 'Semana', pMonth: 'Mes', pSem: 'Semestre', pYear: 'Año', pDec: 'Década', walNet: 'Neto', walEmpty: 'Sin movimientos aún', walCurrency: 'Símbolo de moneda', walDelete: 'Eliminar entrada', walCurSearch: 'Buscar divisas…', launchpad: 'Launchpad', lpClock: 'Reloj', lpClockSub: 'Reloj mundial con deriva corregida', lpWalletSub: 'Saldo, gasto diario e informes',
     date: 'Fecha', time: 'Hora', window: 'Ventana', light: 'Claro', night: 'Turno de noche',
@@ -338,7 +338,7 @@ export const STRINGS = {
   fr: {
     fareXsys: 'systèmes différents — le tarif se calcule dans un même système',
     wallet: 'Portefeuille', walBalance: 'Solde', walExpense: 'Dépense', walIncome: 'Revenu',
-    walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', walDays: 'Jours', walReports: 'Rapports', walCash: 'Espèces',
+    walAmount: 'Montant', walNote: 'Note', walAdd: 'Ajouter', mAdd: 'Ajouter', zoomIn: 'Zoom avant', zoomOut: 'Zoom arrière', walDays: 'Jours', walReports: 'Rapports', walCash: 'Espèces', lpModule:'Module',lpModuleSub:'Automatisation visuelle style n8n',flFiles:'Fichiers',flNew:'Nouveau',flOpen:'Ouvrir',flRename:'Renommer',flDuplicate:'Dupliquer',flDelete:'Supprimer',flExport:'Exporter',flImport:'Importer',flUpdated:'Modifié',flEmpty:'Aucun document pour le moment',flSearch:'Rechercher',flConfirm:'Supprimer définitivement ?',flUntitledNote:'Note sans titre',flUntitledFlow:'Flux sans titre',mRun:'Exécuter',mGrid:'Grille',mText:'Texte',mMarkdown:'Markdown',mOutput:'Sortie',mResult:'Résultat',encPlain:'Brut',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'Entités HTML',encRot:'ROT13',
     walSpent: 'Dépensé', walMonth: 'Ce mois-ci', walAvg: 'Moyenne quotidienne', walWeek: '7 derniers jours',
     walTop: 'Plus grosse dépense', pDay: 'Jour', pWeek: 'Semaine', pMonth: 'Mois', pSem: 'Semestre', pYear: 'Année', pDec: 'Décennie', walNet: 'Net', walEmpty: 'Aucune transaction', walCurrency: 'Symbole de devise', walDelete: 'Supprimer l’entrée', walCurSearch: 'Rechercher une devise…', launchpad: 'Launchpad', lpClock: 'Horloge', lpClockSub: 'Horloge mondiale corrigée de la dérive', lpWalletSub: 'Solde, dépenses du jour et rapports',
     date: 'Date', time: 'Heure', window: 'Fenêtre', light: 'Clair', night: 'Mode nuit',
@@ -360,7 +360,7 @@ export const STRINGS = {
   ar: {
     fareXsys: 'نظامان مختلفان — تُحسب الأجرة داخل نظام واحد',
     wallet: 'المحفظة', walBalance: 'الرصيد', walExpense: 'مصروف', walIncome: 'دخل',
-    walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', walDays: 'الأيام', walReports: 'التقارير', walCash: 'نقد',
+    walAmount: 'المبلغ', walNote: 'ملاحظة', walAdd: 'أضف', mAdd: 'أضف', zoomIn: 'تكبير', zoomOut: 'تصغير', walDays: 'الأيام', walReports: 'التقارير', walCash: 'نقد', lpModule:'الوحدة',lpModuleSub:'أتمتة مرئية بأسلوب n8n',flFiles:'الملفات',flNew:'جديد',flOpen:'فتح',flRename:'إعادة تسمية',flDuplicate:'تكرار',flDelete:'حذف',flExport:'تصدير',flImport:'استيراد',flUpdated:'تم التحرير',flEmpty:'لا مستندات بعد',flSearch:'بحث',flConfirm:'حذف نهائيًا؟',flUntitledNote:'ملاحظة بدون عنوان',flUntitledFlow:'تدفق بدون عنوان',mRun:'تشغيل',mGrid:'الشبكة',mText:'نص',mMarkdown:'ماركداون',mOutput:'إخراج',mResult:'النتيجة',encPlain:'عادي',encB64:'Base64',encUrl:'URL',encHex:'سداسي',encUni:'يونيكود',encEnt:'كيانات HTML',encRot:'ROT13',
     walSpent: 'أُنفق', walMonth: 'هذا الشهر', walAvg: 'المتوسط اليومي', walWeek: 'آخر 7 أيام',
     walTop: 'أكبر مصروف', pDay: 'يوم', pWeek: 'أسبوع', pMonth: 'شهر', pSem: 'فصل دراسي', pYear: 'سنة', pDec: 'عقد', walNet: 'الصافي', walEmpty: 'لا معاملات بعد', walCurrency: 'رمز العملة', walDelete: 'حذف الإدخال', walCurSearch: 'ابحث عن العملات…', launchpad: 'منصة الإطلاق', lpClock: 'الساعة', lpClockSub: 'ساعة عالمية مصحَّحة الانحراف', lpWalletSub: 'الرصيد والمصروفات اليومية والتقارير',
     date: 'التاريخ', time: 'الوقت', window: 'نافذة', light: 'فاتح', night: 'الوضع الليلي',
@@ -382,7 +382,7 @@ export const STRINGS = {
   bn: {
     fareXsys: 'ভিন্ন সিস্টেম — ভাড়া একই সিস্টেমের মধ্যে হিসাব হয়',
     wallet: 'ওয়ালেট', walBalance: 'ব্যালেন্স', walExpense: 'খরচ', walIncome: 'আয়',
-    walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', walDays: 'দিন', walReports: 'রিপোর্ট', walCash: 'নগদ',
+    walAmount: 'পরিমাণ', walNote: 'নোট', walAdd: 'যোগ', mAdd: 'যোগ', zoomIn: 'জুম ইন', zoomOut: 'জুম আউট', walDays: 'দিন', walReports: 'রিপোর্ট', walCash: 'নগদ', lpModule:'মডিউল',lpModuleSub:'n8n-স্টাইল ভিজ্যুয়াল অটোমেশন',flFiles:'ফাইল',flNew:'নতুন',flOpen:'খুলুন',flRename:'নাম বদলান',flDuplicate:'ডুপ্লিকেট',flDelete:'মুছুন',flExport:'এক্সপোর্ট',flImport:'ইমপোর্ট',flUpdated:'সম্পাদিত',flEmpty:'এখনও কোনো ডকুমেন্ট নেই',flSearch:'খুঁজুন',flConfirm:'চিরতরে মুছবেন?',flUntitledNote:'শিরোনামহীন নোট',flUntitledFlow:'শিরোনামহীন ফ্লো',mRun:'চালান',mGrid:'গ্রিড',mText:'টেক্সট',mMarkdown:'মার্কডাউন',mOutput:'আউটপুট',mResult:'ফলাফল',encPlain:'সাধারণ',encB64:'Base64',encUrl:'URL',encHex:'হেক্স',encUni:'ইউনিকোড',encEnt:'HTML এনটিটি',encRot:'ROT13',
     walSpent: 'খরচ হয়েছে', walMonth: 'এই মাস', walAvg: 'দৈনিক গড়', walWeek: 'শেষ ৭ দিন',
     walTop: 'সবচেয়ে বড় খরচ', pDay: 'দিন', pWeek: 'সপ্তাহ', pMonth: 'মাস', pSem: 'সেমিস্টার', pYear: 'বছর', pDec: 'দশক', walNet: 'নিট', walEmpty: 'এখনও কোনো লেনদেন নেই', walCurrency: 'মুদ্রা চিহ্ন', walDelete: 'মুছুন', walCurSearch: 'মুদ্রা খুঁজুন…', launchpad: 'লঞ্চপ্যাড', lpClock: 'ঘড়ি', lpClockSub: 'ড্রিফট-সংশোধিত বিশ্বঘড়ি', lpWalletSub: 'ব্যালেন্স, দৈনিক খরচ ও রিপোর্ট',
     date: 'তারিখ', time: 'সময়', window: 'উইন্ডো', light: 'লাইট', night: 'নাইট শিফ্ট',
@@ -404,7 +404,7 @@ export const STRINGS = {
   ru: {
     fareXsys: 'разные системы — тариф считается внутри одной системы',
     wallet: 'Кошелёк', walBalance: 'Баланс', walExpense: 'Расход', walIncome: 'Доход',
-    walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', walDays: 'Дни', walReports: 'Отчёты', walCash: 'Наличные',
+    walAmount: 'Сумма', walNote: 'Заметка', walAdd: 'Добавить', mAdd: 'Добавить', zoomIn: 'Приблизить', zoomOut: 'Отдалить', walDays: 'Дни', walReports: 'Отчёты', walCash: 'Наличные', lpModule:'Модуль',lpModuleSub:'Визуальная автоматизация в стиле n8n',flFiles:'Файлы',flNew:'Создать',flOpen:'Открыть',flRename:'Переименовать',flDuplicate:'Дублировать',flDelete:'Удалить',flExport:'Экспорт',flImport:'Импорт',flUpdated:'Изменён',flEmpty:'Документов пока нет',flSearch:'Поиск',flConfirm:'Удалить навсегда?',flUntitledNote:'Безымянная заметка',flUntitledFlow:'Безымянный поток',mRun:'Запустить',mGrid:'Сетка',mText:'Текст',mMarkdown:'Маркдаун',mOutput:'Вывод',mResult:'Результат',encPlain:'Как есть',encB64:'Base64',encUrl:'URL',encHex:'Хекс',encUni:'Юникод',encEnt:'HTML-сущности',encRot:'ROT13',
     walSpent: 'Потрачено', walMonth: 'В этом месяце', walAvg: 'Среднее в день', walWeek: 'Последние 7 дней',
     walTop: 'Крупнейшая трата', pDay: 'День', pWeek: 'Неделя', pMonth: 'Месяц', pSem: 'Семестр', pYear: 'Год', pDec: 'Десятилетие', walNet: 'Нетто', walEmpty: 'Пока нет операций', walCurrency: 'Символ валюты', walDelete: 'Удалить запись', walCurSearch: 'Поиск валюты…', launchpad: 'Лаунчпад', lpClock: 'Часы', lpClockSub: 'Всемирные часы с коррекцией дрейфа', lpWalletSub: 'Баланс, расходы по дням и отчёты',
     date: 'Дата', time: 'Время', window: 'Окно', light: 'Светлая', night: 'Ночной режим',
@@ -426,7 +426,7 @@ export const STRINGS = {
   pt: {
     fareXsys: 'sistemas diferentes — a tarifa é calculada dentro de um mesmo sistema',
     wallet: 'Carteira', walBalance: 'Saldo', walExpense: 'Despesa', walIncome: 'Receita',
-    walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', walDays: 'Dias', walReports: 'Relatórios', walCash: 'Dinheiro',
+    walAmount: 'Valor', walNote: 'Nota', walAdd: 'Adicionar', mAdd: 'Adicionar', zoomIn: 'Aproximar', zoomOut: 'Afastar', walDays: 'Dias', walReports: 'Relatórios', walCash: 'Dinheiro', lpModule:'Módulo',lpModuleSub:'Automação visual estilo n8n',flFiles:'Arquivos',flNew:'Novo',flOpen:'Abrir',flRename:'Renomear',flDuplicate:'Duplicar',flDelete:'Excluir',flExport:'Exportar',flImport:'Importar',flUpdated:'Editado',flEmpty:'Ainda sem documentos',flSearch:'Pesquisar',flConfirm:'Excluir para sempre?',flUntitledNote:'Nota sem título',flUntitledFlow:'Fluxo sem título',mRun:'Executar',mGrid:'Grade',mText:'Texto',mMarkdown:'Markdown',mOutput:'Saída',mResult:'Resultado',encPlain:'Simples',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'Entidades HTML',encRot:'ROT13',
     walSpent: 'Gasto', walMonth: 'Este mês', walAvg: 'Média diária', walWeek: 'Últimos 7 dias',
     walTop: 'Maior gasto', pDay: 'Dia', pWeek: 'Semana', pMonth: 'Mês', pSem: 'Semestre', pYear: 'Ano', pDec: 'Década', walNet: 'Líquido', walEmpty: 'Sem transações ainda', walCurrency: 'Símbolo de moeda', walDelete: 'Excluir entrada', walCurSearch: 'Buscar moedas…', launchpad: 'Launchpad', lpClock: 'Relógio', lpClockSub: 'Relógio mundial com deriva corrigida', lpWalletSub: 'Saldo, gastos diários e relatórios',
     date: 'Data', time: 'Hora', window: 'Janela', light: 'Claro', night: 'Modo noturno',
@@ -448,7 +448,7 @@ export const STRINGS = {
   ur: {
     fareXsys: 'مختلف نظام — کرایہ ایک ہی نظام کے اندر ہوتا ہے',
     wallet: 'والٹ', walBalance: 'بیلنس', walExpense: 'خرچ', walIncome: 'آمدنی',
-    walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', walDays: 'دن', walReports: 'رپورٹس', walCash: 'نقد',
+    walAmount: 'رقم', walNote: 'نوٹ', walAdd: 'شامل کریں', mAdd: 'شامل کریں', zoomIn: 'زوم اِن', zoomOut: 'زوم آؤٹ', walDays: 'دن', walReports: 'رپورٹس', walCash: 'نقد', lpModule:'ماڈیول',lpModuleSub:'n8n طرز کی بصری آٹومیشن',flFiles:'فائلیں',flNew:'نیا',flOpen:'کھولیں',flRename:'نام بدلیں',flDuplicate:'نقل',flDelete:'حذف کریں',flExport:'برآمد',flImport:'درآمد',flUpdated:'ترمیم شدہ',flEmpty:'ابھی کوئی دستاویز نہیں',flSearch:'تلاش',flConfirm:'ہمیشہ کے لیے حذف؟',flUntitledNote:'بلا عنوان نوٹ',flUntitledFlow:'بلا عنوان فلو',mRun:'چلائیں',mGrid:'گرڈ',mText:'متن',mMarkdown:'مارک ڈاؤن',mOutput:'آؤٹ پٹ',mResult:'نتیجہ',encPlain:'سادہ',encB64:'Base64',encUrl:'URL',encHex:'ہیکس',encUni:'یونی کوڈ',encEnt:'HTML انٹیٹی',encRot:'ROT13',
     walSpent: 'خرچ ہوا', walMonth: 'اس مہینے', walAvg: 'یومیہ اوسط', walWeek: 'پچھلے 7 دن',
     walTop: 'سب سے بڑا خرچ', pDay: 'دن', pWeek: 'ہفتہ', pMonth: 'مہینہ', pSem: 'سیمسٹر', pYear: 'سال', pDec: 'دہائی', walNet: 'خالص', walEmpty: 'ابھی کوئی لین دین نہیں', walCurrency: 'کرنسی کا نشان', walDelete: 'اندراج حذف کریں', walCurSearch: 'کرنسی تلاش کریں…', launchpad: 'لائنچ پیڈ', lpClock: 'گھڑی', lpClockSub: 'ڈرفٹ درست شدہ عالمی گھڑی', lpWalletSub: 'بیلنس، یومیہ خرچ اور رپورٹس',
     date: 'تاریخ', time: 'وقت', window: 'ونڈو', light: 'ہلکا', night: 'نائٹ موڈ',
@@ -470,7 +470,7 @@ export const STRINGS = {
   it: {
     fareXsys: 'sistemi diversi — la tariffa si calcola dentro lo stesso sistema',
     wallet: 'Portafoglio', walBalance: 'Saldo', walExpense: 'Spesa', walIncome: 'Entrata',
-    walAmount: 'Importo', walNote: 'Nota', walAdd: 'Aggiungi', walDays: 'Giorni', walReports: 'Report', walCash: 'Contanti',
+    walAmount: 'Importo', walNote: 'Nota', walAdd: 'Aggiungi', mAdd: 'Aggiungi', zoomIn: 'Ingrandisci', zoomOut: 'Riduci', walDays: 'Giorni', walReports: 'Report', walCash: 'Contanti', lpModule:'Modulo',lpModuleSub:'Automazione visuale stile n8n',flFiles:'File',flNew:'Nuovo',flOpen:'Apri',flRename:'Rinomina',flDuplicate:'Duplica',flDelete:'Elimina',flExport:'Esporta',flImport:'Importa',flUpdated:'Modificato',flEmpty:'Ancora nessun documento',flSearch:'Cerca',flConfirm:'Eliminare per sempre?',flUntitledNote:'Nota senza titolo',flUntitledFlow:'Flusso senza titolo',mRun:'Esegui',mGrid:'Griglia',mText:'Testo',mMarkdown:'Markdown',mOutput:'Output',mResult:'Risultato',encPlain:'Normale',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'Entità HTML',encRot:'ROT13',
     walSpent: 'Speso', walMonth: 'Questo mese', walAvg: 'Media giornaliera', walWeek: 'Ultimi 7 giorni',
     walTop: 'Spesa maggiore', pDay: 'Giorno', pWeek: 'Settimana', pMonth: 'Mese', pSem: 'Semestre', pYear: 'Anno', pDec: 'Decennio', walNet: 'Netto', walEmpty: 'Nessuna transazione', walCurrency: 'Simbolo valuta', walDelete: 'Elimina voce', walCurSearch: 'Cerca valute…', launchpad: 'Launchpad', lpClock: 'Orologio', lpClockSub: 'Orologio mondiale corretto dalla deriva', lpWalletSub: 'Saldo, spese giornaliere e report',
     date: 'Data', time: 'Ora', window: 'Finestra', light: 'Chiaro', night: 'Notte',
@@ -503,7 +503,7 @@ export const STRINGS = {
   id: {
     fareXsys: 'sistem berbeda — tarif dihitung dalam satu sistem',
     wallet: 'Dompet', walBalance: 'Saldo', walExpense: 'Pengeluaran', walIncome: 'Pemasukan',
-    walAmount: 'Jumlah', walNote: 'Catatan', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan', walCash: 'Tunai',
+    walAmount: 'Jumlah', walNote: 'Catatan', walAdd: 'Tambah', mAdd: 'Tambah', zoomIn: 'Perbesar', zoomOut: 'Perkecil', walDays: 'Hari', walReports: 'Laporan', walCash: 'Tunai', lpModule:'Modul',lpModuleSub:'Otomasi visual gaya n8n',flFiles:'Berkas',flNew:'Baru',flOpen:'Buka',flRename:'Ganti nama',flDuplicate:'Duplikat',flDelete:'Hapus',flExport:'Ekspor',flImport:'Impor',flUpdated:'Diedit',flEmpty:'Belum ada dokumen',flSearch:'Cari',flConfirm:'Hapus permanen?',flUntitledNote:'Catatan tanpa judul',flUntitledFlow:'Alur tanpa judul',mRun:'Jalankan',mGrid:'Kisi',mText:'Teks',mMarkdown:'Markdown',mOutput:'Keluaran',mResult:'Hasil',encPlain:'Polos',encB64:'Base64',encUrl:'URL',encHex:'Heks',encUni:'Unicode',encEnt:'Entitas HTML',encRot:'ROT13',
     walSpent: 'Terpakai', walMonth: 'Bulan ini', walAvg: 'Rata-rata harian', walWeek: '7 hari terakhir',
     walTop: 'Pengeluaran terbesar', pDay: 'Hari', pWeek: 'Minggu', pMonth: 'Bulan', pSem: 'Semester', pYear: 'Tahun', pDec: 'Dasawarsa', walNet: 'Bersih', walEmpty: 'Belum ada transaksi', walCurrency: 'Simbol mata uang', walDelete: 'Hapus entri', walCurSearch: 'Cari mata uang…', launchpad: 'Launchpad', lpClock: 'Jam', lpClockSub: 'Jam dunia terkoreksi drift', lpWalletSub: 'Saldo, pengeluaran harian & laporan',
     date: 'Tanggal', time: 'Waktu', window: 'Jendela', light: 'Terang', night: 'Mode Malam',
@@ -536,7 +536,7 @@ export const STRINGS = {
   ko: {
     fareXsys: '서로 다른 노선망 — 운임은 같은 노선망 안에서 계산됩니다',
     wallet: '지갑', walBalance: '잔액', walExpense: '지출', walIncome: '수입',
-    walAmount: '금액', walNote: '메모', walAdd: '추가', walDays: '일별', walReports: '보고서', walCash: '현금',
+    walAmount: '금액', walNote: '메모', walAdd: '추가', mAdd: '추가', zoomIn: '확대', zoomOut: '축소', walDays: '일별', walReports: '보고서', walCash: '현금', lpModule:'모듈',lpModuleSub:'n8n 방식의 시각 자동화',flFiles:'파일',flNew:'새로 만들기',flOpen:'열기',flRename:'이름 바꾸기',flDuplicate:'복제',flDelete:'삭제',flExport:'내보내기',flImport:'가져오기',flUpdated:'편집됨',flEmpty:'아직 문서가 없습니다',flSearch:'검색',flConfirm:'영구 삭제할까요?',flUntitledNote:'제목 없는 노트',flUntitledFlow:'제목 없는 흐름',mRun:'실행',mGrid:'격자',mText:'텍스트',mMarkdown:'마크다운',mOutput:'출력',mResult:'결과',encPlain:'일반 텍스트',encB64:'Base64',encUrl:'URL',encHex:'헥스',encUni:'유니코드',encEnt:'HTML 엔티티',encRot:'ROT13',
     walSpent: '지출액', walMonth: '이번 달', walAvg: '일평균', walWeek: '최근 7일',
     walTop: '최대 지출', pDay: '일', pWeek: '주', pMonth: '월', pSem: '학기', pYear: '년', pDec: '10년', walNet: '순액', walEmpty: '아직 거래가 없어요', walCurrency: '통화 기호', walDelete: '항목 삭제', walCurSearch: '통화 검색…', launchpad: '런치패드', lpClock: '시계', lpClockSub: '오차 보정 월드클락', lpWalletSub: '잔액, 일별 지출 & 보고서',
     date: '날짜', time: '시간', window: '화면', light: '라이트', night: '나이트 시프트',
@@ -569,7 +569,7 @@ export const STRINGS = {
   ja: {
     fareXsys: '異なるシステム — 運賃は同一システム内で計算されます',
     wallet: 'ウォレット', walBalance: '残高', walExpense: '支出', walIncome: '収入',
-    walAmount: '金額', walNote: 'メモ', walAdd: '追加', walDays: '日別', walReports: 'レポート', walCash: '現金',
+    walAmount: '金額', walNote: 'メモ', walAdd: '追加', mAdd: '追加', zoomIn: '拡大', zoomOut: '縮小', walDays: '日別', walReports: 'レポート', walCash: '現金', lpModule:'モジュール',lpModuleSub:'n8nスタイルのビジュアル自動化',flFiles:'ファイル',flNew:'新規',flOpen:'開く',flRename:'名前を変更',flDuplicate:'複製',flDelete:'削除',flExport:'書き出し',flImport:'読み込み',flUpdated:'編集済み',flEmpty:'まだドキュメントがありません',flSearch:'検索',flConfirm:'完全に削除しますか？',flUntitledNote:'無題のノート',flUntitledFlow:'無題のフロー',mRun:'実行',mGrid:'グリッド',mText:'テキスト',mMarkdown:'マークダウン',mOutput:'出力',mResult:'結果',encPlain:'そのまま',encB64:'Base64',encUrl:'URL',encHex:'16進数',encUni:'Unicode',encEnt:'HTMLエンティティ',encRot:'ROT13',
     walSpent: '使用額', walMonth: '今月', walAvg: '日均値', walWeek: '過去7日間',
     walTop: '最大の支出', pDay: '日', pWeek: '週', pMonth: '月', pSem: '学期', pYear: '年', pDec: '10年', walNet: '純額', walEmpty: 'まだ取引がありません', walCurrency: '通貨記号', walDelete: '項目を削除', walCurSearch: '通貨を検索…', launchpad: 'ランチパッド', lpClock: '時計', lpClockSub: 'ドリフト補正ワールドクロック', lpWalletSub: '残高・日別支出・レポート',
     date: '日付', time: '時刻', window: 'ウィンドウ', light: 'ライト', night: 'ナイトシフト',
@@ -602,7 +602,7 @@ export const STRINGS = {
   ms: {
     fareXsys: 'sistem berbeza — tambang dikira dalam satu sistem',
     wallet: 'Dompet', walBalance: 'Baki', walExpense: 'Perbelanjaan', walIncome: 'Pendapatan',
-    walAmount: 'Jumlah', walNote: 'Nota', walAdd: 'Tambah', walDays: 'Hari', walReports: 'Laporan', walCash: 'Tunai',
+    walAmount: 'Jumlah', walNote: 'Nota', walAdd: 'Tambah', mAdd: 'Tambah', zoomIn: 'Zum masuk', zoomOut: 'Zum keluar', walDays: 'Hari', walReports: 'Laporan', walCash: 'Tunai', lpModule:'Modul',lpModuleSub:'Automasi visual gaya n8n',flFiles:'Fail',flNew:'Baru',flOpen:'Buka',flRename:'Namakan semula',flDuplicate:'Pendua',flDelete:'Padam',flExport:'Eksport',flImport:'Import',flUpdated:'Disunting',flEmpty:'Belum ada dokumen',flSearch:'Cari',flConfirm:'Padam kekal?',flUntitledNote:'Nota tanpa tajuk',flUntitledFlow:'Aliran tanpa tajuk',mRun:'Jalankan',mGrid:'Grid',mText:'Teks',mMarkdown:'Markdown',mOutput:'Output',mResult:'Hasil',encPlain:'Biasa',encB64:'Base64',encUrl:'URL',encHex:'Heks',encUni:'Unicode',encEnt:'Entiti HTML',encRot:'ROT13',
     walSpent: 'Dibelanjakan', walMonth: 'Bulan ini', walAvg: 'Purata harian', walWeek: '7 hari lepas',
     walTop: 'Perbelanjaan terbesar', pDay: 'Hari', pWeek: 'Minggu', pMonth: 'Bulan', pSem: 'Semester', pYear: 'Tahun', pDec: 'Dekad', walNet: 'Bersih', walEmpty: 'Tiada transaksi lagi', walCurrency: 'Simbol mata wang', walDelete: 'Padam entri', walCurSearch: 'Cari mata wang…', launchpad: 'Launchpad', lpClock: 'Jam', lpClockSub: 'Jam dunia diperbetul hanyutan', lpWalletSub: 'Baki, perbelanjaan harian & laporan',
     date: 'Tarikh', time: 'Masa', window: 'Tetingkap', light: 'Cerah', night: 'Syif Malam',
@@ -635,7 +635,7 @@ export const STRINGS = {
   de: {
     fareXsys: 'verschiedene Systeme — der Tarif gilt innerhalb eines Systems',
     wallet: 'Geldbörse', walBalance: 'Guthaben', walExpense: 'Ausgabe', walIncome: 'Einnahme',
-    walAmount: 'Betrag', walNote: 'Notiz', walAdd: 'Hinzufügen', walDays: 'Tage', walReports: 'Berichte', walCash: 'Bargeld',
+    walAmount: 'Betrag', walNote: 'Notiz', walAdd: 'Hinzufügen', mAdd: 'Hinzufügen', zoomIn: 'Vergrößern', zoomOut: 'Verkleinern', walDays: 'Tage', walReports: 'Berichte', walCash: 'Bargeld', lpModule:'Modul',lpModuleSub:'Visuelle Automatisierung im n8n-Stil',flFiles:'Dateien',flNew:'Neu',flOpen:'Öffnen',flRename:'Umbenennen',flDuplicate:'Duplizieren',flDelete:'Löschen',flExport:'Exportieren',flImport:'Importieren',flUpdated:'Bearbeitet',flEmpty:'Noch keine Dokumente',flSearch:'Suchen',flConfirm:'Endgültig löschen?',flUntitledNote:'Notiz ohne Titel',flUntitledFlow:'Ablauf ohne Titel',mRun:'Ausführen',mGrid:'Raster',mText:'Text',mMarkdown:'Markdown',mOutput:'Ausgabe',mResult:'Ergebnis',encPlain:'Unformatiert',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'HTML-Entitäten',encRot:'ROT13',
     walSpent: 'Ausgegeben', walMonth: 'Dieser Monat', walAvg: 'Tagesdurchschnitt', walWeek: 'Letzte 7 Tage',
     walTop: 'Größte Ausgabe', pDay: 'Tag', pWeek: 'Woche', pMonth: 'Monat', pSem: 'Semester', pYear: 'Jahr', pDec: 'Jahrzehnt', walNet: 'Saldo', walEmpty: 'Noch keine Transaktionen', walCurrency: 'Währungssymbol', walDelete: 'Eintrag löschen', walCurSearch: 'Währungen suchen…', launchpad: 'Launchpad', lpClock: 'Uhr', lpClockSub: 'Drift-korrigierte Weltuhr', lpWalletSub: 'Guthaben, Tagesausgaben & Berichte',
     date: 'Datum', time: 'Zeit', window: 'Fenster', light: 'Hell', night: 'Nachtmodus',
@@ -668,7 +668,7 @@ export const STRINGS = {
   pl: {
     fareXsys: 'różne systemy — taryfa liczona jest w obrębie jednego systemu',
     wallet: 'Portfel', walBalance: 'Saldo', walExpense: 'Wydatek', walIncome: 'Przychód',
-    walAmount: 'Kwota', walNote: 'Notatka', walAdd: 'Dodaj', walDays: 'Dni', walReports: 'Raporty', walCash: 'Gotówka',
+    walAmount: 'Kwota', walNote: 'Notatka', walAdd: 'Dodaj', mAdd: 'Dodaj', zoomIn: 'Powiększ', zoomOut: 'Pomniejsz', walDays: 'Dni', walReports: 'Raporty', walCash: 'Gotówka', lpModule:'Moduł',lpModuleSub:'Automatyzacja wizualna w stylu n8n',flFiles:'Pliki',flNew:'Nowy',flOpen:'Otwórz',flRename:'Zmień nazwę',flDuplicate:'Duplikuj',flDelete:'Usuń',flExport:'Eksportuj',flImport:'Importuj',flUpdated:'Edytowano',flEmpty:'Brak dokumentów',flSearch:'Szukaj',flConfirm:'Usunąć na zawsze?',flUntitledNote:'Notatka bez tytułu',flUntitledFlow:'Przepływ bez tytułu',mRun:'Uruchom',mGrid:'Siatka',mText:'Tekst',mMarkdown:'Markdown',mOutput:'Wynik',mResult:'Rezultat',encPlain:'Zwykły',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'Encje HTML',encRot:'ROT13',
     walSpent: 'Wydano', walMonth: 'Ten miesiąc', walAvg: 'Średnia dzienna', walWeek: 'Ostatnie 7 dni',
     walTop: 'Największy wydatek', pDay: 'Dzień', pWeek: 'Tydzień', pMonth: 'Miesiąc', pSem: 'Semestr', pYear: 'Rok', pDec: 'Dekada', walNet: 'Netto', walEmpty: 'Brak transakcji', walCurrency: 'Symbol waluty', walDelete: 'Usuń wpis', walCurSearch: 'Szukaj walut…', launchpad: 'Launchpad', lpClock: 'Zegar', lpClockSub: 'Zegar światowy z korektą dryfu', lpWalletSub: 'Saldo, dzienne wydatki i raporty',
     date: 'Data', time: 'Czas', window: 'Okno', light: 'Jasny', night: 'Tryb nocny',
@@ -701,7 +701,7 @@ export const STRINGS = {
   da: {
     fareXsys: 'forskellige systemer — taksten beregnes inden for ét system',
     wallet: 'Pung', walBalance: 'Saldo', walExpense: 'Udgift', walIncome: 'Indtægt',
-    walAmount: 'Beløb', walNote: 'Note', walAdd: 'Tilføj', walDays: 'Dage', walReports: 'Rapporter', walCash: 'Kontanter',
+    walAmount: 'Beløb', walNote: 'Note', walAdd: 'Tilføj', mAdd: 'Tilføj', zoomIn: 'Zoom ind', zoomOut: 'Zoom ud', walDays: 'Dage', walReports: 'Rapporter', walCash: 'Kontanter', lpModule:'Modul',lpModuleSub:'Visuel automatisering i n8n-stil',flFiles:'Filer',flNew:'Ny',flOpen:'Åbn',flRename:'Omdøb',flDuplicate:'Duplikér',flDelete:'Slet',flExport:'Eksportér',flImport:'Importér',flUpdated:'Redigeret',flEmpty:'Endnu ingen dokumenter',flSearch:'Søg',flConfirm:'Slet for altid?',flUntitledNote:'Notat uden titel',flUntitledFlow:'Flow uden titel',mRun:'Kør',mGrid:'Gitter',mText:'Tekst',mMarkdown:'Markdown',mOutput:'Output',mResult:'Resultat',encPlain:'Almindelig',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'HTML-entiteter',encRot:'ROT13',
     walSpent: 'Brugt', walMonth: 'Denne måned', walAvg: 'Dagsgennemsnit', walWeek: 'Seneste 7 dage',
     walTop: 'Største udgift', pDay: 'Dag', pWeek: 'Uge', pMonth: 'Måned', pSem: 'Semester', pYear: 'År', pDec: 'Årti', walNet: 'Netto', walEmpty: 'Ingen transaktioner endnu', walCurrency: 'Valutasymbol', walDelete: 'Slet post', walCurSearch: 'Søg valutaer…', launchpad: 'Launchpad', lpClock: 'Ur', lpClockSub: 'Drift-korrigeret verdensur', lpWalletSub: 'Saldo, dagligt forbrug & rapporter',
     date: 'Dato', time: 'Tid', window: 'Vindue', light: 'Lys', night: 'Nattilstand',
@@ -734,7 +734,7 @@ export const STRINGS = {
   nb: {
     fareXsys: 'forskjellige systemer — prisen beregnes innen ett system',
     wallet: 'Lommebok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inntekt',
-    walAmount: 'Beløp', walNote: 'Notat', walAdd: 'Legg til', walDays: 'Dager', walReports: 'Rapporter', walCash: 'Kontanter',
+    walAmount: 'Beløp', walNote: 'Notat', walAdd: 'Legg til', mAdd: 'Legg til', zoomIn: 'Zoom inn', zoomOut: 'Zoom ut', walDays: 'Dager', walReports: 'Rapporter', walCash: 'Kontanter', lpModule:'Modul',lpModuleSub:'Visuell automatisering i n8n-stil',flFiles:'Filer',flNew:'Ny',flOpen:'Åpne',flRename:'Gi nytt navn',flDuplicate:'Dupliser',flDelete:'Slett',flExport:'Eksporter',flImport:'Importer',flUpdated:'Redigert',flEmpty:'Ingen dokumenter ennå',flSearch:'Søk',flConfirm:'Slette for godt?',flUntitledNote:'Notat uten tittel',flUntitledFlow:'Flyt uten tittel',mRun:'Kjør',mGrid:'Rutenett',mText:'Tekst',mMarkdown:'Markdown',mOutput:'Utdata',mResult:'Resultat',encPlain:'Vanlig',encB64:'Base64',encUrl:'URL',encHex:'Heks',encUni:'Unicode',encEnt:'HTML-entiteter',encRot:'ROT13',
     walSpent: 'Brukt', walMonth: 'Denne måneden', walAvg: 'Dagsgjennomsnitt', walWeek: 'Siste 7 dager',
     walTop: 'Største utgift', pDay: 'Dag', pWeek: 'Uke', pMonth: 'Måned', pSem: 'Semester', pYear: 'År', pDec: 'Tiår', walNet: 'Netto', walEmpty: 'Ingen transaksjoner ennå', walCurrency: 'Valutasymbol', walDelete: 'Slett oppføring', walCurSearch: 'Søk valutaer…', launchpad: 'Launchpad', lpClock: 'Klokke', lpClockSub: 'Driftskorrigert verdensur', lpWalletSub: 'Saldo, daglig forbruk & rapporter',
     date: 'Dato', time: 'Tid', window: 'Vindu', light: 'Lys', night: 'Nattmodus',
@@ -767,7 +767,7 @@ export const STRINGS = {
   sv: {
     fareXsys: 'olika system — priset beräknas inom ett system',
     wallet: 'Plånbok', walBalance: 'Saldo', walExpense: 'Utgift', walIncome: 'Inkomst',
-    walAmount: 'Belopp', walNote: 'Anteckning', walAdd: 'Lägg till', walDays: 'Dagar', walReports: 'Rapporter', walCash: 'Kontanter',
+    walAmount: 'Belopp', walNote: 'Anteckning', walAdd: 'Lägg till', mAdd: 'Lägg till', zoomIn: 'Zooma in', zoomOut: 'Zooma ut', walDays: 'Dagar', walReports: 'Rapporter', walCash: 'Kontanter', lpModule:'Modul',lpModuleSub:'Visuell automatisering i n8n-stil',flFiles:'Filer',flNew:'Ny',flOpen:'Öppna',flRename:'Byt namn',flDuplicate:'Duplicera',flDelete:'Radera',flExport:'Exportera',flImport:'Importera',flUpdated:'Redigerad',flEmpty:'Inga dokument än',flSearch:'Sök',flConfirm:'Radera permanent?',flUntitledNote:'Anteckning utan titel',flUntitledFlow:'Flöde utan titel',mRun:'Kör',mGrid:'Rutnät',mText:'Text',mMarkdown:'Markdown',mOutput:'Utdata',mResult:'Resultat',encPlain:'Vanlig',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'HTML-entiteter',encRot:'ROT13',
     walSpent: 'Spenderat', walMonth: 'Denna månad', walAvg: 'Dagsgenomsnitt', walWeek: 'Senaste 7 dagarna',
     walTop: 'Största utgift', pDay: 'Dag', pWeek: 'Vecka', pMonth: 'Månad', pSem: 'Termin', pYear: 'År', pDec: 'Årtionde', walNet: 'Netto', walEmpty: 'Inga transaktioner ännu', walCurrency: 'Valutasymbol', walDelete: 'Ta bort post', walCurSearch: 'Sök valutor…', launchpad: 'Launchpad', lpClock: 'Klocka', lpClockSub: 'Driftkorrigerad världsklocka', lpWalletSub: 'Saldo, dagsutgifter & rapporter',
     date: 'Datum', time: 'Tid', window: 'Fönster', light: 'Ljus', night: 'Nattläge',
@@ -800,7 +800,7 @@ export const STRINGS = {
   fi: {
     fareXsys: 'eri järjestelmät — hinta lasketaan saman järjestelmän sisällä',
     wallet: 'Lompakko', walBalance: 'Saldo', walExpense: 'Meno', walIncome: 'Tulo',
-    walAmount: 'Summa', walNote: 'Muistiinpano', walAdd: 'Lisää', walDays: 'Päivät', walReports: 'Raportit', walCash: 'Käteinen',
+    walAmount: 'Summa', walNote: 'Muistiinpano', walAdd: 'Lisää', mAdd: 'Lisää', zoomIn: 'Lähennä', zoomOut: 'Loitonna', walDays: 'Päivät', walReports: 'Raportit', walCash: 'Käteinen', lpModule:'Moduuli',lpModuleSub:'Visuaalinen automatisointi n8n-tyyliin',flFiles:'Tiedostot',flNew:'Uusi',flOpen:'Avaa',flRename:'Nimeä uudelleen',flDuplicate:'Monista',flDelete:'Poista',flExport:'Vie',flImport:'Tuo',flUpdated:'Muokattu',flEmpty:'Ei vielä dokumentteja',flSearch:'Hae',flConfirm:'Poista lopullisesti?',flUntitledNote:'Nimeämätön muistiinpano',flUntitledFlow:'Nimeämätön virtaus',mRun:'Suorita',mGrid:'Ruudukko',mText:'Teksti',mMarkdown:'Markdown',mOutput:'Tuloste',mResult:'Tulos',encPlain:'Tavallinen',encB64:'Base64',encUrl:'URL',encHex:'Heksa',encUni:'Unicode',encEnt:'HTML-entiteetit',encRot:'ROT13',
     walSpent: 'Käytetty', walMonth: 'Tämä kuukausi', walAvg: 'Päiväkeskiarvo', walWeek: 'Viimeiset 7 päivää',
     walTop: 'Suurin meno', pDay: 'Päivä', pWeek: 'Viikko', pMonth: 'Kuukausi', pSem: 'Lukukausi', pYear: 'Vuosi', pDec: 'Vuosikymmen', walNet: 'Netto', walEmpty: 'Ei vielä tapahtumia', walCurrency: 'Valuutan symboli', walDelete: 'Poista merkintä', walCurSearch: 'Hae valuuttoja…', launchpad: 'Launchpad', lpClock: 'Kello', lpClockSub: 'Ajautumakorjattu maailmankello', lpWalletSub: 'Saldo, päivittäiset menot & raportit',
     date: 'Päivä', time: 'Aika', window: 'Ikkuna', light: 'Vaalea', night: 'Yötila',
@@ -833,7 +833,7 @@ export const STRINGS = {
   sr: {
     fareXsys: 'različiti sistemi — tarifa se računa unutar jednog sistema',
     wallet: 'Novčanik', walBalance: 'Stanje', walExpense: 'Trošak', walIncome: 'Prihod',
-    walAmount: 'Iznos', walNote: 'Napomena', walAdd: 'Dodaj', walDays: 'Dani', walReports: 'Izveštaji', walCash: 'Кеш',
+    walAmount: 'Iznos', walNote: 'Napomena', walAdd: 'Dodaj', mAdd: 'Dodaj', zoomIn: 'Увећај', zoomOut: 'Умањи', walDays: 'Dani', walReports: 'Izveštaji', walCash: 'Кеш', lpModule:'Модул',lpModuleSub:'Визуелна аутоматизација у n8n стилу',flFiles:'Датотеке',flNew:'Ново',flOpen:'Отвори',flRename:'Преименуј',flDuplicate:'Дуплирај',flDelete:'Обриши',flExport:'Извези',flImport:'Увези',flUpdated:'Измењено',flEmpty:'Још нема докумената',flSearch:'Претрага',flConfirm:'Трајно обрисати?',flUntitledNote:'Белешка без наслова',flUntitledFlow:'Ток без наслова',mRun:'Покрени',mGrid:'Мрежа',mText:'Текст',mMarkdown:'Маркдаун',mOutput:'Излаз',mResult:'Резултат',encPlain:'Обично',encB64:'Base64',encUrl:'URL',encHex:'Хекс',encUni:'Уникод',encEnt:'HTML ентитети',encRot:'ROT13',
     walSpent: 'Potrošeno', walMonth: 'Ovaj mesec', walAvg: 'Dnevni prosek', walWeek: 'Poslednjih 7 dana',
     walTop: 'Najveći trošak', pDay: 'Dan', pWeek: 'Nedelja', pMonth: 'Mesec', pSem: 'Semestar', pYear: 'Godina', pDec: 'Decenija', walNet: 'Neto', walEmpty: 'Još nema transakcija', walCurrency: 'Simbol valute', walDelete: 'Obriši stavku', walCurSearch: 'Pretraži valute…', launchpad: 'Launchpad', lpClock: 'Sat', lpClockSub: 'Svetski sat sa korekcijom odmaka', lpWalletSub: 'Stanje, dnevna potrošnja i izveštaji',
     date: 'Datum', time: 'Vreme', window: 'Prozor', light: 'Svetla', night: 'Noćni režim',
@@ -866,7 +866,7 @@ export const STRINGS = {
   nl: {
     fareXsys: 'verschillende systemen — tarief geldt binnen één systeem',
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
-    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten', walCash: 'Contant',
+    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', mAdd: 'Toevoegen', zoomIn: 'Inzoomen', zoomOut: 'Uitzoomen', walDays: 'Dagen', walReports: 'Rapporten', walCash: 'Contant', lpModule:'Module',lpModuleSub:'Visuele automatisering in n8n-stijl',flFiles:'Bestanden',flNew:'Nieuw',flOpen:'Openen',flRename:'Naam wijzigen',flDuplicate:'Dupliceren',flDelete:'Verwijderen',flExport:'Exporteren',flImport:'Importeren',flUpdated:'Bewerkt',flEmpty:'Nog geen documenten',flSearch:'Zoeken',flConfirm:'Definitief verwijderen?',flUntitledNote:'Naamloze notitie',flUntitledFlow:'Naamloze flow',mRun:'Uitvoeren',mGrid:'Raster',mText:'Tekst',mMarkdown:'Markdown',mOutput:'Uitvoer',mResult:'Resultaat',encPlain:'Gewoon',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'HTML-entiteiten',encRot:'ROT13',
     walSpent: 'Uitgegeven', walMonth: 'Deze maand', walAvg: 'Daggemiddelde', walWeek: 'Laatste 7 dagen',
     walTop: 'Grootste uitgave', pDay: 'Dag', pWeek: 'Week', pMonth: 'Maand', pSem: 'Semester', pYear: 'Jaar', pDec: 'Decennium', walNet: 'Netto', walEmpty: 'Nog geen transacties', walCurrency: 'Valutasymbool', walDelete: 'Item verwijderen', walCurSearch: 'Valuta’s zoeken…', launchpad: 'Launchpad', lpClock: 'Klok', lpClockSub: 'Drift-gecorrigeerde wereldklok', lpWalletSub: 'Saldo, daguitgaven & rapporten',
     date: 'Datum', time: 'Tijd', window: 'Venster', light: 'Licht', night: 'Nachtmodus',
@@ -899,7 +899,7 @@ export const STRINGS = {
   'nl-BE': {
     fareXsys: 'verschillende systemen — tarief geldt binnen één systeem',
     wallet: 'Portemonnee', walBalance: 'Saldo', walExpense: 'Uitgave', walIncome: 'Inkomst',
-    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', walDays: 'Dagen', walReports: 'Rapporten', walCash: 'Contant',
+    walAmount: 'Bedrag', walNote: 'Notitie', walAdd: 'Toevoegen', mAdd: 'Toevoegen', zoomIn: 'Inzoomen', zoomOut: 'Uitzoomen', walDays: 'Dagen', walReports: 'Rapporten', walCash: 'Contant', lpModule:'Module',lpModuleSub:'Visuele automatisering in n8n-stijl',flFiles:'Bestanden',flNew:'Nieuw',flOpen:'Openen',flRename:'Naam wijzigen',flDuplicate:'Dupliceren',flDelete:'Verwijderen',flExport:'Exporteren',flImport:'Importeren',flUpdated:'Bewerkt',flEmpty:'Nog geen documenten',flSearch:'Zoeken',flConfirm:'Definitief verwijderen?',flUntitledNote:'Naamloze notitie',flUntitledFlow:'Naamloze flow',mRun:'Uitvoeren',mGrid:'Raster',mText:'Tekst',mMarkdown:'Markdown',mOutput:'Uitvoer',mResult:'Resultaat',encPlain:'Gewoon',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'HTML-entiteiten',encRot:'ROT13',
     walSpent: 'Uitgegeven', walMonth: 'Deze maand', walAvg: 'Daggemiddelde', walWeek: 'Laatste 7 dagen',
     walTop: 'Grootste uitgave', pDay: 'Dag', pWeek: 'Week', pMonth: 'Maand', pSem: 'Semester', pYear: 'Jaar', pDec: 'Decennium', walNet: 'Netto', walEmpty: 'Nog geen transacties', walCurrency: 'Valutasymbool', walDelete: 'Item verwijderen', walCurSearch: 'Valuta’s zoeken…', launchpad: 'Launchpad', lpClock: 'Klok', lpClockSub: 'Drift-gecorrigeerde wereldklok', lpWalletSub: 'Saldo, daguitgaven & rapporten',
     date: 'Datum', time: 'Tijd', window: 'Venster', light: 'Licht', night: 'Nachtmodus',
@@ -932,7 +932,7 @@ export const STRINGS = {
   el: {
     fareXsys: 'διαφορετικά συστήματα — το κόμιστρο υπολογίζεται εντός ενός συστήματος',
     wallet: 'Πορτοφόλι', walBalance: 'Υπόλοιπο', walExpense: 'Έξοδο', walIncome: 'Έσοδο',
-    walAmount: 'Ποσό', walNote: 'Σημείωση', walAdd: 'Προσθήκη', walDays: 'Ημέρες', walReports: 'Αναφορές', walCash: 'Μετρητά',
+    walAmount: 'Ποσό', walNote: 'Σημείωση', walAdd: 'Προσθήκη', mAdd: 'Προσθήκη', zoomIn: 'Μεγέθυνση', zoomOut: 'Σμίκρυνση', walDays: 'Ημέρες', walReports: 'Αναφορές', walCash: 'Μετρητά', lpModule:'Μονάδα',lpModuleSub:'Οπτική αυτοματοποίηση σε στυλ n8n',flFiles:'Αρχεία',flNew:'Νέο',flOpen:'Άνοιγμα',flRename:'Μετονομασία',flDuplicate:'Αντιγραφή',flDelete:'Διαγραφή',flExport:'Εξαγωγή',flImport:'Εισαγωγή',flUpdated:'Τροποποιήθηκε',flEmpty:'Δεν υπάρχουν έγγραφα ακόμα',flSearch:'Αναζήτηση',flConfirm:'Οριστική διαγραφή;',flUntitledNote:'Σημείωση χωρίς τίτλο',flUntitledFlow:'Ροή χωρίς τίτλο',mRun:'Εκτέλεση',mGrid:'Πλέγμα',mText:'Κείμενο',mMarkdown:'Μάρκνταουν',mOutput:'Έξοδος',mResult:'Αποτέλεσμα',encPlain:'Απλό',encB64:'Base64',encUrl:'URL',encHex:'Hex',encUni:'Unicode',encEnt:'Οντότητες HTML',encRot:'ROT13',
     walSpent: 'Ξοδεύτηκαν', walMonth: 'Αυτός ο μήνας', walAvg: 'Ημερήσιος μέσος', walWeek: 'Τελευταίες 7 ημέρες',
     walTop: 'Μεγαλύτερο έξοδο', pDay: 'Ημέρα', pWeek: 'Εβδομάδα', pMonth: 'Μήνας', pSem: 'Εξάμηνο', pYear: 'Χρόνος', pDec: 'Δεκαετία', walNet: 'Καθαρό', walEmpty: 'Δεν υπάρχουν συναλλαγές', walCurrency: 'Σύμβολο νομίσματος', walDelete: 'Διαγραφή καταχώρισης', walCurSearch: 'Αναζήτηση νομισμάτων…', launchpad: 'Αφετηρία', lpClock: 'Ρολόι', lpClockSub: 'Παγκόσμιο ρολόι με διόρθωση παρέκκλισης', lpWalletSub: 'Υπόλοιπο, ημερήσια έξοδα & αναφορές',
     date: 'Ημερομηνία', time: 'Ώρα', window: 'Παράθυρο', light: 'Φωτεινό', night: 'Νυχτερινή λειτουργία',

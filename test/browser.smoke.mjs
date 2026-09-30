@@ -1203,9 +1203,12 @@ const scpg = await context.newPage();
 const scerrs = [];
 scpg.on('pageerror', (e) => scerrs.push(String(e)));
 await scpg.goto(URL + 'scribe.html', { waitUntil: 'load' });
-await scpg.waitForTimeout(400);
+await scpg.waitForTimeout(500);
 ok('SinghoScribe loads as its own app',
   (await scpg.locator('.wordmark').textContent()).includes('Scribe'));
+/* Scribe now opens on its files home: create a note and step into the editor */
+await scpg.evaluate(() => { document.querySelector('[data-fl-new]').click(); });
+await scpg.waitForTimeout(400);
 ok('scribe defaults to Traditional Chinese in and out', await scpg.evaluate(() =>
   document.getElementById('scrIn').value === 'zh-TW' &&
   document.getElementById('scrOut').value === 'zh-TW'));
@@ -1216,7 +1219,7 @@ await scpg.evaluate(() => {
 });
 await scpg.waitForTimeout(900);
 ok('scribe document autosaves like a doc', await scpg.evaluate(() =>
-  (localStorage.getItem('singhoah:scribe') || '').includes('hello scribe world')));
+  (localStorage.getItem('singhoah:docs') || '').includes('hello scribe world')));
 ok('scribe toolbar gained undo/find/stamps/import/print', await scpg.evaluate(() =>
   ['scrUndo', 'scrRedo', 'scrFind', 'scrStamps', 'scrImport', 'scrPrint'].every((i) => document.getElementById(i))));
 await scpg.click('#scrFind');
@@ -1838,7 +1841,10 @@ await fp.close();
 
 const fsp = await fc.newPage();
 await fsp.goto(URL + 'scribe.html', { waitUntil: 'load' });
-await fsp.waitForTimeout(300);
+await fsp.waitForTimeout(500);
+/* Scribe opens on its files home — step into a note first */
+await fsp.evaluate(() => { document.querySelector('[data-fl-new]').click(); });
+await fsp.waitForTimeout(400);
 await fsp.click('#smateBtn');
 await fsp.type('#scrDoc', 'hello world');
 const fsSend = async (txt) => { await fsp.fill('#smateIn', txt); await fsp.click('#smateSend'); await fsp.waitForTimeout(1100); };
@@ -1885,7 +1891,9 @@ const msc = await browser.newContext({ viewport: { width: 390, height: 844 } });
 await msc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
 const mpg = await msc.newPage();
 await mpg.goto(URL + 'scribe.html', { waitUntil: 'load' });
-await mpg.waitForTimeout(300);
+await mpg.waitForTimeout(500);
+await mpg.evaluate(() => { document.querySelector('[data-fl-new]').click(); });
+await mpg.waitForTimeout(400);
 ok('mobile Scribe uses 16px text and hides the bar labels', await mpg.evaluate(() => {
   const page = document.querySelector('.scr-page');
   const lbl = document.querySelector('.scr-lbl');
@@ -2510,6 +2518,139 @@ await prn.close();
   });
   ok('SMate answers a metro fare query on the metro page', /NT\$\d+/.test(reply));
   await mp.close();
+}
+
+/* --- SinghoModule: visual automation with square wires --- */
+{
+  const mc = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const mp = await mc.newPage();
+  const merrs = [];
+  mp.on('pageerror', (e) => merrs.push(String(e)));
+  await mp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await mp.waitForTimeout(700);
+  ok('SinghoModule opens onto the canvas on first run', await mp.evaluate(() =>
+    !document.getElementById('modEditor').hidden && !!globalThis.__MOD));
+  const flow = await mp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const a = M.add('text', 48, 48);
+    M.cfg(a.id, { text: '# Hi **Singhoah**', enc: 'plain' });
+    const o = M.add('output', 420, 48);
+    M.wire(a.id, o.id);
+    M.run();
+    return { out: M.outputText(), d: document.querySelector('.mod-wire').getAttribute('d') };
+  });
+  ok('a Text -> Output flow runs and prints the text', flow.out.includes('Singhoah'), flow.out);
+  ok('connectors are square: H-V-H only, no curve commands', /^[MHV\d\s.]+$/.test(flow.d) && !/[CcQqAaSsTt]/.test(flow.d), flow.d);
+  const enc = await mp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const a = M.nodes().find((n) => n.type === 'text');
+    M.cfg(a.id, { enc: 'b64', text: 'Hi' });
+    M.run();
+    return M.outputText();
+  });
+  ok('the Text module encodes (Base64)', enc.includes('SGk'), enc);
+  const gridA = await mp.evaluate(() => { globalThis.__MOD.grid(false); return getComputedStyle(document.getElementById('modCanvas')).backgroundImage; });
+  const gridB = await mp.evaluate(() => { globalThis.__MOD.grid(true); return getComputedStyle(document.getElementById('modCanvas')).backgroundImage; });
+  ok('the grid can be disabled and re-enabled', gridA === 'none' && gridB.includes('linear-gradient'), `${gridA} / ${gridB.slice(0, 20)}`);
+  const snapOk = await mp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const el = [...document.querySelectorAll('.mod-node')][0];
+    const head = el.querySelector('.mod-head');
+    return new Promise((res) => {
+      const r = head.getBoundingClientRect();
+      const opts = { bubbles: true, cancelable: true, pointerId: 1, clientX: r.x + 5, clientY: r.y + 5, pointerType: 'mouse', isPrimary: true, button: 0, buttons: 1 };
+      head.dispatchEvent(new PointerEvent('pointerdown', opts));
+      el.dispatchEvent(new PointerEvent('pointermove', { ...opts, clientX: r.x + 37, clientY: r.y + 29 }));
+      el.dispatchEvent(new PointerEvent('pointerup', { ...opts }));
+      setTimeout(() => res(M.nodes()[0].x % 24 === 0 && M.nodes()[0].y % 24 === 0), 100);
+    });
+  });
+  ok('nodes snap to the 24px grid while dragging', snapOk);
+  await mp.waitForTimeout(800);
+  const json = await mp.evaluate(() => JSON.parse(globalThis.__MOD.serialize()));
+  ok('flows export to JSON (app, kind, nodes, wires)', json.app === 'singhoah' && json.kind === 'flow' && json.data.nodes.length === 2 && json.data.wires.length === 1, JSON.stringify(json.data ? json.data.nodes.length : null));
+  /* files home: create, rename, delete */
+  await mp.evaluate(() => globalThis.__MOD.home());
+  await mp.waitForTimeout(300);
+  await mp.click('[data-fl-new]');
+  await mp.waitForTimeout(300);
+  let fl = await mp.evaluate(() => ({ editor: !document.getElementById('modEditor').hidden, n: globalThis.__MOD.nodes().length }));
+  ok('New creates and opens a fresh flow', fl.editor && fl.n === 0, JSON.stringify(fl));
+  await mp.fill('#modTitle', 'My automation');
+  await mp.waitForTimeout(800);
+  await mp.evaluate(() => globalThis.__MOD.home());
+  await mp.waitForTimeout(300);
+  ok('the flow appears on the files home under its name', await mp.evaluate((name) =>
+    [...document.querySelectorAll('.fl-title')].some((t) => t.textContent === name), 'My automation'));
+  await mp.click('.fl-card [data-act="rename"]');
+  await mp.fill('.fl-rename', 'Renamed flow');
+  await mp.press('.fl-rename', 'Enter');
+  await mp.waitForTimeout(300);
+  ok('renaming a document works inline', await mp.evaluate(() =>
+    [...document.querySelectorAll('.fl-title')].some((t) => t.textContent === 'Renamed flow')));
+  await mp.click('.fl-card [data-act="del"]');
+  await mp.waitForTimeout(200);
+  await mp.click('.fl-card .fl-del.sure');
+  await mp.waitForTimeout(200);
+  ok('delete asks for confirmation, then removes the document', await mp.evaluate(() =>
+    ![...document.querySelectorAll('.fl-title')].some((t) => t.textContent === 'Renamed flow')));
+  ok('no page errors in SinghoModule', merrs.length === 0, merrs.join('; '));
+  /* SMate drives it */
+  await mp.click('#smateBtn');
+  await mp.waitForTimeout(250);
+  await mp.fill('#smateIn', 'open module');
+  await mp.click('#smateSend');
+  await mp.waitForTimeout(900);
+  await mp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const a = M.add('text', 48, 48);
+    M.cfg(a.id, { text: 'smate smoke' });
+    const o = M.add('output', 420, 48);
+    M.wire(a.id, o.id);
+  });
+  await mp.fill('#smateIn', 'run');
+  await mp.click('#smateSend');
+  await mp.waitForTimeout(1000);
+  ok('SMate runs the flow and answers with the output', await mp.evaluate(() =>
+    globalThis.__MOD.outputText().includes('smate smoke') &&
+    [...document.querySelectorAll('.smate-it')].some((n) => /smate smoke/.test(n.textContent))));
+  ok('the on-device AI stays on demand in SinghoModule', await mp.evaluate(() =>
+    document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
+  /* mobile fit */
+  const mm = await mc.newPage();
+  await mm.setViewportSize({ width: 390, height: 844 });
+  await mm.goto(URL + 'module.html', { waitUntil: 'load' });
+  await mm.waitForTimeout(600);
+  ok('SinghoModule fits the phone without horizontal scroll', await mm.evaluate(() =>
+    document.documentElement.scrollWidth <= window.innerWidth + 1));
+  await mm.close();
+  await mc.close();
+}
+
+/* --- Scribe becomes a multi-document app with a files home --- */
+{
+  const sc = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const sp = await sc.newPage();
+  await sp.goto(URL + 'scribe.html', { waitUntil: 'load' });
+  await sp.evaluate(() => {
+    localStorage.removeItem('singhoah:docs');
+    localStorage.removeItem('singhoah:scribe:migrated');
+    localStorage.setItem('singhoah:scribe', JSON.stringify({ html: '<p>legacy note</p>', title: 'Legacy', in: 'en-US', out: 'en-US', stamps: false }));
+  });
+  await sp.goto(URL + 'scribe.html', { waitUntil: 'load' });
+  await sp.waitForTimeout(700);
+  ok('Scribe opens on a Google-Docs-style files home', await sp.evaluate(() =>
+    !document.getElementById('scrHome').hidden && document.querySelectorAll('.fl-card').length === 1));
+  ok('the legacy single note migrated into the document store', await sp.evaluate(() =>
+    (document.querySelector('.fl-title') || {}).textContent === 'Legacy'));
+  await sp.click('.fl-card');
+  await sp.waitForTimeout(400);
+  ok('opening a note shows its content in the editor', await sp.evaluate(() =>
+    document.getElementById('scrHome').hidden && document.getElementById('scrDoc').textContent.includes('legacy note')));
+  await sp.click('#scrFiles');
+  await sp.waitForTimeout(300);
+  ok('the Files button returns to the notes home', await sp.evaluate(() => !document.getElementById('scrHome').hidden));
+  await sc.close();
 }
 
 /* --- SMate drives the cash tab: live mini in chat + real tab in the window --- */

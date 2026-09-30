@@ -612,6 +612,10 @@
     balance: words(['walBalance']),
     days: words(['walDays']),
     reports: words(['walReports']),
+    module: [...words(['lpModule']), 'singhomodule', 'automation', 'module', 'workflow', '自動化', '自动化', 'モジュール'],
+    files: [...words(['flFiles']), 'documents', 'my docs', '檔案管理', '文件管理'],
+    run: ['run', 'execute', '執行', '执行', '実行', '실행', 'ejecutar', 'exécuter', 'ausführen', 'تشغيل', 'चलाओ', 'запустить', 'rodar', 'esegui', 'jalankan', 'chạy'],
+    newdoc: [...words(['flNew']), 'new flow', 'new note', '新流程', '新筆記'],
     cash: [...words(['walCash']), 'cash', 'banknote', 'banknotes', 'coin', 'coins', '紙鈔', '钞票', '硬幣', '硬币', 'お札', '硬貨', '지폐', '동전'],
     currency: [...words(['currency']), 'currency'],
     add: [...words(['walAdd']), 'add', 'add'],
@@ -773,7 +777,7 @@
       return t(curLang, 'done');
     },
     nav(where) {
-      const map = { wallet: 'wallet.html', clock: 'index.html', settings: 'settings.html', scribe: 'scribe.html', launch: 'launch.html', metro: 'metro.html' };
+      const map = { wallet: 'wallet.html', clock: 'index.html', settings: 'settings.html', scribe: 'scribe.html', launch: 'launch.html', metro: 'metro.html', module: 'module.html' };
       const target = map[where];
       if (!target) return null;
       if (target === `${page}.html` || (page === 'clock' && where === 'clock')) return t(curLang, 'done');
@@ -813,7 +817,7 @@
       t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
       t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
       t(curLang, 'mFare'),
-      t(curLang, 'wallet'), t(curLang, 'walCash'), t(curLang, 'lpScribe'), t(curLang, 'settings')];
+      t(curLang, 'wallet'), t(curLang, 'walCash'), t(curLang, 'lpScribe'), t(curLang, 'lpModule'), t(curLang, 'settings')];
     if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'), t(curLang, 'mSwap'), t(curLang, 'mClear'), t(curLang, 'mCard'));
     if (page === 'launch') bits.push(t(curLang, 'lpWelcomeT'));
     return `SMate · ${bits.join(' · ')}`;
@@ -1054,6 +1058,29 @@
       const z = findAllZones(text)[0];
       if (z) { const r = LIB.smateRemove(z) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${cityOf(z)}` }); }
     }
+    /* SinghoScribe files: the notes home (Google-Docs style) */
+    if (page === 'scribe') {
+      if (has(text, KW.files)) { const r = globalThis.__SCRIBE ? (globalThis.__SCRIBE.showHome(), t(curLang, 'flFiles')) : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
+      if (has(text, KW.newdoc)) {
+        if (globalThis.__SCRIBE) {
+          const id = globalThis.__SCRIBE.docs.docsCreate('note', '', {});
+          globalThis.__SCRIBE.openDoc(id);
+          note(t(curLang, 'done'));
+          abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'flUntitledNote')}` });
+        }
+      }
+    }
+    /* SinghoModule: run the flow, open files, start a new flow, toggle the grid */
+    if (page === 'module' && globalThis.__MOD) {
+      if (has(text, KW.files)) { globalThis.__MOD.home(); note(t(curLang, 'flFiles')); abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
+      else if (has(text, KW.newdoc)) { globalThis.__MOD.newDoc(); note(t(curLang, 'done')); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); }
+      else if (has(text, KW.run)) {
+        const outs = globalThis.__MOD.run();
+        const snippet = (outs && outs.length) ? outs.join(' · ').slice(0, 140) : t(curLang, 'mResult');
+        note(`${t(curLang, 'mRun')} · ${snippet}`);
+        abPush({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
+      }
+    }
     /* the Scribe toolbar, by voice or text */
     if (page === 'scribe') {
       if (has(text, KW.undo)) { const r = click($('scrUndo')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'undo') }); }
@@ -1189,7 +1216,7 @@
       setTimeout(() => { location.href = 'wallet.html#tab=cash'; }, 700);
     }
     /* navigation last — it leaves the page */
-    if (!cashNav) for (const [where, keys] of [['wallet', KW.wallet], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
+    if (!cashNav) for (const [where, keys] of [['wallet', KW.wallet], ['module', KW.module], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
       if (has(text, keys)) { const r = act.nav(where); note(r); if (r) abPush({ k: 'done', t: r }); break; }
     }
     return outs.length ? outs.join(' · ') : null;

@@ -46,6 +46,9 @@ html, body {
   overflow: hidden;   /* desktop: app surface, no page scrolling */
 }
 
+/* the hidden attribute always wins over any display rule */
+[hidden] { display: none !important; }
+
 /* Scrollbars are the browser's automatic overflow UI; hide them site-wide.
    Wheel, touch and keyboard scrolling keep working. */
 html { scrollbar-width: none; }
@@ -1511,3 +1514,78 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 @keyframes cashPop { from { transform: translateY(-90px) scale(.35) rotate(var(--r, 0deg)); opacity: 0; } }
 @media (max-width: 560px) { .cash-note { width: 112px; } .cash-coin { width: 44px; } .cash-stack { width: 132px; } .cash-pile { width: 70px; } .cash-tray { max-width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .cash-note, .cash-coin, .cash-stack, .cash-pile { animation: none; } }
+
+/* ---- SinghoModule: canvas, nodes, square wires (n8n, Singhoah-styled) ---- */
+.mod-app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mod-bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line, rgba(127, 127, 127, .25)); }
+.mod-title { flex: 1 1 140px; min-width: 90px; max-width: 320px; background: transparent; border: none; color: inherit; font: 600 15px/1.2 Saans, system-ui, sans-serif; padding: 6px 4px; }
+.mod-title:focus { outline: none; border-bottom: 2px solid var(--notification, #000dff); }
+.mod-grow { flex: 1; }
+.mod-add { display: inline-flex; align-items: center; gap: 6px; }
+.mod-dot { width: 9px; height: 9px; display: inline-block; }
+.mod-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; cursor: grab;
+  background-color: var(--bg, #101418);
+  background-image: linear-gradient(rgba(127, 127, 127, .09) 1px, transparent 1px), linear-gradient(90deg, rgba(127, 127, 127, .09) 1px, transparent 1px); }
+.mod-canvas.nogrid { background-image: none; }
+.mod-canvas:active { cursor: grabbing; }
+.mod-world { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; transform-origin: 0 0; }
+.mod-wires { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.mod-wire { fill: none; stroke: var(--wire, #7f9bb8); stroke-width: 2; pointer-events: stroke; cursor: pointer; }
+.mod-wire:hover { stroke-width: 3.5; }
+.mod-wire.sel { stroke: var(--notification, #000dff); stroke-width: 3; }
+.mod-wire.temp { stroke-dasharray: 5 4; }
+.mod-wdel { position: absolute; width: 22px; height: 22px; display: grid; place-items: center; background: var(--notification, #000dff); color: #fff; border: none; cursor: pointer; }
+.mod-node { position: absolute; background: var(--panel, #1a2027); border: 1px solid rgba(127, 127, 127, .4); border-radius: 0; box-shadow: 0 3px 10px rgba(0, 0, 0, .3); user-select: none; }
+.mod-node.drag { box-shadow: 0 8px 20px rgba(0, 0, 0, .45); }
+.mod-node.ran .mod-head { animation: modRan .5s ease; }
+@keyframes modRan { 0% { background: rgba(0, 0, 0, .25); } }
+.mod-head { display: flex; align-items: center; gap: 7px; padding: 8px 10px; font: 600 12.5px/1 Saans, system-ui, sans-serif; cursor: grab; background: rgba(127, 127, 127, .12); }
+.mod-ndot { width: 9px; height: 9px; flex: 0 0 auto; }
+.mod-nname { flex: 1; }
+.mod-nx { background: none; border: none; color: inherit; opacity: .55; cursor: pointer; display: grid; place-items: center; padding: 2px; }
+.mod-nx:hover { opacity: 1; color: var(--bad, #c0392b); }
+.mod-body { padding: 8px 10px 10px; }
+.mod-ta { width: 100%; box-sizing: border-box; background: transparent; border: 1px solid rgba(127, 127, 127, .35); color: inherit; font: 13px/1.35 inherit; padding: 6px; resize: vertical; min-height: 64px; border-radius: 0; }
+.mod-enc { margin-top: 6px; width: 100%; background: transparent; color: inherit; border: 1px solid rgba(127, 127, 127, .35); border-radius: 0; padding: 4px; font-size: 12px; }
+.mod-hint { margin: 0; font: 13px/1.4 Serrif, Georgia, serif; opacity: .8; }
+.mod-result { max-height: 180px; overflow: auto; font: 12.5px/1.4 Serrif, Georgia, serif; white-space: pre-wrap; word-break: break-word; }
+.mod-md p { margin: 0 0 6px; } .mod-md h1, .mod-md h2, .mod-md h3, .mod-md h4 { margin: 6px 0 4px; line-height: 1.2; }
+.mod-md ul, .mod-md ol { margin: 4px 0; padding-left: 18px; } .mod-md code { font-family: ui-monospace, monospace; background: rgba(127, 127, 127, .2); padding: 0 3px; }
+.mod-md pre { background: rgba(127, 127, 127, .18); padding: 6px; overflow: auto; } .mod-md blockquote { border-left: 3px solid var(--notification, #000dff); margin: 4px 0; padding-left: 8px; opacity: .9; }
+.mod-md a { color: var(--notification, #000dff); }
+.mod-empty { opacity: .55; }
+.mod-port { position: absolute; top: 13px; width: 14px; height: 14px; background: var(--panel, #1a2027); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
+.mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
+.mod-port:hover { border-color: var(--notification, #000dff); background: var(--notification, #000dff); }
+.mod-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+.mod-zoom .btn { min-width: 34px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .mod-node.ran .mod-head { animation: none; } }
+
+/* ---- files home (SinghoScribe notes + SinghoModule flows) ---- */
+.fl-home { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 16px 48px; display: flex; flex-direction: column; align-items: center; gap: 14px; scrollbar-width: none; }
+.fl-head { width: min(760px, 100%); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fl-brand { font: 700 17px/1.2 Saans, system-ui, sans-serif; margin: 0 auto 0 0; }
+.fl-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.fl-new { display: inline-flex; gap: 6px; align-items: center; }
+.fl-search { background: transparent; border: 1px solid rgba(127, 127, 127, .4); color: inherit; padding: 7px 10px; font: 13px/1 Saans, system-ui, sans-serif; min-width: 130px; border-radius: 0; }
+.fl-grid { width: min(760px, 100%); display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
+.fl-card { display: flex; flex-direction: column; gap: 6px; background: var(--panel, #1a2027); border: 1px solid rgba(127, 127, 127, .3); padding: 14px 14px 10px; cursor: pointer; border-radius: 0; position: relative; }
+.fl-card:hover { border-color: var(--notification, #000dff); }
+.fl-title { font: 600 14.5px/1.25 Saans, system-ui, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-date { font-size: 11.5px; opacity: .6; }
+.fl-acts { display: flex; gap: 2px; margin-top: 2px; }
+.fl-act { padding: 5px; opacity: .6; display: grid; place-items: center; border: none; }
+.fl-act:hover { opacity: 1; }
+.fl-del.sure { background: var(--bad, #c0392b); color: #fff; opacity: 1; font-size: 10.5px; padding: 5px 7px; }
+.fl-rename { background: transparent; border: none; border-bottom: 2px solid var(--notification, #000dff); color: inherit; font: 600 14.5px/1.25 Saans, system-ui, sans-serif; }
+.fl-empty { opacity: .6; font-size: 14px; }
+body.scr-fileshome .scr-bar, body.scr-fileshome .scr-scroll, body.scr-fileshome .scr-foot { display: none; }
+body.mod-fileshome .mod-app { display: none; }
+@media (max-width: 560px) {
+  .fl-grid { grid-template-columns: 1fr 1fr; }
+  .fl-search { min-width: 0; flex: 1; }
+  .mod-node { font-size: 12px; }
+  .mod-bar { padding: 6px 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .mod-bar .btn { flex: 0 0 auto; }
+  .mod-title { flex: 0 0 100px; }
+}

@@ -48,6 +48,8 @@
   </div>
 </header>
 
+<section class="fl-home scr-home" id="scrHome" hidden></section>
+
 <div class="scr-bar">
   <input id="scrTitle" class="scr-title" value="Untitled document" aria-label="Document title">
   <span class="scr-status" id="scrStatus"></span>
@@ -85,6 +87,7 @@
   <button type="button" class="btn" id="scrCopy" title="Copy">Copy</button>
   <button type="button" class="btn" id="scrDl" title="Download">Download</button>
   <button type="button" class="btn" id="scrClear" title="Clear">Clear</button>
+      <button type="button" class="btn scr-ic" id="scrFiles" title="Files" aria-label="Files"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" fill="currentColor"/></svg></button>
 </div>
 
 <div class="scr-find" id="scrFindBar" hidden>
@@ -134,31 +137,25 @@
     }
   }
 
-  /* ---------- persistence (Google-Doc style autosave) ---------- */
-  const KEY = 'singhoah:scribe';
+  /* ---------- persistence: notes are documents in the shared store ------
+     (singhoah:docs via filesys.js). The old single-note key migrates on
+     first run so nothing is ever lost. */
+  const FS = await import('./filesys.js');
   let saveTimer = 0;
   let stamps = false;
-  function load() {
-    try {
-      const d = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (d && typeof d === 'object') {
-        if (typeof d.html === 'string') $('scrDoc').innerHTML = d.html;
-        if (typeof d.title === 'string' && d.title) $('scrTitle').value = d.title;
-        if (SR_LANGS.some(([c]) => c === d.in)) { $('scrIn').value = d.in; inTouched = true; }
-        if (SR_LANGS.some(([c]) => c === d.out)) $('scrOut').value = d.out;
-        if (typeof d.stamps === 'boolean') stamps = d.stamps;
-      }
-    } catch { /* ignore */ }
-  }
+  let docId = null;
+  function load() { /* documents load through openDoc(); kept for the mic path */ }
   function save() {
+    if (!docId) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(KEY, JSON.stringify({
+      FS.docsSave(docId, {
+        title: $('scrTitle').value,
+        data: {
           html: $('scrDoc').innerHTML, title: $('scrTitle').value,
           in: $('scrIn').value, out: $('scrOut').value, stamps,
-        }));
-      } catch { /* ignore */ }
+        },
+      });
     }, 600);
   }
 
@@ -555,14 +552,65 @@
     else if (e.key === 'y' || e.key === 'Y') { e.preventDefault(); histGo(1); }
   });
 
-  load();
-  histSnap();
-  stampsUI();
+  /* ---------- files: the Google-Docs-style home for every note ---------- */
+  function showHome() {
+    if (docId) { clearTimeout(saveTimer); save(); }
+    docId = null;
+    history.replaceState(null, '', location.pathname);
+    document.body.classList.add('scr-fileshome');
+    $('scrHome').hidden = false;
+    FS.renderFilesHome({
+      mount: $('scrHome'), kind: 'note', untitled: t(lang, 'flUntitledNote'),
+      brand: `${t(lang, 'lpScribe')} · ${t(lang, 'flFiles')}`,
+      onOpen: (id) => openDoc(id),
+    });
+  }
+  function openDoc(id) {
+    const d = FS.docsGet(id);
+    if (!d || d.kind !== 'note') return showHome();
+    docId = id;
+    history.replaceState(null, '', `?doc=${id}`);
+    document.body.classList.remove('scr-fileshome');
+    $('scrHome').hidden = true;
+    const data = d.data || {};
+    $('scrDoc').innerHTML = typeof data.html === 'string' ? data.html : '';
+    const title = (typeof data.title === 'string' && data.title) ? data.title : d.title;
+    $('scrTitle').value = title || t(lang, 'flUntitledNote');
+    if (SR_LANGS.some(([c]) => c === data.in)) { $('scrIn').value = data.in; inTouched = true; }
+    if (SR_LANGS.some(([c]) => c === data.out)) $('scrOut').value = data.out;
+    stamps = !!data.stamps;
+    hist = []; hpos = -1;
+    histSnap();
+    stampsUI();
+    count();
+  }
+  $('scrFiles').addEventListener('click', showHome);
+  document.addEventListener('singhoah:lang', () => { if (!$('scrHome').hidden) showHome(); });
+
+  /* one-time migration: the old single note becomes a document, never lost */
+  try {
+    if (!localStorage.getItem('singhoah:scribe:migrated')) {
+      localStorage.setItem('singhoah:scribe:migrated', '1');
+      if (FS.docsList('note').length === 0) {
+        const old = JSON.parse(localStorage.getItem('singhoah:scribe') || 'null');
+        if (old && (old.html || old.title)) {
+          FS.docsCreate('note', old.title || '', {
+            html: old.html || '', in: old.in, out: old.out, stamps: old.stamps,
+          });
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
   let saved = '';
   try { saved = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
   applyLang(LANGS.some((l) => l.id === saved) ? saved : 'en', false);
   makeLangPicker($('langBtn'), $('langPop'), $('langList'), (id) => applyLang(id), '.langwrap');
-  count();
+  stampsUI();
+  const docParam = new URLSearchParams(location.search).get('doc');
+  if (docParam && FS.docsGet(docParam) && FS.docsGet(docParam).kind === 'note') openDoc(docParam);
+  else showHome();
+  globalThis.__SCRIBE = { openDoc, showHome, docs: FS };
 </script>
 </body>
 </html>
