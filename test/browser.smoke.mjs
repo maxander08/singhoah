@@ -1910,19 +1910,14 @@ ok('Kaohsiung full Red Line fares at NT$60', await mt.evaluate(() =>
 let ksBaseOk = false;
 try {
   await mt.waitForFunction(() => {
-    const sum = (el) => el ? [...el.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) : 0;
-    return sum(document.querySelector('#metroBaseRoads .b-road-maj')) > 500 &&
-      sum(document.querySelector('#metroBaseWater .b-water-f')) > 500;
+    const st = globalThis.__METRO.baseStats();
+    return st.sys === 'KS' && st.charsMaj > 500 && st.charsWat > 500;
   }, null, { timeout: 6000, polling: 200 });
   ksBaseOk = true;
 } catch { /* checked below */ }
 ok('Kaohsiung basemap has its own streets and water', ksBaseOk);
 ok('switching systems hides the previous city and resets the view', await mt.evaluate(async () => {
-  const vis = () => {
-    const out = new Set();
-    document.querySelectorAll('.b-tile').forEach((e) => { if (e.style.display !== 'none') out.add(e.getAttribute('data-sys')); });
-    return [...out];
-  };
+  const vis = () => [globalThis.__METRO.baseStats().sys];
   if (vis().some((s) => s !== 'KS')) return false; /* only KS painted while KS is active */
   const svg = document.getElementById('metroSvg');
   document.getElementById('metroIn').click();
@@ -1932,7 +1927,8 @@ ok('switching systems hides the previous city and resets the view', await mt.eva
   document.querySelectorAll('#metroSys .metro-sysbtn')[0].click(); /* …then jump to Taipei */
   await new Promise((x) => setTimeout(x, 500));
   const wFit = svg.getAttribute('viewBox').split(' ').map(Number)[2];
-  return wFit > wZoom * 1.2 && vis().length > 0 && vis().every((s) => s === 'TRTC');
+  return wFit > wZoom * 1.2 && vis().length > 0 && vis().every((s) => s === 'TRTC') &&
+    globalThis.__METRO.baseStats().painted > 0;
 }));
 await mt.evaluate(() => document.querySelectorAll('#metroSys .metro-sysbtn')[3].click());
 await mt.waitForTimeout(200);
@@ -2134,7 +2130,7 @@ ok('a revisit paints the basemap straight from the cache', await (async () => {
   await mt.waitForTimeout(500);
   return mt.evaluate(async () => {
     for (let i = 0; i < 40 && !globalThis.__METRO.baseCached; i++) await new Promise((x) => setTimeout(x, 100));
-    const vis = [...document.querySelectorAll('.b-tile')].some((e) => e.style.display !== 'none' && (e.getAttribute('d') || '').length > 200);
+    const vis = globalThis.__METRO.baseStats().painted > 10 && globalThis.__METRO.baseStats().charsMaj > 200;
     return globalThis.__METRO.baseCached && vis;
   });
 })());
@@ -2148,9 +2144,8 @@ await mbp.waitForTimeout(500);
 let baseOk = false;
 try {
   await mbp.waitForFunction(() => {
-    const sum = (el) => el ? [...el.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) : 0;
-    return sum(document.querySelector('#metroBaseRoads .b-road-maj')) > 500 &&
-      sum(document.querySelector('#metroBaseWater .b-water-f')) > 500;
+    const st = globalThis.__METRO.baseStats();
+    return st.sys === 'TRTC' && st.charsMaj > 500 && st.charsWat > 500;
   }, null, { timeout: 6000, polling: 200 });
   baseOk = true;
 } catch { /* checked below */ }
@@ -2165,18 +2160,30 @@ ok('overview labels never overlap (interchanges win, rest reveal on zoom)', awai
   return vis.length > 5 && vis.length < 135; /* culled, not empty, not all */
 }));
 ok('street grid is hidden at overview zoom', await mbp.evaluate(() =>
-  document.querySelector('#metroBaseRoads .b-road-min').style.display === 'none'));
+  globalThis.__METRO.baseStats().minVisible === false && globalThis.__METRO.baseStats().painted > 10));
 await mbp.click('#metroIn'); await mbp.click('#metroIn'); await mbp.click('#metroIn');
 let gridOk = false;
 try {
   await mbp.waitForFunction(() => {
-    const m = document.querySelector('#metroBaseRoads .b-road-min');
-    return m && m.style.display !== 'none' &&
-      [...m.children].reduce((n, p) => n + (p.getAttribute('d') || '').length, 0) > 500;
+    const st = globalThis.__METRO.baseStats();
+    return st.minVisible && st.charsMin > 500;
   }, null, { timeout: 6000, polling: 200 });
   gridOk = true;
 } catch { /* checked below */ }
 ok('zooming in reveals the street grid', gridOk);
+ok('gestures stretch the baked canvas layer and re-bake on settle', await mbp.evaluate(async () => {
+  const svg = document.getElementById('metroSvg');
+  const cv = document.getElementById('metroBaseCanvas');
+  globalThis.__METRO.zoomBy(3);
+  await new Promise((x) => setTimeout(x, 400));
+  const ev = (t, x, y) => svg.dispatchEvent(new PointerEvent(t, { pointerId: 1, clientX: x, clientY: y, bubbles: true, cancelable: true, isPrimary: true, pointerType: 'mouse' }));
+  ev('pointerdown', 700, 450);
+  for (let i = 1; i <= 10; i++) { ev('pointermove', 700 - i * 4, 450 - i * 2); await new Promise((x) => setTimeout(x, 16)); }
+  const live = cv.style.transform.startsWith('matrix(');
+  ev('pointerup', 660, 430);
+  await new Promise((x) => setTimeout(x, 500));
+  return live && cv.style.transform === '' && globalThis.__METRO.baseStats().painted > 0;
+}));
 await mbc.close();
 const mtz = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await mtz.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); });

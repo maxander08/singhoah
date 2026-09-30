@@ -34,8 +34,11 @@ for (const [a, b] of METRO.xf) { if (ST[a]) ST[a].xf = true; if (ST[b]) ST[b].xf
 /* per-system projection into a 1000 x 800 frame */
 const VB = { w: 1000, h: 800 };
 /* screen <-> map conversion, correct for preserveAspectRatio letterboxing */
+let svgRect = null;
+function measureSvg() { svgRect = els.metroSvg.getBoundingClientRect(); }
 function vGeomFor(k) {
-  const rect = els.metroSvg.getBoundingClientRect();
+  if (!svgRect) measureSvg();
+  const rect = svgRect;
   /* the viewBox follows the container's aspect so portrait phones use the
      whole screen instead of a letterboxed strip */
   const aspect = Math.max(0.6, Math.min(2.6, rect.height / Math.max(1, rect.width)));
@@ -139,14 +142,14 @@ function ensureBase(sysId) {
   if (BASE[sysId]) return BASE[sysId];
   const mk = () => {
     const t = [];
-    for (let i = 0; i < TN * TN; i++) t.push({ d: '', b: null, el: null, vis: null, dirty: false });
+    for (let i = 0; i < TN * TN; i++) t.push({ d: '', b: null, p2d: null, dirty: false });
     return t;
   };
   const B = BASE[sysId] = {
     src: baseArrays(sysId), qi: { maj: 0, min: 0, watf: 0, wats: 0 }, done: false, fromCache: false,
     tiles: { maj: mk(), min: mk(), watf: mk(), wats: mk() },
     big: { maj: '', min: '', watf: '', wats: '' },
-    bigEl: { maj: null, min: null, watf: null, wats: null }, bigDirty: {},
+    bigP2d: { maj: null, min: null, watf: null, wats: null }, bigDirty: {},
   };
   const start = (src) => {
     B.src = src;
@@ -155,13 +158,13 @@ function ensureBase(sysId) {
     idbGet(B.key).then((hit) => {
       if (!hit || B.done || BASE[sysId] !== B) { if (!B.done) pumpBase(sysId); return; }
       for (const cls of ['maj', 'watf', 'wats', 'min']) {
-        B.tiles[cls] = hit.t[cls].map((t) => ({ d: t.d, b: t.b, el: null, vis: null, dirty: true }));
+        B.tiles[cls] = hit.t[cls].map((t) => ({ d: t.d, b: t.b, p2d: null, dirty: true }));
         B.big[cls] = hit.big[cls] || '';
         if (B.big[cls]) B.bigDirty[cls] = true;
       }
       B.done = true; B.fromCache = true;
-      flushBase(sysId);
-      if (sys === sysId) updateBasePaths();
+      invalidateBase(sysId);
+      if (sys === sysId) requestDraw();
     });
   };
   if (B.src) start(B.src);
@@ -194,8 +197,6 @@ const idbGet = (k) => idb().then((db) => (db ? new Promise((res) => {
   try { const rq = db.transaction('base').objectStore('base').get(k); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => res(null); } catch { res(null); }
 }) : null));
 const idbSet = (k, v) => idb().then((db) => { if (db) { try { db.transaction('base', 'readwrite').objectStore('base').put(v, k); } catch { /* ignore */ } } });
-
-const BHOST = { watf: () => bWF, wats: () => bWS, maj: () => bRM, min: () => bRm };
 function pumpBase(sysId) {
   const B = BASE[sysId];
   if (!B || B.done || !B.src) return;
@@ -224,66 +225,74 @@ function pumpBase(sysId) {
     }
     if (!progressed) { B.done = true; break; }
   }
-  flushBase(sysId);
-  if (sys === sysId) updateBasePaths();
+  invalidateBase(sysId);
+  if (sys === sysId && !interacting) requestDraw();
   if (!B.done) setTimeout(() => pumpBase(sysId), 16);
   else saveBase(sysId);
 }
-function flushBase(sysId) {
+function invalidateBase(sysId) {
   const B = BASE[sysId];
-  /* flush dirty tiles to the DOM (once per tile) */
   for (const cls of ['maj', 'watf', 'wats', 'min']) {
-    for (const t of B.tiles[cls]) {
-      if (!t.dirty) continue;
-      t.dirty = false;
-      if (!t.el) {
-        t.el = document.createElementNS(NS, 'path');
-        t.el.setAttribute('class', 'b-tile');
-        t.el.setAttribute('vector-effect', 'non-scaling-stroke');
-        t.el.setAttribute('data-sys', sysId);
-        BHOST[cls]().appendChild(t.el);
-      }
-      t.el.setAttribute('d', t.d);
-      if (sysId !== sys) { t.el.style.display = 'none'; t.vis = false; } /* background stream: never paint over the current map */
-    }
-    if (B.bigDirty[cls]) {
-      B.bigDirty[cls] = false;
-      if (!B.bigEl[cls]) {
-        B.bigEl[cls] = document.createElementNS(NS, 'path');
-        B.bigEl[cls].setAttribute('class', 'b-tile');
-        B.bigEl[cls].setAttribute('vector-effect', 'non-scaling-stroke');
-        B.bigEl[cls].setAttribute('data-sys', sysId);
-        BHOST[cls]().appendChild(B.bigEl[cls]);
-      }
-      B.bigEl[cls].setAttribute('d', B.big[cls]);
-      if (sysId !== sys) { B.bigEl[cls].style.display = 'none'; }
-    }
+    for (const t of B.tiles[cls]) if (t.dirty) { t.dirty = false; t.p2d = null; }
+    if (B.bigDirty[cls]) { B.bigDirty[cls] = false; B.bigP2d[cls] = null; }
   }
 }
 /* per-frame cost: 64 bbox tests + a few display toggles. That's it. */
-function updateBasePaths() {
-  const B = BASE[sys];
-  if (!B) return;
-  const v = view[sys], g = vGeom();
-  const m = (interacting ? 1.2 : 0.25) * g.w;
-  const vx0 = v.cx - g.w / 2 - m, vx1 = v.cx + g.w / 2 + m;
-  const vy0 = v.cy - g.h / 2 - m, vy1 = v.cy + g.h / 2 + m;
-  bRm.style.display = v.k >= 2.5 ? '' : 'none'; /* street grid at close zoom only */
+/* ---- canvas bake of the street basemap ----
+   The heavy geometry (megabytes of roads/rivers) lives in a single
+   pre-baked <canvas> layer instead of thousands of live SVG nodes:
+   a gesture frame touches ZERO geometry — the baked bitmap is stretched
+   by the compositor (like Google Maps' tile layer) and the layer is
+   re-baked once, sharply, when the gesture settles. */
+let bCtx = null;
+const BCLASS_PX = { wats: 1.2, maj: 1.5, min: 0.9 }; /* screen-px stroke widths */
+let bPaint = { sys: null, painted: 0, charsMaj: 0, charsWat: 0, charsMin: 0, minVisible: false };
+function paintBase(margin) {
+  const cv = els.metroBaseCanvas, B = BASE[sys];
+  const v = view[sys], g = vGeomFor(v.k);
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const W = Math.max(1, Math.round(g.rect.width * dpr)), H = Math.max(1, Math.round(g.rect.height * dpr));
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const x0 = v.cx - g.w / 2, y0 = v.cy - g.h / 2;
+  bCtx.setTransform(1, 0, 0, 1, 0, 0);
+  bCtx.clearRect(0, 0, W, H);
+  const st = bPaint = { sys, painted: 0, charsMaj: 0, charsWat: 0, charsMin: 0, minVisible: false };
+  if (!B || !g.s) return;
+  bCtx.setTransform(dpr * g.s, 0, 0, dpr * g.s, dpr * (g.ox - x0 * g.s), dpr * (g.oy - y0 * g.s));
+  const m = (margin === undefined ? 0.25 : margin) * g.w;
+  const vx0 = x0 - m, vx1 = x0 + g.w + m, vy0 = y0 - m, vy1 = y0 + g.h + m;
+  const cs = getComputedStyle(document.documentElement);
+  const col = {
+    watf: cs.getPropertyValue('--bwater').trim() || '#c9dbe7',
+    wats: cs.getPropertyValue('--bwater').trim() || '#c9dbe7',
+    maj: cs.getPropertyValue('--broadM').trim() || 'rgba(29,29,27,.22)',
+    min: cs.getPropertyValue('--broadm').trim() || 'rgba(29,29,27,.13)',
+  };
   for (const cls of ['watf', 'wats', 'maj', 'min']) {
-    for (const t of B.tiles[cls]) {
-      if (!t.el) continue;
-      const b = t.b;
-      const on = b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0;
-      if (t.vis !== on) { t.vis = on; t.el.style.display = on ? '' : 'none'; }
+    if (cls === 'min' && v.k < 2.5) continue; /* street grid at close zoom only */
+    if (cls === 'watf') bCtx.fillStyle = col.watf;
+    else {
+      bCtx.strokeStyle = col[cls];
+      bCtx.lineWidth = BCLASS_PX[cls] / g.s; /* world units => constant screen px */
+      bCtx.lineCap = 'round'; bCtx.lineJoin = 'round';
     }
-  }
-  /* a tab switch must reset the canvas: every other system's baked tiles
-     are hidden so the previous city never bleeds into the current one */
-  for (const [sid, B2] of Object.entries(BASE)) {
-    if (sid === sys) continue;
-    for (const cls of ['watf', 'wats', 'maj', 'min']) {
-      for (const t of B2.tiles[cls]) if (t.el && t.vis !== false) { t.vis = false; t.el.style.display = 'none'; }
-      if (B2.bigEl[cls] && B2.bigEl[cls].style.display !== 'none') B2.bigEl[cls].style.display = 'none';
+    const paint = (p2d, dLen) => {
+      if (cls === 'watf') bCtx.fill(p2d); else bCtx.stroke(p2d);
+      st.painted++;
+      if (cls === 'maj') st.charsMaj += dLen;
+      else if (cls === 'watf' || cls === 'wats') st.charsWat += dLen;
+      else { st.charsMin += dLen; st.minVisible = true; }
+    };
+    if (B.big[cls]) {
+      if (!B.bigP2d[cls]) B.bigP2d[cls] = new Path2D(B.big[cls]);
+      paint(B.bigP2d[cls], B.big[cls].length);
+    }
+    for (const t of B.tiles[cls]) {
+      if (!t.d) continue;
+      const b = t.b;
+      if (!(b[0] <= vx1 && b[2] >= vx0 && b[1] <= vy1 && b[3] >= vy0)) continue;
+      if (!t.p2d) t.p2d = new Path2D(t.d);
+      paint(t.p2d, t.d.length);
     }
   }
 }
@@ -417,20 +426,8 @@ const els = {};
 for (const id of ['langBtn', 'langFlag', 'langLabel', 'langPop', 'langList', 'btnNight', 'nightText',
   'btnLaunch', 'btnClock', 'clockText', 'btnSettings', 'settingsText', 'metroSys', 'metroSvg', 'metroLines', 'metroStations', 'metroLabels', 'metroRoute',
   'metroIn', 'metroOut', 'metroFit', 'mFromName', 'mToName', 'mFareBox', 'mFareVal', 'mFareMeta', 'mHint', 'mSwap', 'mClear',
-  'metroBaseWater', 'metroBaseRoads', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
-let bWF, bWS, bRM, bRm;
-function initBase() {
-  const g = (cls) => { const e = document.createElementNS(NS, 'g'); e.setAttribute('class', cls); return e; };
-  bWF = g('b-water-f'); bWS = g('b-water-s');
-  els.metroBaseWater.append(bWF, bWS);
-  bRM = g('b-road-maj'); bRm = g('b-road-min');
-  els.metroBaseRoads.append(bRM, bRm);
-  /* screen-constant hairlines: stroke-width inherits to every tile path;
-     vector-effect is not inherited, so tiles set it at creation */
-  for (const [p, w] of [[bWS, 1.2], [bRM, 1.5], [bRm, 0.9]]) {
-    p.setAttribute('stroke-width', String(w));
-  }
-}
+  'metroBaseCanvas', 'mCard', 'mCardText', 'mCardPop', 'mCardMsg', 'mCardId', 'mCardBalLbl', 'mCardBal', 'mCardNote']) els[id] = $(id);
+function initBase() { bCtx = els.metroBaseCanvas.getContext('2d'); }
 
 function applyLang(id, persist = true) {
   lang = langOf(id).id;
@@ -635,16 +632,22 @@ function draw() {
     const tx = x00 + (g.ox - g0.ox - x01 * g.s) / g0.s;
     const ty = y00 + (g.oy - g0.oy - y01 * g.s) / g0.s;
     worldG.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${tx.toFixed(2)},${ty.toFixed(2)})`;
-    updateBasePaths(); /* long pans: keep tiles under the view (display toggles only) */
+    /* the canvas layer stretches by the same ratio — in screen pixels */
+    const ctx_ = (g.ox - x01 * g.s) - a * (g0.ox - x00 * g0.s);
+    const cty_ = (g.oy - y01 * g.s) - a * (g0.oy - y00 * g0.s);
+    els.metroBaseCanvas.style.transform = `matrix(${a.toFixed(5)},0,0,${a.toFixed(5)},${ctx_.toFixed(2)},${cty_.toFixed(2)})`;
+    /* very long pan: view outran the pre-baked margin — re-bake on the fly */
+    if (Math.abs(v.cx - base.cx) > 0.9 * g.w || Math.abs(v.cy - base.cy) > 0.9 * g.h) gestureRebake();
     return;
   }
   worldG.style.transform = '';
+  els.metroBaseCanvas.style.transform = '';
   els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
   els.metroSvg.style.setProperty('--upx', (1 / g.s).toFixed(5));
   /* street basemap: streamed into static tiles, culled by display toggles */
   ensureTracks(sys);
   ensureBase(sys);
-  updateBasePaths();
+  paintBase();
   const sc = buildScene(sys);
   cullLabels(sc, v, g);
   /* selection highlight + route overlay only when the pair changed */
@@ -664,7 +667,7 @@ let interacting = false, interT = 0, worldG = null;
 function initWorld() {
   worldG = document.createElementNS(NS, 'g');
   worldG.id = 'metroWorld';
-  for (const el of [els.metroBaseWater, els.metroBaseRoads, els.metroLines, els.metroStations, els.metroLabels, els.metroRoute]) worldG.appendChild(el);
+  for (const el of [els.metroLines, els.metroStations, els.metroLabels, els.metroRoute]) worldG.appendChild(el);
   els.metroSvg.appendChild(worldG);
 }
 /* Google-Maps-style gesture compositing, round two: while a gesture is
@@ -673,12 +676,27 @@ function initWorld() {
    and unlike the old engine that re-bake is now trivial (one viewBox +
    tile visibility toggles), so the handoff is invisible. */
 let base = null;
+/* mid-gesture re-bake when a pan outruns the pre-baked margin: cheap now
+   (one canvas bake + one viewBox write over a light SVG), so long drags
+   never run off the edge of the painted layer */
+function gestureRebake() {
+  const v = view[sys], g = vGeomFor(v.k);
+  els.metroSvg.setAttribute('viewBox', `${v.cx - g.w / 2} ${v.cy - g.h / 2} ${g.w} ${g.h}`);
+  els.metroSvg.style.setProperty('--upx', (1 / g.s).toFixed(5));
+  base = { cx: v.cx, cy: v.cy, k: v.k, sys };
+  worldG.style.transform = '';
+  els.metroBaseCanvas.style.transform = '';
+  paintBase(1.2);
+  cullLabels(buildScene(sys), v, g);
+}
 function markInteract() {
   if (!interacting) {
     const v = view[sys];
+    measureSvg();
     base = { cx: v.cx, cy: v.cy, k: v.k, sys };
     worldG.style.willChange = 'transform';
-    updateBasePaths(); /* re-cull wide so gesture edges never run empty */
+    els.metroBaseCanvas.style.willChange = 'transform';
+    paintBase(1.2); /* pre-bake wide so gesture edges never run empty */
   }
   interacting = true;
   clearTimeout(interT);
@@ -686,11 +704,12 @@ function markInteract() {
     interacting = false;
     base = null;
     worldG.style.willChange = '';
+    els.metroBaseCanvas.style.willChange = '';
     draw(); /* sharp re-bake — cheap now */
     pumpBase(sys);
   }, 200);
 }
-addEventListener('resize', () => { interacting = false; requestDraw(); });
+addEventListener('resize', () => { interacting = false; svgRect = null; requestDraw(); });
 
 /* coalesce event-driven redraws into one per animation frame */
 let rafId = 0;
@@ -903,6 +922,7 @@ els.btnNight.addEventListener('click', () => {
 initBase();
 initWorld();
 applyLang(lang, false);
+measureSvg();
 fitContent();
 
 globalThis.__METRO = {
@@ -911,6 +931,8 @@ globalThis.__METRO = {
   /* test hook: current logical view + the gesture's bake snapshot */
   get dbg() { return { v: { ...view[sys] }, base: base ? { ...base } : null }; },
   get baseCached() { return Object.values(BASE).some((b) => b.fromCache); },
+  /* test hook: what the last canvas bake actually painted */
+  baseStats() { return { ...bPaint }; },
   setSys(id) {
     if (!SYSS.includes(id) || id === sys) return id === sys;
     sys = id; from = to = null;

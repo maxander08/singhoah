@@ -25,7 +25,7 @@
 </script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2f0e6'/%3E%3Cpath d='M8 22V14l8-6 8 6v8' fill='none' stroke='%23000dff' stroke-width='2.4'/%3E%3Ccircle cx='12' cy='20' r='2.2' fill='%23000dff'/%3E%3Ccircle cx='20' cy='20' r='2.2' fill='%23000dff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="fonts.css?v=a3522058">
-<link rel="stylesheet" href="styles.css?v=3a162b94">
+<link rel="stylesheet" href="styles.css?v=2b78d934">
 </head>
 <body data-app="metro">
 
@@ -64,9 +64,8 @@
 <main class="metro-app">
   <div class="metro-sys" id="metroSys" role="tablist" aria-label="System"></div>
   <div class="metro-mapwrap">
+    <canvas id="metroBaseCanvas" aria-hidden="true"></canvas>
     <svg id="metroSvg" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Metro map">
-      <g id="metroBaseWater" aria-hidden="true"></g>
-      <g id="metroBaseRoads" aria-hidden="true"></g>
       <g id="metroLines"></g>
       <g id="metroStations"></g>
       <g id="metroLabels"></g>
@@ -113,6 +112,6 @@
 <script type="module" src="auth.js?v=c8fcaca3"></script>
 <script type="module" src="smate.js?v=fb0279e2"></script>
 <script type="module" src="metrodata.js?v=d82eb888"></script>
-<script type="module" src="metro.js?v=f4be0fab"></script>
+<script type="module" src="metro.js?v=a807770b"></script>
 </body>
 </html>

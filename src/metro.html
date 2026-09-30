@@ -64,9 +64,8 @@
 <main class="metro-app">
   <div class="metro-sys" id="metroSys" role="tablist" aria-label="System"></div>
   <div class="metro-mapwrap">
+    <canvas id="metroBaseCanvas" aria-hidden="true"></canvas>
     <svg id="metroSvg" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Metro map">
-      <g id="metroBaseWater" aria-hidden="true"></g>
-      <g id="metroBaseRoads" aria-hidden="true"></g>
       <g id="metroLines"></g>
       <g id="metroStations"></g>
       <g id="metroLabels"></g>
