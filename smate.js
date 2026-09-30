@@ -220,6 +220,11 @@
     if (!m) return;
     const avail = (el.clientWidth || 0) - 2;
     if (avail < 40) return; /* popup hidden — next tick retries */
+    if (el.__grid) {
+      const rows = (getComputedStyle(el.__grid).gridTemplateRows || '').trim().split(/\s+/).length || 1;
+      const want = rows * 300;
+      if ((m.h || 0) !== want) { m.h = want; m.stage.style.height = `${want}px`; }
+    }
     const s = Math.min(1, avail / m.w);
     m.stage.style.transform = `scale(${s})`;
     const h = m.stage.offsetHeight;
@@ -231,6 +236,7 @@
   function abZoneStage(zones, modeCls) {
     const n = zones.length;
     const cells = [];
+    let grid = null;
     const st = document.createElement('div');
     st.className = 'ab-stage multi' + (modeCls ? ' ' + modeCls : '');
     if (n === 1) {
@@ -240,7 +246,7 @@
       cells.push({ cell: c, z: zones[0] });
     } else {
       st.style.cssText += `width:640px;height:${n <= 2 ? 300 : 560}px;`;
-      const grid = document.createElement('div');
+      grid = document.createElement('div');
       grid.className = 'grid';
       grid.dataset.layout = n === 2 ? '2' : (n <= 4 ? '2x2' : '4x4');
       zones.slice(0, n <= 2 ? 2 : (n <= 4 ? 4 : 16)).forEach((z) => {
@@ -250,7 +256,7 @@
       });
       st.appendChild(grid);
     }
-    return { st, cells };
+    return { st, cells, grid: n > 1 ? grid : null };
   }
   function abMount(el, stage, w) {
     const wrap = document.createElement('div');
@@ -276,7 +282,8 @@
     } else if (spec.k === 'clocks') {
       const zones = (spec.z || []).filter(Boolean);
       if (zones.length) {
-        const { st, cells } = abZoneStage(zones);
+        const { st, cells, grid } = abZoneStage(zones);
+        el.__grid = grid;
         el.__cells = cells;
         abMount(el, st, zones.length === 1 ? 420 : 640);
         if (zones.length > 4) {
@@ -290,13 +297,23 @@
       el.__cells = cells;
       abMount(el, st, 420);
     } else if (spec.k === 'wallet') {
-      /* real Wallet ledger markup — same classes, same layout */
-      const sign = spec.inn ? '+' : '\u2212';
-      const amtTxt = `${sign}${Number(spec.amt || 0).toFixed(2)}`;
+      /* real Wallet ledger markup — same classes, same fmtMoney/walDateLabel math */
+      const locale = langOf(curLang).locale;
+      let wal = {};
+      try { wal = JSON.parse(localStorage.getItem('singhoah:wallet') || '{}'); } catch { /* no ledger yet */ }
+      const cur = wal.cur || 'USD';
+      const money = (v, plus) => {
+        const n = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(Math.abs(v));
+        return `${v > 0 && plus ? '+' : v < 0 ? '\u2212' : ''}${LIB.curSymbol(cur, locale)}${n}`;
+      };
+      const amtV = Math.abs(spec.amt || 0) * (spec.inn ? 1 : -1);
+      const amtTxt = money(amtV, true);
       const day = document.createElement('div'); day.className = 'wal-day';
       const dh = document.createElement('div'); dh.className = 'wal-day-h';
-      const d1 = document.createElement('span'); d1.textContent = new Date().toLocaleDateString(langOf(curLang).locale);
-      const d2 = document.createElement('span'); d2.textContent = amtTxt;
+      const d1 = document.createElement('span');
+      try { d1.textContent = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()); } catch { d1.textContent = new Date().toLocaleDateString(locale); }
+      const d2 = document.createElement('span');
+      d2.textContent = spec.inn ? amtTxt : `${t(curLang, 'walSpent')} ${money(Math.abs(amtV), false)}`;
       dh.append(d1, d2);
       const item = document.createElement('div'); item.className = 'wal-item';
       const note = document.createElement('span'); note.className = 'wal-note';
@@ -304,10 +321,12 @@
       const amt = document.createElement('span'); amt.className = `wal-amt ${spec.inn ? 'in' : 'out'}`; amt.textContent = amtTxt;
       item.append(note, amt);
       day.append(dh, item);
+      const total = (wal.tx || []).reduce((a, x) => a + (x.type === 'in' ? x.amt : -x.amt), 0);
       const day2 = document.createElement('div'); day2.className = 'wal-day';
       const dh2 = document.createElement('div'); dh2.className = 'wal-day-h';
-      const bal = document.createElement('span'); bal.textContent = spec.bal || '';
-      dh2.appendChild(bal);
+      const b1 = document.createElement('span'); b1.textContent = t(curLang, 'walBalance');
+      const b2 = document.createElement('span'); b2.className = 'wal-amt'; b2.textContent = money(total, false);
+      dh2.append(b1, b2);
       day2.appendChild(dh2);
       body.append(day, day2);
     } else if (spec.k === 'fare') {

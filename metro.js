@@ -881,6 +881,6 @@ if (new URLSearchParams(location.search).get('mini')) {
   if (a && ST[a]) {
     if (ST[a].sys !== sys) __METRO.setSys(ST[a].sys);
     __METRO.pick(a);
-    if (b && ST[b]) pick(b);
+    if (b && ST[b]) __METRO.pick(b);
   }
 }

@@ -1393,7 +1393,7 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .ab-mini { overflow: hidden; position: relative; border-radius: 8px; background: var(--paper); }
 .ab-mini button, .ab-mini .cell-cap { pointer-events: none; }
 .ab-stage { transform-origin: 0 0; position: relative; }
-.ab-stage .grid { flex: none; height: var(--abh, 300px); }
+.ab-stage .grid { flex: none; height: 100%; }
 .ab-stage .cell { height: 100%; }
 .ab-stage.ab-analog .cell .clock { display: none; }
 .ab-stage.ab-analog .cell:not(.unset) .dial { display: flex; }

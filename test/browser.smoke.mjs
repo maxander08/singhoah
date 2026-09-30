@@ -1344,7 +1344,14 @@ await sq.close();
 const swq = await sm.newPage();
 await swq.goto(URL + 'wallet.html', { waitUntil: 'load' });
 await swq.waitForTimeout(300);
+const ensureIn = async (pg) => {
+  if (!(await pg.locator('#smateIn').isVisible().catch(() => false))) {
+    await pg.click('#smateBtn');
+    await pg.locator('#smateIn').waitFor({ state: 'visible', timeout: 5000 });
+  }
+};
 await swq.click('#smateBtn');
+await ensureIn(swq);
 await swq.fill('#smateIn', 'add 250 income');
 await swq.click('#smateSend');
 await swq.waitForTimeout(950);
@@ -1355,6 +1362,7 @@ ok('SMate adds wallet entries from a sentence', await swq.evaluate(() => {
   const shown = parseFloat((document.getElementById('walBal').textContent || '').replace(/[^0-9.-]/g, ''));
   return !!lastTx && lastTx.amt === 250 && lastTx.type === 'in' && Math.abs(shown - total) < 0.01;
 }));
+await ensureIn(swq);
 await swq.fill('#smateIn', 'timer 2');
 await swq.click('#smateSend');
 await swq.waitForTimeout(1500);
