@@ -843,6 +843,7 @@ applyLang(lang, false);
 measureSvg();
 fitContent();
 
+
 globalThis.__METRO = {
   route, fare, ST,
   get sys() { return sys; },
@@ -870,3 +871,16 @@ globalThis.__METRO = {
   zoomBy(f) { const v = view[sys]; markInteract(); setView(v.cx, v.cy, v.k * f); requestDraw(); return view[sys].k; },
   resetView() { fitContent(); return true; },
 };
+
+/* SMate Action Block mode: the page itself, embedded as a true mini —
+   chrome hidden, fare pair pre-selected from the URL hash */
+if (new URLSearchParams(location.search).get('mini')) {
+  document.body.classList.add('smmini');
+  const q = new URLSearchParams(location.hash.slice(1));
+  const a = q.get('a'), b = q.get('b');
+  if (a && ST[a]) {
+    if (ST[a].sys !== sys) __METRO.setSys(ST[a].sys);
+    __METRO.pick(a);
+    if (b && ST[b]) pick(b);
+  }
+}

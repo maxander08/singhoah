@@ -1249,17 +1249,22 @@ ok('SMate shows an animated typing indicator while it thinks', await sq.evaluate
 }, statusIdle));
 await sq.waitForTimeout(900);
 ok('the typing indicator gives way to the real answer', await sq.evaluate((idle) =>
-  !document.querySelector('.smate-dots') && !!document.querySelector('.cell.timer') &&
+  !document.querySelector('.smate-dots') && !!document.querySelector('#grid .cell.timer') &&
   document.getElementById('smateStatus').textContent === idle, statusIdle));
 await smSend('計時器 5');
 ok('SMate understands the same command in Traditional Chinese', await sq.evaluate(() =>
-  document.querySelectorAll('.cell.timer').length === 2));
+  document.querySelectorAll('#grid .cell.timer').length === 2));
 await smSend('side');
 ok('SMate switches the window layout', await sq.evaluate(() => document.getElementById('grid').dataset.layout === '2'));
-ok('timer requests answer with a live Action Block', await (async () => {
-  const a = await sq.evaluate(() => [...document.querySelectorAll('.smate-block[data-ab="timer"] .ab-big')].pop()?.textContent || '');
+ok('timer blocks are true minis of the timer cell and tick live', await (async () => {
+  const read = () => sq.evaluate(() => {
+    const bl = [...document.querySelectorAll('.smate-block[data-ab="timer"]')].pop();
+    if (!bl) return '';
+    return (bl.querySelector('.cell.timer .clock')?.textContent || '') + '|' + (bl.querySelector('.ab-mini')?.style.height || '');
+  });
+  const a = await read();
   await sq.waitForTimeout(1300);
-  const b = await sq.evaluate(() => [...document.querySelectorAll('.smate-block[data-ab="timer"] .ab-big')].pop()?.textContent || '');
+  const b = await read();
   return /\d:\d\d/.test(a) && a !== b;
 })());
 await smSend('zone Taipei');
@@ -1297,9 +1302,10 @@ ok('SMate answers fare questions on the clock page (any-page fare engine)', awai
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('NT$') && last.includes('Zhongxiao Xinsheng') && last.includes('Taipei Main');
 }));
-ok('fare answers carry a mini route-map Action Block', await sq.waitForFunction(() => {
+ok('fare blocks embed the real metro page in mini mode', await sq.waitForFunction(() => {
   const bl = [...document.querySelectorAll('.smate-block[data-ab="fare"]')].pop();
-  return !!bl && bl.querySelectorAll('svg.ab-map polyline').length > 3 && bl.querySelectorAll('svg.ab-map circle').length >= 2;
+  const f = bl && bl.querySelector('iframe.ab-frame');
+  return !!f && f.src.includes('mini=1') && !!f.src.includes('a=') && !!f.src.includes('b=');
 }, null, { timeout: 5000, polling: 250 }).then(() => true).catch(() => false));
 const txBefore = await sq.evaluate(() => { try { return JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { return 0; } });
 await smSend('add 12 expense');
@@ -1312,9 +1318,10 @@ ok('wallet actions from other pages really hit the ledger and show a block', awa
 }, txBefore));
 await smSend('map Jakarta');
 await sq.waitForTimeout(900);
-ok('map requests open the map in the main window and show a city block', await sq.evaluate(() => {
+ok('map requests open the map in the main window and clone it into the block', await sq.evaluate(() => {
   const bl = [...document.querySelectorAll('.smate-block[data-ab="mapnav"]')].pop();
-  return !!bl && bl.textContent.includes('Jakarta') && !document.getElementById('mapWrap').hidden;
+  const open = !document.getElementById('mapWrap').hidden;
+  return !!bl && open && (!!bl.querySelector('svg') || bl.textContent.includes('Jakarta'));
 }));
 await smSend('從忠孝新生到台北車站票價多少？');
 await sq.waitForTimeout(700);
@@ -1354,9 +1361,9 @@ await swq.waitForTimeout(1500);
 try { await swq.waitForURL('**/index.html', { timeout: 5000 }); } catch { /* asserted below */ }
 await swq.waitForTimeout(900);
 ok('a timer asked on another page starts in the main window with a live block', await swq.evaluate(() => {
-  const cell = document.querySelector('.cell.timer');
+  const cell = document.querySelector('#grid .cell.timer');
   const bl = [...document.querySelectorAll('.smate-block[data-ab="timer"]')].pop();
-  return !!cell && !!bl && /\d:\d\d/.test(bl.querySelector('.ab-big')?.textContent || '');
+  return !!cell && !!bl && /\d:\d\d/.test(bl.querySelector('.cell.timer .clock')?.textContent || '');
 }));
 await swq.goto(URL + 'wallet.html', { waitUntil: 'load' });
 await swq.waitForTimeout(300);
@@ -1701,11 +1708,11 @@ await fcSend('timer 5');
 await fcSend('restart timer');
 ok('SMate restarts the timer', await fp.evaluate(() => !!document.querySelector('.cell.timer')));
 await fcSend('delete timer');
-ok('SMate deletes the timer pane', await fp.evaluate(() => !document.querySelector('.cell.timer')));
+ok('SMate deletes the timer pane', await fp.evaluate(() => !document.querySelector('#grid .cell.timer')));
 await fcSend('stopwatch');
 await fcSend('restart stopwatch');
 await fcSend('delete stopwatch');
-ok('SMate restarts and deletes the stopwatch', await fp.evaluate(() => !document.querySelector('.cell.stop')));
+ok('SMate restarts and deletes the stopwatch', await fp.evaluate(() => !document.querySelector('#grid .cell.stop')));
 await fcSend('zones Jakarta and Taipei side by side');
 await fcSend('remove Taipei');
 ok('SMate removes a single zone', await fp.evaluate(() => {

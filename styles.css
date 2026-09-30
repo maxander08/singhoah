@@ -1389,6 +1389,22 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .ab-city { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 13px; min-width: 0; }
 .ab-city b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab-city span { margin-left: auto; font-variant-numeric: tabular-nums; }
+/* true minis: the real components, scaled — controls stay visible but inert */
+.ab-mini { overflow: hidden; position: relative; border-radius: 8px; background: var(--paper); }
+.ab-mini button, .ab-mini .cell-cap { pointer-events: none; }
+.ab-stage { transform-origin: 0 0; position: relative; }
+.ab-stage .grid { flex: none; height: var(--abh, 300px); }
+.ab-stage .cell { height: 100%; }
+.ab-stage.ab-analog .cell .clock { display: none; }
+.ab-stage.ab-analog .cell:not(.unset) .dial { display: flex; }
+.ab-stage.ab-digital .cell .dial { display: none; }
+.ab-frame { border: 0; width: 640px; height: 520px; transform-origin: 0 0; pointer-events: none; background: var(--paper); display: block; }
+/* metro page embedded as a mini: chrome off, map fills the frame */
+.smmini header.topbar, .smmini .metro-sys, .smmini .metro-bar, .smmini .metro-zoom { display: none !important; }
+.smmini main.metro-app { padding: 0; gap: 0; }
+.smmini .metro-mapwrap { position: absolute; inset: 0; }
+/* wallet mini rows reuse the wallet's own classes */
+.ab-mini .wal-day { border: 0; }
 @media (prefers-reduced-motion: reduce) { .ab-dot.live { animation: none; } }
 .smate-chip { min-height: 26px; padding: 0 10px; font-size: 12px; background: var(--paper-2); }
 .smate-mic[aria-pressed="true"] { background: var(--notification); color: var(--on-notification); }

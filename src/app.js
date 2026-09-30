@@ -1670,19 +1670,7 @@ function updateStopCell(cell, st, date) {
   }
 }
 
-function updateCell(cell, i, date, locale) {
-  const z = cellZone(i);
-  if (!z) return;
-  if (isTimer(z)) {
-    const tm = timers.get(z.slice(6));
-    if (tm) updateTimerCell(cell, tm, date);
-    return;
-  }
-  if (isStop(z)) {
-    const st = stops.get(z.slice(5));
-    if (st) updateStopCell(cell, st, date);
-    return;
-  }
+function updateZoneCell(cell, z, date, locale) {
   const digits = toDigits(date, z);
   for (let k = 0; k < digits.length; k++) {
     if (!cell.prev || cell.prev[k] !== digits[k]) cell.clock.children[k].textContent = digits[k];
@@ -1698,7 +1686,37 @@ function updateCell(cell, i, date, locale) {
   }
 }
 
+function updateCell(cell, i, date, locale) {
+  const z = cellZone(i);
+  if (!z) return;
+  if (isTimer(z)) {
+    const tm = timers.get(z.slice(6));
+    if (tm) updateTimerCell(cell, tm, date);
+    return;
+  }
+  if (isStop(z)) {
+    const st = stops.get(z.slice(5));
+    if (st) updateStopCell(cell, st, date);
+    return;
+  }
+  updateZoneCell(cell, z, date, locale);
+}
+
 /** Keep every clock as large as its cell allows, on every resize/rotate. */
+/* same calm sizing as fitClock, for one cell anywhere (SMate minis) —
+   uses offset* so it is immune to the mini stage's CSS scale */
+function fitCell(cell) {
+  const w = cell.el.offsetWidth;
+  const h = cell.el.offsetHeight;
+  if (!w || !h) return;
+  const capH = cell.cap.offsetHeight + 14;
+  const size = Math.max(12, fitFontSize(w, h - capH, { padX: 24, padY: 8 }) * 0.88);
+  cell.clock.style.fontSize = `${size}px`;
+  const side = Math.max(96, Math.min(420, Math.floor((Math.min(w, h - capH) - 28) * 0.72)));
+  cell.dial.style.width = `${side}px`;
+  cell.dial.style.height = `${side}px`;
+}
+
 function fitClock() {
   for (const cell of cells) {
     const box = cell.el.getBoundingClientRect();
@@ -2996,6 +3014,9 @@ globalThis.__SING_LIB = {
   walBalance, walByDay, walMonthStats, walWeekSeries,
   makeLangPicker, clampPop,
   smateWindow, clearWindow, smateRemove, smateRestart, brandFix, mapGoCity,
+  /* same builders the main window uses — SMate Action Blocks are true minis */
+  buildCell: makeCell, updTimerCell: updateTimerCell, updStopCell: updateStopCell, updZoneCell: updateZoneCell, fitCell,
+  timerAt: (i) => [...timers.values()][i] || null, stopAt: (i) => [...stops.values()][i] || null,
   /* live state views for SMate Action Blocks */
   timersView: () => [...timers.values()].map((t) => ({ d: t.duration, e: t.endsAt, r: t.remaining, on: t.running })),
   stopsView: () => [...stops.values()].map((s) => ({ s: s.startedAt, a: s.accum, on: s.running })),

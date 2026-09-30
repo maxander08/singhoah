@@ -200,10 +200,6 @@
   let ABQ = [];
   const abPush = (spec) => ABQ.push(spec);
   const abDrain = () => { const q = ABQ; ABQ = []; return q; };
-  const abP2 = (n) => String(n).padStart(2, '0');
-  const abMS = (ms) => { const x = Math.max(0, Math.round(ms / 1000)); const h = Math.floor(x / 3600); return h ? `${h}:${abP2(Math.floor((x % 3600) / 60))}:${abP2(x % 60)}` : `${abP2(Math.floor(x / 60))}:${abP2(x % 60)}`; };
-  const AB_TF = {};
-  const abTime = (z) => { try { (AB_TF[z] ||= new Intl.DateTimeFormat(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', timeZone: z })); return AB_TF[z].format(new Date()); } catch { return ''; } };
   function abNode(spec) {
     const el = document.createElement('div');
     el.className = 'smate-block'; el.dataset.ab = spec.k; el.dataset.spec = JSON.stringify(spec);
@@ -216,112 +212,202 @@
     abFill(el);
     return el;
   }
+  /* ---- true-mini stages: the REAL component, built by the clock app's own
+     builders and scaled down — a timer block IS a timer cell, a window block
+     IS the clock grid, a fare block IS the metro page ---- */
+  function abFit(el) {
+    const m = el.__mini;
+    if (!m) return;
+    const avail = (el.clientWidth || 0) - 2;
+    if (avail < 40) return; /* popup hidden — next tick retries */
+    const s = Math.min(1, avail / m.w);
+    m.stage.style.transform = `scale(${s})`;
+    const h = m.stage.offsetHeight;
+    if (h) m.wrap.style.height = Math.round(h * s) + 'px';
+    (el.__cells || []).forEach((c) => { try { LIB.fitCell(c.cell); } catch { /* cell gone */ } });
+  }
+  let abCellIdx = 0;
+  const abCell = () => LIB.buildCell(1000 + (abCellIdx++)); /* high index: never a real window cell */
+  function abZoneStage(zones, modeCls) {
+    const n = zones.length;
+    const cells = [];
+    const st = document.createElement('div');
+    st.className = 'ab-stage multi' + (modeCls ? ' ' + modeCls : '');
+    if (n === 1) {
+      st.style.cssText += 'width:420px;height:300px;';
+      const c = abCell();
+      st.appendChild(c.el);
+      cells.push({ cell: c, z: zones[0] });
+    } else {
+      st.style.cssText += `width:640px;height:${n <= 2 ? 300 : 560}px;`;
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      grid.dataset.layout = n === 2 ? '2' : (n <= 4 ? '2x2' : '4x4');
+      zones.slice(0, n <= 2 ? 2 : (n <= 4 ? 4 : 16)).forEach((z) => {
+        const c = abCell();
+        grid.appendChild(c.el);
+        cells.push({ cell: c, z });
+      });
+      st.appendChild(grid);
+    }
+    return { st, cells };
+  }
+  function abMount(el, stage, w) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ab-mini';
+    wrap.appendChild(stage);
+    el.querySelector('.ab-body').appendChild(wrap);
+    el.__mini = { wrap, stage, w };
+  }
   function abFill(el) {
-    const spec = JSON.parse(el.dataset.spec); const body = el.querySelector('.ab-body');
+    const spec = JSON.parse(el.dataset.spec);
+    const body = el.querySelector('.ab-body');
     body.textContent = '';
+    el.__mini = null; el.__cells = null; el.__svgClone = null;
+
     if (spec.k === 'timer' || spec.k === 'stop' || spec.k === 'remind') {
-      const big = document.createElement('p'); big.className = 'ab-big'; big.textContent = '00:00';
-      body.appendChild(big);
-      if (spec.k === 'timer') { const bar = document.createElement('i'); bar.className = 'ab-bar'; bar.appendChild(document.createElement('i')); body.appendChild(bar); }
-    } else if (spec.k === 'clocks') {
-      const grid = document.createElement('div'); grid.className = 'ab-grid';
-      for (const z of (spec.z || []).slice(0, 4)) {
-        const c = document.createElement('p'); c.dataset.z = z;
-        const b = document.createElement('b'); b.textContent = cityOf(z);
-        c.append(b, document.createElement('span'));
-        grid.appendChild(c);
+      const { st, cells } = abZoneStage(['(mini)']);
+      cells.forEach((c) => c.cell.el.classList.add(spec.k === 'stop' ? 'stop' : 'timer'));
+      el.__cells = cells.map((c) => ({ cell: c.cell, z: null }));
+      abMount(el, st, 420);
+      if (spec.k === 'remind' && spec.note) {
+        const p = document.createElement('p'); p.className = 'ab-sub'; p.textContent = spec.note; body.appendChild(p);
       }
-      if ((spec.z || []).length > 4) { const m = document.createElement('p'); m.className = 'ab-sub'; m.textContent = `+${spec.z.length - 4}`; grid.appendChild(m); }
-      body.appendChild(grid);
-    } else if (spec.k === 'wallet') {
-      const big = document.createElement('p'); big.className = 'ab-big'; big.textContent = `${spec.inn ? '+' : '\u2212'}${spec.amt}`;
-      const sub = document.createElement('p'); sub.className = 'ab-sub'; sub.textContent = spec.bal;
-      body.append(big, sub);
-    } else if (spec.k === 'fare') {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('class', 'ab-map'); svg.setAttribute('viewBox', '0 0 150 110');
-      const row = document.createElement('p'); row.className = 'ab-sub'; row.textContent = spec.row;
-      body.append(svg, row);
-      abMapDraw(el);
-    } else if (spec.k === 'mapnav') {
-      const row = document.createElement('p'); row.className = 'ab-city';
-      const img = document.createElement('img'); img.alt = ''; img.width = 20; img.height = 15;
-      row.append(img, document.createElement('b'), document.createElement('span'));
-      body.appendChild(row);
-    } else if (spec.k === 'mode' && spec.an) {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('class', 'ab-dial'); svg.setAttribute('viewBox', '0 0 60 60');
-      svg.innerHTML = '<circle cx="30" cy="30" r="27" fill="none" stroke="currentColor" stroke-width="2"/><line class="hh" x1="30" y1="30" x2="30" y2="16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line class="hm" x1="30" y1="30" x2="30" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line class="hs" x1="30" y1="30" x2="30" y2="8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>';
-      body.appendChild(svg);
+    } else if (spec.k === 'clocks') {
+      const zones = (spec.z || []).filter(Boolean);
+      if (zones.length) {
+        const { st, cells } = abZoneStage(zones);
+        el.__cells = cells;
+        abMount(el, st, zones.length === 1 ? 420 : 640);
+        if (zones.length > 4) {
+          const m = document.createElement('p'); m.className = 'ab-sub'; m.textContent = `+${zones.length - 4}`; body.appendChild(m);
+        }
+      }
     } else if (spec.k === 'mode') {
-      const big = document.createElement('p'); big.className = 'ab-big'; body.appendChild(big);
+      let z = 'Asia/Taipei';
+      try { z = localStorage.getItem('singhoah:tz') || z; } catch { /* private mode */ }
+      const { st, cells } = abZoneStage([z], spec.an ? 'ab-analog' : 'ab-digital');
+      el.__cells = cells;
+      abMount(el, st, 420);
+    } else if (spec.k === 'wallet') {
+      /* real Wallet ledger markup — same classes, same layout */
+      const sign = spec.inn ? '+' : '\u2212';
+      const amtTxt = `${sign}${Number(spec.amt || 0).toFixed(2)}`;
+      const day = document.createElement('div'); day.className = 'wal-day';
+      const dh = document.createElement('div'); dh.className = 'wal-day-h';
+      const d1 = document.createElement('span'); d1.textContent = new Date().toLocaleDateString(langOf(curLang).locale);
+      const d2 = document.createElement('span'); d2.textContent = amtTxt;
+      dh.append(d1, d2);
+      const item = document.createElement('div'); item.className = 'wal-item';
+      const note = document.createElement('span'); note.className = 'wal-note';
+      note.textContent = spec.note || t(curLang, spec.inn ? 'walIncome' : 'walExpense');
+      const amt = document.createElement('span'); amt.className = `wal-amt ${spec.inn ? 'in' : 'out'}`; amt.textContent = amtTxt;
+      item.append(note, amt);
+      day.append(dh, item);
+      const day2 = document.createElement('div'); day2.className = 'wal-day';
+      const dh2 = document.createElement('div'); dh2.className = 'wal-day-h';
+      const bal = document.createElement('span'); bal.textContent = spec.bal || '';
+      dh2.appendChild(bal);
+      day2.appendChild(dh2);
+      body.append(day, day2);
+    } else if (spec.k === 'fare') {
+      /* the metro page itself, embedded in mini mode — real map, real fare bar */
+      const f = document.createElement('iframe');
+      f.className = 'ab-frame ab-stage';
+      f.tabIndex = -1;
+      f.setAttribute('loading', 'lazy');
+      f.src = `metro.html?mini=1#a=${encodeURIComponent(spec.a || '')}&b=${encodeURIComponent(spec.b || '')}`;
+      abMount(el, f, 640);
+      if (spec.row) { const row = document.createElement('p'); row.className = 'ab-sub'; row.textContent = spec.row; body.appendChild(row); }
+    } else if (spec.k === 'mapnav') {
+      const mw = document.getElementById('mapWrap');
+      const ms = document.getElementById('mapSvg');
+      if (mw && !mw.hidden && ms) {
+        /* the live world map, cloned — viewBox kept in sync every tick */
+        const clone = ms.cloneNode(true);
+        clone.style.cssText = 'width:640px;height:400px;display:block;pointer-events:none;';
+        const st = document.createElement('div');
+        st.className = 'ab-stage';
+        st.style.cssText += 'width:640px;height:400px;';
+        st.appendChild(clone);
+        abMount(el, st, 640);
+        el.__svgClone = clone;
+      } else {
+        const row = document.createElement('p'); row.className = 'ab-city';
+        const img = document.createElement('img'); img.alt = ''; img.width = 20; img.height = 15;
+        row.append(img, document.createElement('b'), document.createElement('span'));
+        body.appendChild(row);
+      }
     } else {
       const sub = document.createElement('p'); sub.className = 'ab-sub'; sub.textContent = spec.b || ''; body.appendChild(sub);
     }
     abTick1(el);
-  }
-  async function abMapDraw(el) {
-    const spec = JSON.parse(el.dataset.spec);
-    const F = await fareMod(); if (!F) return;
-    const M = F.METRO, st = F.ST;
-    const pts = Object.values(st).filter((q) => q.sys === spec.sys);
-    if (!pts.length) return;
-    const las = pts.map((q) => q.lat), los = pts.map((q) => q.lon);
-    const la0 = Math.min(...las), la1 = Math.max(...las), lo0 = Math.min(...los), lo1 = Math.max(...los);
-    const X = (lo) => 6 + ((lo - lo0) / ((lo1 - lo0) || 1)) * 138, Y = (la) => 6 + ((la1 - la) / ((la1 - la0) || 1)) * 98;
-    const svg = el.querySelector('svg.ab-map'); if (!svg) return;
-    let out = '';
-    for (const [sy, , col, refs] of M.lines) {
-      if (sy !== spec.sys) continue;
-      out += `<polyline points="${refs.filter((r) => st[r]).map((r) => `${X(st[r].lon).toFixed(1)},${Y(st[r].lat).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>`;
-    }
-    for (const id of (spec.path || [])) if (st[id]) out += `<circle cx="${X(st[id].lon).toFixed(1)}" cy="${Y(st[id].lat).toFixed(1)}" r="2" fill="var(--paper)" stroke="currentColor" stroke-width=".9"/>`;
-    for (const id of [spec.a, spec.b]) if (st[id]) out += `<circle cx="${X(st[id].lon).toFixed(1)}" cy="${Y(st[id].lat).toFixed(1)}" r="3.6" fill="currentColor" stroke="var(--paper)" stroke-width="1.4"/>`;
-    svg.innerHTML = out;
+    abFit(el);
   }
   function abTick1(el) {
     const spec = JSON.parse(el.dataset.spec);
-    const dot = el.querySelector('.ab-dot'); const big = el.querySelector('.ab-big');
-    const now = Date.now();
-    if (spec.k === 'timer') {
-      const v = LIB.timersView().find((x) => Math.abs(x.e - spec.e) < 2000);
-      const left = v ? (v.on ? v.e - now : v.r) : spec.e - now;
-      if (big) big.textContent = abMS(left);
-      const bar = el.querySelector('.ab-bar > i'); if (bar && spec.d) bar.style.width = `${Math.max(0, Math.min(100, (left / spec.d) * 100))}%`;
-      const done = left <= 0;
-      el.classList.toggle('ab-done', done);
-      if (dot) dot.classList.toggle('live', (v ? v.on : true) && !done);
-    } else if (spec.k === 'stop') {
+    const dot = el.querySelector('.ab-dot');
+    const now = new Date();
+    const ts = now.getTime();
+    const cells = el.__cells || [];
+
+    if (spec.k === 'timer' || spec.k === 'remind') {
+      const e = spec.k === 'timer' ? spec.e : spec.at;
+      let tm = null;
+      if (spec.k === 'timer') {
+        const v = LIB.timersView().find((x) => Math.abs(x.e - e) < 2000);
+        if (v) tm = { duration: v.d, endsAt: v.e, remaining: v.on ? v.e - ts : v.r, running: v.on };
+      }
+      if (!tm) {
+        const left = Math.max(0, e - ts);
+        tm = { duration: spec.d || left || 1000, endsAt: e, remaining: left, running: left > 0 };
+      }
+      cells.forEach((c) => { try { LIB.updTimerCell(c.cell, tm, now); } catch { /* cell gone */ } });
+      el.classList.toggle('ab-done', e - ts <= 0);
+      if (dot) dot.classList.toggle('live', e - ts > 0);
+      return;
+    }
+    if (spec.k === 'stop') {
       const v = LIB.stopsView().find((x) => spec.s == null || Math.abs(x.s - spec.s) < 2000);
-      const e2 = v ? (v.on ? v.a + now - v.s : v.a) : (spec.s ? now - spec.s : 0);
-      if (big) big.textContent = abMS(e2);
+      const st = v ? { startedAt: v.s, accum: v.a, running: v.on } : { startedAt: spec.s || ts, accum: 0, running: true };
+      cells.forEach((c) => { try { LIB.updStopCell(c.cell, st, now); } catch { /* cell gone */ } });
       if (dot) dot.classList.toggle('live', !!v && v.on);
-    } else if (spec.k === 'remind') {
-      const left = spec.at - now;
-      if (big) big.textContent = abMS(left);
-      el.classList.toggle('ab-done', left <= 0);
-      if (dot) dot.classList.toggle('live', left > 0);
-    } else if (spec.k === 'clocks') {
-      el.querySelectorAll('.ab-grid p[data-z]').forEach((c) => { const sp = c.querySelector('span'); if (sp) sp.textContent = abTime(c.dataset.z); });
+      return;
+    }
+    if (spec.k === 'clocks' || spec.k === 'mode') {
+      const locale = langOf(curLang).locale;
+      cells.forEach((c) => { try { LIB.updZoneCell(c.cell, c.z, now, locale); } catch { /* zone gone */ } });
       if (dot) dot.classList.add('live');
-    } else if (spec.k === 'mapnav') {
-      const img = el.querySelector('img'); const b = el.querySelector('b'); const sp = el.querySelector('span');
-      if (spec.z) {
-        try { if (img) img.src = LIB.flagSrc(LIB.zoneCountry(spec.z)); } catch { /* ignore */ }
-        if (b) b.textContent = cityOf(spec.z);
-        if (sp) sp.textContent = abTime(spec.z);
-      } else if (b) b.textContent = spec.c || '';
-      if (dot) dot.classList.add('live');
-    } else if (spec.k === 'mode') {
-      if (spec.an) {
-        const d = new Date();
-        const rot = (cls, a) => { const l = el.querySelector(cls); if (l) l.setAttribute('transform', `rotate(${a.toFixed(1)} 30 30)`); };
-        rot('.hh', (d.getHours() % 12) * 30 + d.getMinutes() / 2); rot('.hm', d.getMinutes() * 6); rot('.hs', d.getSeconds() * 6);
-      } else if (big) big.textContent = new Date().toLocaleTimeString(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return;
+    }
+    if (spec.k === 'mapnav') {
+      if (el.__svgClone) {
+        const ms = document.getElementById('mapSvg');
+        if (ms) el.__svgClone.setAttribute('viewBox', ms.getAttribute('viewBox') || '');
+      } else {
+        const img = el.querySelector('img'); const b = el.querySelector('b'); const sp = el.querySelector('span');
+        if (spec.z) {
+          try { if (img) img.src = LIB.flagSrc(LIB.zoneCountry(spec.z)); } catch { /* ignore */ }
+          if (b) b.textContent = cityOf(spec.z);
+          if (sp) {
+            try { sp.textContent = new Intl.DateTimeFormat(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', timeZone: spec.z }).format(now); } catch { /* bad zone */ }
+          }
+        } else if (b) b.textContent = spec.c || '';
+      }
       if (dot) dot.classList.add('live');
     }
   }
-  function abStart() { if (AB_TICK) return; AB_TICK = setInterval(() => { document.querySelectorAll('.smate-msgs .smate-block').forEach(abTick1); }, 500); }
+  function abStart() {
+    if (AB_TICK) return;
+    AB_TICK = setInterval(() => {
+      document.querySelectorAll('.smate-msgs .smate-block').forEach((el) => {
+        try { abTick1(el); abFit(el); } catch { /* block removed */ }
+      });
+    }, 500);
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.smate-msgs .smate-block').forEach((el) => { try { abFit(el); } catch { /* block removed */ } });
+    });
+  }
   function sayBlock(spec) { const el = abNode(spec); msgs.appendChild(el); msgs.scrollTop = msgs.scrollHeight; LOG.push({ block: spec }); saveLog(); abStart(); }
 
   function toggle(open) {
