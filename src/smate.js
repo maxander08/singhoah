@@ -1075,10 +1075,12 @@
       if (has(text, KW.files)) { globalThis.__MOD.home(); note(t(curLang, 'flFiles')); abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
       else if (has(text, KW.newdoc)) { globalThis.__MOD.newDoc(); note(t(curLang, 'done')); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); }
       else if (has(text, KW.run)) {
-        const outs = globalThis.__MOD.run();
-        const snippet = (outs && outs.length) ? outs.join(' · ').slice(0, 140) : t(curLang, 'mResult');
-        note(`${t(curLang, 'mRun')} · ${snippet}`);
-        abPush({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
+        /* the flow runs async; the output block lands the moment it finishes */
+        note(t(curLang, 'mRun'));
+        Promise.resolve(globalThis.__MOD.run()).then((r) => {
+          const snippet = (r && r.length) ? r.join(' · ').slice(0, 140) : t(curLang, 'mResult');
+          sayBlock({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
+        }).catch(() => { /* the canvas already shows the error */ });
       }
     }
     /* the Scribe toolbar, by voice or text */

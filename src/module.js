@@ -22,6 +22,7 @@ const GRID = 24;
 const TYPES = {
   text: { w: 230, color: '#4a76b8', name: () => t(lang, 'mText'), hasIn: false, hasOut: true },
   markdown: { w: 200, color: '#5f9e63', name: () => t(lang, 'mMarkdown'), hasIn: true, hasOut: true },
+  code: { w: 310, color: '#8b5fbf', name: () => t(lang, 'mCode'), hasIn: true, hasOut: true },
   output: { w: 250, color: '#c9a24a', name: () => t(lang, 'mOutput'), hasIn: true, hasOut: false },
 };
 const ENCS = ['plain', 'b64', 'url', 'hex', 'uni', 'ent', 'rot'];
@@ -82,6 +83,192 @@ function mdToHtml(src) {
   }
   flush();
   return out.join('\n');
+}
+
+/* ---------- code engines: JavaScript, Python, C++ in a sandbox worker;
+   Java on the main thread through CheerpJ + the ECJ compiler.
+   Every runtime downloads on demand, the first time it is used. ---------- */
+const CODE_LANGS = [['js', 'JavaScript'], ['python', 'Python'], ['cpp', 'C++'], ['java', 'Java']];
+const CODE_DEFAULTS = {
+  js: "// input = the text wired into this node\nconsole.log('Hello from JavaScript!');\nconsole.log(input.toUpperCase());",
+  python: "# input = the text wired into this node\nprint('Hello from Python!')\nprint(input.upper())",
+  cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
+  java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
+};
+const BUILD = '__BUILD__';
+const BV = BUILD === '__BUILD__' ? '' : '?v=' + BUILD;
+const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
+const codeWorkers = {};
+
+function codeWorker(lid) {
+  if (codeWorkers[lid]) return codeWorkers[lid];
+  const w = new Worker('codebox.js' + BV, { type: 'module' });
+  const S = { w, next: 1, pending: new Map() };
+  w.onmessage = (ev) => {
+    const msg = ev.data;
+    const p = S.pending.get(msg.id);
+    if (!p) return;
+    if (msg.type === 'out') p.out += msg.chunk;
+    else if (msg.type === 'status') { if (p.onStatus) p.onStatus(msg.msg); }
+    else if (msg.type === 'done') {
+      S.pending.delete(msg.id);
+      clearTimeout(p.timer);
+      p.resolve({ ok: msg.ok, output: p.out, error: msg.error, ms: msg.ms });
+    }
+  };
+  codeWorkers[lid] = S;
+  return S;
+}
+
+function workerRun(lid, code, input, onStatus) {
+  const S = codeWorker(lid);
+  const id = S.next++;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      S.pending.delete(id);
+      try { S.w.terminate(); } catch { /* already gone */ }
+      codeWorkers[lid] = null; /* respawn fresh next time */
+      resolve({ ok: false, output: '', error: '', ms: WORKER_TIMEOUT[lid], timeout: true });
+    }, WORKER_TIMEOUT[lid] || 120000);
+    S.pending.set(id, { resolve, timer, out: '', onStatus });
+    S.w.postMessage({ id, lang: lid, code, input });
+  });
+}
+
+/* Java: CheerpJ's OpenJDK 17 runtime + the Eclipse compiler (vendored ecj.jar). */
+const JAVA = { phase: 'idle', Files: null, Paths: null, compiled: new Map() };
+const RUNNER_SRC = (cls) => `import java.io.*;
+public class Runner {
+  static volatile Throwable err;
+  public static void main(String[] args) throws Exception {
+    ByteArrayOutputStream buf = new ByteArrayOutputStream();
+    ByteArrayOutputStream eb = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(buf, true, "UTF-8"));
+    System.setErr(new PrintStream(eb, true, "UTF-8"));
+    System.setIn(new ByteArrayInputStream(args[0].getBytes("UTF-8")));
+    Thread t = new Thread(() -> { try { ${cls}.main(args); } catch (Throwable x) { err = x; } });
+    t.setDaemon(true);
+    t.start();
+    t.join(15000);
+    int code = 0;
+    if (err != null) { err.printStackTrace(); code = 1; }
+    else if (t.isAlive()) { System.err.println("timeout: still running after 15 s"); code = 124; }
+    try (Writer w = new OutputStreamWriter(new FileOutputStream("/files/stdout.txt"), "UTF-8")) { w.write(buf.toString("UTF-8")); }
+    try (Writer w = new OutputStreamWriter(new FileOutputStream("/files/stderr.txt"), "UTF-8")) { w.write(eb.toString("UTF-8")); }
+    System.exit(code);
+  }
+}`;
+
+async function jRead(path) {
+  const s = await JAVA.Files.readString(await JAVA.Paths.get(path));
+  return String(s);
+}
+
+async function javaRun(code, input, onStatus) {
+  const t0 = Date.now();
+  if (!globalThis.cheerpjInit) {
+    onStatus('load');
+    await new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cjrtnc.leaningtech.com/4.3/loader.js';
+      sc.onload = res;
+      sc.onerror = () => rej(new Error('cheerpj loader failed'));
+      document.head.appendChild(sc);
+    });
+  }
+  if (JAVA.phase === 'idle') {
+    JAVA.phase = 'init';
+    try {
+      onStatus('init');
+      await cheerpjInit({ version: 17, status: 'none' });
+      const lib = await cheerpjRunLibrary('');
+      JAVA.Files = await lib.java.nio.file.Files;
+      JAVA.Paths = await lib.java.nio.file.Paths;
+      const StdCopy = await lib.java.nio.file.StandardCopyOption;
+      onStatus('jdk');
+      /* a writable JDK-shaped dir: the runtime's modules image + jrt-fs + release */
+      await JAVA.Files.createDirectories(await JAVA.Paths.get('/files/jdk/lib'));
+      await JAVA.Files.copy(await JAVA.Paths.get('/lt/17/lib/modules'), await JAVA.Paths.get('/files/jdk/lib/modules'), [StdCopy.REPLACE_EXISTING]);
+      cheerpOSAddStringFile('/str/ecj.jar', new Uint8Array(await (await fetch('ecj.jar' + BV)).arrayBuffer()));
+      cheerpOSAddStringFile('/str/jrtfs.jar', new Uint8Array(await (await fetch('jrt-fs.jar' + BV)).arrayBuffer()));
+      await JAVA.Files.copy(await JAVA.Paths.get('/str/jrtfs.jar'), await JAVA.Paths.get('/files/jdk/lib/jrt-fs.jar'), [StdCopy.REPLACE_EXISTING]);
+      cheerpOSAddStringFile('/str/release', 'JAVA_VERSION="17"');
+      await JAVA.Files.copy(await JAVA.Paths.get('/str/release'), await JAVA.Paths.get('/files/jdk/release'), [StdCopy.REPLACE_EXISTING]);
+      JAVA.phase = 'ready';
+    } catch (e) {
+      JAVA.phase = 'idle';
+      throw e;
+    }
+  }
+  while (JAVA.phase === 'init') await new Promise((r) => setTimeout(r, 300)); /* another run is setting up */
+
+  const cls = (code.match(/public\s+class\s+([A-Za-z_$][\w$]*)/) || code.match(/class\s+([A-Za-z_$][\w$]*)/) || [, 'Main'])[1];
+  const key = cls + '\u0000' + code;
+  if (!JAVA.compiled.has(key)) {
+    cheerpOSAddStringFile('/str/' + cls + '.java', code);
+    cheerpOSAddStringFile('/str/Runner.java', RUNNER_SRC(cls));
+    onStatus('compile');
+    const r = await cheerpjRunMain('org.eclipse.jdt.internal.compiler.batch.Main', '/str/ecj.jar:/files',
+      '--system', '/files/jdk', '-d', '/files', '-log', '/files/ecj.txt', '/str/' + cls + '.java', '/str/Runner.java');
+    if (r !== 0) {
+      let log = '';
+      try { log = await jRead('/files/ecj.txt'); } catch { /* no log written */ }
+      if (log.startsWith('<?xml') || log.startsWith('<')) log = log.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return { ok: false, output: log, error: '', ms: Date.now() - t0 };
+    }
+    JAVA.compiled.set(key, 1);
+  }
+  onStatus('run');
+  const r = await cheerpjRunMain('Runner', '/files', input);
+  let stdout = '', stderr = '';
+  try { stdout = await jRead('/files/stdout.txt'); } catch { /* nothing written */ }
+  try { stderr = await jRead('/files/stderr.txt'); } catch { /* nothing written */ }
+  return { ok: r === 0, output: stdout, error: r === 124 ? 'timeout' : stderr, ms: Date.now() - t0 };
+}
+
+/* status text for the node's little status line */
+function phaseText(ph, name) {
+  if (ph === 'pyodide' || ph === 'clang' || ph === 'load' || ph === 'init' || ph === 'jdk') return t(lang, 'mSetup', { name });
+  if (ph === 'imports') return t(lang, 'mSetup', { name });
+  return t(lang, 'mBusy');
+}
+
+async function runCodeNode(n, ins) {
+  const el = nodeEl(n.id);
+  const stat = el && el.querySelector('.mod-cstat');
+  const box = el && el.querySelector('.mod-result');
+  const input = ins.map((x) => x.text ?? '').join('\n');
+  const lid = n.cfg.lang || 'js';
+  const name = (CODE_LANGS.find((l) => l[0] === lid) || [, 'Code'])[1];
+  const setStat = (s) => { if (stat) stat.textContent = s; };
+  setStat(t(lang, 'mSetup', { name }));
+  if (box) box.innerHTML = `<span class="mod-empty">${t(lang, 'mBusy')}</span>`;
+  let r;
+  try {
+    r = lid === 'java'
+      ? await javaRun(n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name)))
+      : await workerRun(lid, n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name)));
+  } catch (e) {
+    r = { ok: false, output: '', error: String((e && e.message) || e), ms: 0 };
+  }
+  if (r.timeout) {
+    setStat(t(lang, 'mStopped'));
+    if (box) box.textContent = t(lang, 'mStopped');
+    return { text: '' };
+  }
+  if (!r.ok && !r.output && !r.error) {
+    setStat(t(lang, 'mNetErr', { name }));
+    if (box) box.innerHTML = `<span class="mod-empty">${t(lang, 'mNetErr', { name })}</span>`;
+    return { text: '' };
+  }
+  setStat(t(lang, 'mMs', { ms: r.ms || 0 }));
+  if (box) {
+    const text = (r.output || '') + (r.error ? (r.output ? '\n' : '') + r.error : '');
+    if (text) box.textContent = text;
+    else box.innerHTML = `<span class="mod-empty">${t(lang, 'mResult')} —</span>`;
+  }
+  if (el) { el.classList.remove('ran'); requestAnimationFrame(() => el.classList.add('ran')); }
+  return { text: r.output || '' };
 }
 
 /* ---------- the canvas ---------- */
@@ -160,6 +347,9 @@ function renderNode(n) {
     body = `<div class="mod-body"><textarea class="mod-ta" rows="4" placeholder="${t(lang, 'mText')}…"></textarea><select class="mod-enc" aria-label="${t(lang, 'mText')}">${encs}</select></div>`;
   } else if (n.type === 'markdown') {
     body = `<div class="mod-body"><p class="mod-hint"># &nbsp;**b** &nbsp;*i* &nbsp;\`c\`</p></div>`;
+  } else if (n.type === 'code') {
+    const langs = CODE_LANGS.map(([v, nm]) => `<option value="${v}"${(n.cfg.lang || 'js') === v ? ' selected' : ''}>${nm}</option>`).join('');
+    body = `<div class="mod-body"><select class="mod-lang" aria-label="${t(lang, 'mLang')}">${langs}</select><textarea class="mod-ta mod-codeta" rows="6" spellcheck="false" placeholder="${t(lang, 'mCodePh')}"></textarea><div class="mod-cstat" aria-live="polite"></div><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
@@ -172,6 +362,19 @@ function renderNode(n) {
   }
   const enc = el.querySelector('.mod-enc');
   if (enc) enc.addEventListener('change', () => { n.cfg.enc = enc.value; touch(); });
+  const cta = el.querySelector('.mod-codeta');
+  if (cta) {
+    cta.value = n.cfg.code || '';
+    cta.addEventListener('input', () => { n.cfg.code = cta.value; touch(); });
+  }
+  const clang = el.querySelector('.mod-lang');
+  if (clang) clang.addEventListener('change', () => {
+    const prev = n.cfg.lang || 'js';
+    if ((n.cfg.code || '') === (CODE_DEFAULTS[prev] || '')) n.cfg.code = CODE_DEFAULTS[clang.value] || '';
+    n.cfg.lang = clang.value;
+    if (cta) cta.value = n.cfg.code || '';
+    touch();
+  });
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
 
   /* drag the node by its header (mouse or touch, one pointer API) */
@@ -248,7 +451,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -290,8 +493,13 @@ $('modZoomIn').addEventListener('click', () => setZoom(view.z * 1.2));
 $('modZoomOut').addEventListener('click', () => setZoom(view.z / 1.2));
 $('modZoomR').addEventListener('click', () => { view = { x: 40, y: 20, z: 1 }; setZoom(1); applyView(); });
 
-/* ---------- run the flow: Text → Markdown → Output ---------- */
-function run() {
+/* ---------- run the flow: Text → [Code] → Markdown → Output ---------- */
+let running = false;
+async function run() {
+  if (running) return [];
+  running = true;
+  $('modRun').disabled = true;
+  try {
   const byId = Object.fromEntries(doc.nodes.map((n) => [n.id, n]));
   const done = new Set();
   const val = {};
@@ -304,6 +512,7 @@ function run() {
       if (ins.length < doc.wires.filter((w) => w.to === n.id).length) continue;
       let v;
       if (n.type === 'text') v = { text: encode(n.cfg.enc || 'plain', n.cfg.text || '') };
+      else if (n.type === 'code') v = await runCodeNode(n, ins);
       else if (n.type === 'markdown') v = { html: mdToHtml(ins.map((x) => x.text ?? '').join('\n\n')) };
       else {
         const texts = ins.map((x) => x.text ?? '').join('\n');
@@ -328,6 +537,7 @@ function run() {
     if (!progressed) break; /* cycle or waiting on nothing: stop */
   }
   return outs;
+  } finally { running = false; $('modRun').disabled = false; }
 }
 
 /* ---------- persistence: a flow is a document ---------- */
@@ -422,6 +632,7 @@ function applyLang(id, persist = true) {
   $('modAddT').textContent = t(lang, 'mText');
   $('modAddM').textContent = t(lang, 'mMarkdown');
   $('modAddO').textContent = t(lang, 'mOutput');
+  $('modAddC').textContent = t(lang, 'mCode');
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
   $('modTitle').placeholder = t(lang, 'flUntitledFlow');
@@ -475,4 +686,5 @@ globalThis.__MOD = {
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),
+  runCode: (lid, code, input) => (lid === 'java' ? javaRun(code, input || '', () => {}) : workerRun(lid, code, input || '', () => {})),
 };

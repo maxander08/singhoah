@@ -2569,6 +2569,18 @@ await prn.close();
   await mp.waitForTimeout(800);
   const json = await mp.evaluate(() => JSON.parse(globalThis.__MOD.serialize()));
   ok('flows export to JSON (app, kind, nodes, wires)', json.app === 'singhoah' && json.kind === 'flow' && json.data.nodes.length === 2 && json.data.wires.length === 1, JSON.stringify(json.data ? json.data.nodes.length : null));
+  /* the Code module: JavaScript in the sandboxed worker, wired input flows in */
+  const codeOut = await mp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const c = M.add('code', 48, 300);
+    M.cfg(c.id, { code: "console.log('code ok ' + input)" });
+    const t = M.nodes().find((n) => n.type === 'text');
+    M.wire(t.id, c.id);
+    await M.run();
+    return { out: M.outputText(), lang: c.cfg.lang, stat: document.querySelector('.mod-cstat')?.textContent || '' };
+  });
+  ok('the Code module runs JavaScript with the wired input', /code ok SGk=/.test(codeOut.out), JSON.stringify(codeOut.out.slice(0, 60)));
+  ok(`the code node reports its timing ("${codeOut.stat}")`, /ms/.test(codeOut.stat), codeOut.stat);
   /* files home: create, rename, delete */
   await mp.evaluate(() => globalThis.__MOD.home());
   await mp.waitForTimeout(300);
@@ -2613,7 +2625,7 @@ await prn.close();
   await mp.waitForTimeout(1000);
   ok('SMate runs the flow and answers with the output', await mp.evaluate(() =>
     globalThis.__MOD.outputText().includes('smate smoke') &&
-    [...document.querySelectorAll('.smate-it')].some((n) => /smate smoke/.test(n.textContent))));
+    [...document.querySelectorAll('.smate-it, .smate-block')].some((n) => /smate smoke/.test(n.textContent))));
   ok('the on-device AI stays on demand in SinghoModule', await mp.evaluate(() =>
     document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
   /* mobile fit */

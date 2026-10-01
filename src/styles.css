@@ -1547,6 +1547,9 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .mod-body { padding: 8px 10px 10px; }
 .mod-ta { width: 100%; box-sizing: border-box; background: transparent; border: 1px solid rgba(127, 127, 127, .35); color: inherit; font-family: var(--font-sans); font-size: 13px; line-height: 1.35; padding: 6px; resize: vertical; min-height: 64px; border-radius: 0; }
 .mod-enc { margin-top: 6px; width: 100%; background: transparent; color: inherit; border: 1px solid rgba(127, 127, 127, .35); border-radius: 0; padding: 4px; font-family: var(--font-sans); font-size: 12px; }
+.mod-lang { margin-top: 6px; width: 100%; background: transparent; color: inherit; border: 1px solid rgba(127, 127, 127, .35); border-radius: 0; padding: 4px; font-family: var(--font-sans); font-size: 12px; }
+.mod-codeta { min-height: 118px; font-size: 12.5px; line-height: 1.45; }
+.mod-cstat { font: 11.5px/1.3 var(--font-sans); opacity: .65; margin-top: 5px; min-height: 15px; }
 .mod-hint { margin: 0; font: 13px/1.4 var(--font-sans); opacity: .8; }
 .mod-result { max-height: 180px; overflow: auto; font: 12.5px/1.4 var(--font-sans); white-space: pre-wrap; word-break: break-word; }
 .mod-md p { margin: 0 0 6px; } .mod-md h1, .mod-md h2, .mod-md h3, .mod-md h4 { margin: 6px 0 4px; line-height: 1.2; }
