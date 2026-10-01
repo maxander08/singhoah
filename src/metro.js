@@ -54,11 +54,11 @@ function zoomAnchor(X, Y, sx, sy, nk) {
   v.cy = Math.min(VB.h, Math.max(0, Y - (sy - g.rect.top - g.oy) / g.s + g.h / 2));
   requestDraw();
 }
-/* portrait phones get the map rotated 90° so the lines' long axis runs
-   down the screen instead of across a thin strip — but SMate's Action Block
-   embeds this page as a mini, and the mini map is ALWAYS north-up */
+/* The map is ALWAYS north-up: every screen size, every orientation, every
+   embedding (SMate's Action Block mini included). There is no rotation code
+   left to drift back in, and the browser gates assert Tamsui sits above
+   Xindian in a portrait viewport, so it cannot return unnoticed. */
 const MINI = (() => { try { return new URLSearchParams(location.search).has('mini'); } catch { return false; } })();
-const PORTRAIT = MINI ? false : (() => { try { return innerHeight > innerWidth; } catch { return false; } })();
 const PROJ = {};
 const SYSS = ['TRTC', 'TY', 'KS', 'TC']; /* order = tab order */
 for (const sys of SYSS) {
@@ -68,14 +68,14 @@ for (const sys of SYSS) {
   const cf = 111.32 * Math.cos(((la0 + la1) / 2) * RAD);
   const kmx = (lo1 - lo0) * cf;
   const kmy = (la1 - la0) * 110.57;
-  const fw = PORTRAIT ? kmy : kmx, fh = PORTRAIT ? kmx : kmy; /* frame axes */
+  const fw = kmx, fh = kmy; /* frame axes: x = east, y = south — north is up, always */
   const sc = Math.min((VB.w - 160) / Math.max(1e-6, fw), (VB.h - 160) / Math.max(1e-6, fh));
   const ox = (VB.w - fw * sc) / 2, oy = (VB.h - fh * sc) / 2;
   PROJ[sys] = { lo0, la1, cf, sc, ox, oy };
   for (const p of pts) {
     const ex = (p.lon - lo0) * cf * sc;
     const ey = (la1 - p.lat) * 110.57 * sc;
-    if (PORTRAIT) { p.x = ox + ey; p.y = oy + ex; } else { p.x = ox + ex; p.y = oy + ey; }
+    p.x = ox + ex; p.y = oy + ey;
   }
 }
 
@@ -113,8 +113,7 @@ function decodeArr(sysId, cls, a) {
   let kx = 1e9, ky = 1e9;
   const put = (force) => {
     const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
-    const x = PORTRAIT ? P.ox + ey : P.ox + ex;
-    const y = PORTRAIT ? P.oy + ex : P.oy + ey;
+    const x = P.ox + ex, y = P.oy + ey;
     if (x < x0) x0 = x; if (x > x1) x1 = x;
     if (y < y0) y0 = y; if (y > y1) y1 = y;
     if (!force && !seg) { seg = 'M' + x.toFixed(1) + ' ' + y.toFixed(1); kx = x; ky = y; return; }
@@ -149,7 +148,9 @@ function ensureBase(sysId) {
   const start = (src) => {
     B.src = src;
     if (!src) return;
-    B.key = sysId + ':' + (MB_VER[baseKey(sysId)] || '0') + (PORTRAIT ? 'p' : 'l');
+    /* the 'l' suffix dates from the rotated-portrait era; north-up geometry is
+       identical to the old landscape bake, so existing device caches stay valid */
+    B.key = sysId + ':' + (MB_VER[baseKey(sysId)] || '0') + 'l';
     idbGet(B.key).then((hit) => {
       if (!hit || B.done || BASE[sysId] !== B) { if (!B.done) pumpBase(sysId); return; }
       for (const cls of ['maj', 'watf', 'wats', 'min']) {
@@ -303,7 +304,7 @@ function decodeTracks(sysId, TRACKS) {
   const P = PROJ[sysId];
   const proj = (la, lo) => {
     const ex = (lo - P.lo0) * P.cf * P.sc, ey = (P.la1 - la) * 110.57 * P.sc;
-    return PORTRAIT ? [P.ox + ey, P.oy + ex] : [P.ox + ex, P.oy + ey];
+    return [P.ox + ex, P.oy + ey];
   };
   for (const [lid, tk] of Object.entries(TRACKS)) {
     if (LIDSYS[lid] !== sysId) continue;

@@ -1395,25 +1395,11 @@ ok('the fare mini centers the route instead of the whole network', await sq.wait
   const a = M.ST.O07, b = M.ST.R10;
   return !!a && !!b && v.k > 1.4 && Math.abs(v.cx - (a.x + b.x) / 2) < 120 && Math.abs(v.cy - (a.y + b.y) / 2) < 120;
 }, null, { timeout: 6000, polling: 250 }).then(() => true).catch(() => false));
-/* the SMate fare mini is ALWAYS north-up, even in a portrait viewport where
-   the full metro page rotates 90 degrees for readability */
+/* SinghoMetro is ALWAYS north-up: portrait phone, desktop, and the SMate
+   Action Block mini. These gates assert Tamsui sits above Xindian in each
+   shape, so the old 90-degree portrait rotation can never come back. */
 {
-  const pc2 = await browser.newContext({ viewport: { width: 390, height: 700 } });
-  const pm = await pc2.newPage();
-  await pm.goto(URL + 'metro.html?mini=1', { waitUntil: 'load' });
-  const north = await pm.evaluate(() => new Promise((res) => {
-    let n = 0;
-    const go = () => {
-      const M = globalThis.__METRO;
-      if (M && M.ST && M.ST.R28 && M.ST.G01) res({ mini: { dy: M.ST.R28.y - M.ST.G01.y, dx: M.ST.R28.x - M.ST.G01.x } });
-      else if (++n < 40) setTimeout(go, 250); else res(null);
-    };
-    go();
-  }));
-  ok('the mini map is north-up in a portrait viewport (Tamsui above Xindian)', !!north && north.mini.dy < -100, JSON.stringify(north));
-  const pf = await pc2.newPage();
-  await pf.goto(URL + 'metro.html', { waitUntil: 'load' });
-  const rotated = await pf.evaluate(() => new Promise((res) => {
+  const read = (pg) => pg.evaluate(() => new Promise((res) => {
     let n = 0;
     const go = () => {
       const M = globalThis.__METRO;
@@ -1422,8 +1408,22 @@ ok('the fare mini centers the route instead of the whole network', await sq.wait
     };
     go();
   }));
-  ok('the full metro page keeps its portrait 90-degree rotation for readability', !!rotated && Math.abs(rotated.dx) > Math.abs(rotated.dy), JSON.stringify(rotated));
+  const pc2 = await browser.newContext({ viewport: { width: 390, height: 700 } });
+  const pm = await pc2.newPage();
+  await pm.goto(URL + 'metro.html?mini=1', { waitUntil: 'load' });
+  const mini = await read(pm);
+  ok('the SMate mini map is north-up in a portrait viewport (Tamsui above Xindian)', !!mini && mini.dy < -100, JSON.stringify(mini));
+  const pf = await pc2.newPage();
+  await pf.goto(URL + 'metro.html', { waitUntil: 'load' });
+  const full = await read(pf);
+  ok('the full metro page is north-up on a portrait phone (no 90-degree rotation)', !!full && full.dy < -100 && Math.abs(full.dy) > Math.abs(full.dx), JSON.stringify(full));
   await pc2.close();
+  const lc2 = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const pl = await lc2.newPage();
+  await pl.goto(URL + 'metro.html', { waitUntil: 'load' });
+  const desk = await read(pl);
+  ok('the full metro page is north-up on desktop', !!desk && desk.dy < -100, JSON.stringify(desk));
+  await lc2.close();
 }
 const txBefore = await sq.evaluate(() => { try { return JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { return 0; } });
 await smSend('add 12 expense');
