@@ -1604,11 +1604,13 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-empty { color: var(--pigeon); }
 /* program errors: the app's error red, unmistakable against normal output */
 .mod-result .mod-err { color: var(--bad, #c0392b); font-weight: 500; }
+.mod-inta { font: 12.5px/1.45 var(--font-sans); white-space: pre-wrap; }
 .mod-result .mod-out + .mod-err { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgb(127 127 127 / .25); }
 
 /* ---- node ports: sharp squares in the node's accent color ---- */
 .mod-port { position: absolute; top: 13px; width: 13px; height: 13px; background: var(--paper); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
 .mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
+.mod-port.out.stdin { top: 44px; }   /* the Code module's second right-side port: the stdin link to an Input module */
 .mod-port:hover { border-color: var(--notification); background: var(--notification); }
 
 /* ---- the module dropdown: chip button + sharp panel, Singhoah style ---- */
@@ -1634,6 +1636,7 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-empty { opacity: .55; }
 .mod-port { position: absolute; top: 13px; width: 14px; height: 14px; background: var(--panel, #1a2027); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
 .mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
+.mod-port.out.stdin { top: 44px; }
 .mod-port:hover { border-color: var(--notification, #000dff); background: var(--notification, #000dff); }
 .mod-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
 .mod-zoom .btn { min-width: 34px; text-align: center; }
