@@ -2673,8 +2673,26 @@ await prn.close();
     const before = M.wires().length;
     const t2i = M.wire(txt.id, io.id);          /* Text -> I/O: markdown preview */
     const i2c = M.wire(io.id, code.id);         /* I/O has no out port: rejected */
-    const back = M.wire(code.id, io.id);        /* Code -> I/O again: restored */
-    return t2i === true && i2c === false && back === true && M.wires().length === before;
+    const back = M.wire(code.id, io.id);        /* Code -> I/O: takes over the in port */
+    const ws = M.wires();
+    return t2i === true && i2c === false && back === true
+      && ws.length === before - 1               /* the text wire it displaced */
+      && ws.length === 1 && ws[0].from === code.id && ws[0].to === io.id;
+  }));
+  ok('a port holds exactly one wire: rewiring moves the connection, on both ends', await mp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const code = M.nodes().find((n) => n.type === 'code');
+    const ios = M.nodes().filter((n) => n.type === 'io');
+    const txt = M.nodes().find((n) => n.type === 'text');
+    const cur = M.wires().find((w) => w.from === code.id);
+    const other = ios.find((n) => n.id !== cur.to);
+    M.wire(code.id, other.id);                    /* the code port's wire moves to the other I/O */
+    const fromCode = M.wires().filter((w) => w.from === code.id);
+    M.wire(txt.id, code.id);                      /* the text port's wire moves to the code node */
+    const fromTxt = M.wires().filter((w) => w.from === txt.id);
+    const intoCode = M.wires().filter((w) => w.to === code.id);
+    return fromCode.length === 1 && fromCode[0].to === other.id
+      && fromTxt.length === 1 && fromTxt[0].to === code.id && intoCode.length === 1;
   }));
   await mp.waitForTimeout(700);   /* let the debounced save land before serializing */
   ok('the I/O node keeps the standard pane UI and its text persists in the flow', await mp.evaluate(async () => {
@@ -2827,6 +2845,51 @@ await prn.close();
 }
 
 await browser.close();
+
+/* the I/O terminal round-trip for every language runs LAST, in its own solo
+   browser: the shared browser is warm from hundreds of checks and the four
+   engine runtimes (esm.run, Pyodide, wasm-clang, CheerpJ) together need the
+   headroom */
+{
+  const tbr = await chromium.launch();
+  const tcx = await tbr.newContext({ viewport: { width: 1280, height: 860 } });
+  const tp = await tcx.newPage();
+  await tp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await tp.waitForTimeout(700);
+  const TERMS = await tp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const io = M.add('io', 40, 60);
+    M.cfg(io.id, { text: 'singhoah terminal' });
+    const c = M.add('code', 360, 60);
+    M.wire(c.id, io.id);
+    const el = (id) => [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === id);
+    const PROGS = {
+      js: ["console.log('js ok: ' + input)"],
+      python: ['print("py ok: " + input)'],
+      cpp: ['#include <iostream>\n#include <string>\nint main() { std::string s; std::getline(std::cin, s); std::cout << "cpp ok: " << s << "\\n"; }'],
+      java: ['public class Main { public static void main(String[] a) throws Exception { System.out.println("java ok: " + new String(System.in.readAllBytes()).trim()); } }'],
+    };
+    const out = {};
+    for (const [lang, code] of Object.entries(PROGS)) {
+      M.cfg(c.id, { lang, code });
+      await M.run();
+      const pane = el(io.id).querySelector('.mod-result');
+      const stat = el(c.id).querySelector('.mod-cstat');
+      out[lang] = {
+        got: ((pane.querySelector('.mod-out') || {}).textContent || '').trim(),
+        err: ((pane.querySelector('.mod-err') || {}).textContent || '').slice(0, 140),
+        ok: !/bad/.test(stat.className),
+      };
+    }
+    return out;
+  });
+  await tbr.close();
+  const WANTS = { js: 'js ok: singhoah terminal', python: 'py ok: singhoah terminal', cpp: 'cpp ok: singhoah terminal', java: 'java ok: singhoah terminal' };
+  for (const [lang, r] of Object.entries(TERMS)) {
+    ok(`the I/O terminal round-trips ${lang} (stdin in, stdout back in the pane)`, r.ok && r.got === WANTS[lang], JSON.stringify(r).slice(0, 160));
+  }
+}
 
 if (warnings.length) console.log(`\nWARNINGS (environmental, not failing):\n${warnings.join('\n')}`);
 console.log(`\n${errors.length ? 'CONSOLE/NETWORK ISSUES:\n' + errors.join('\n') : 'no console or network errors'}`);

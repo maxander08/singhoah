@@ -626,7 +626,8 @@ function renderNode(n) {
         if (target) {
           const tNode = target.closest('.mod-node').dataset.id;
           if (tNode !== n.id) {
-            doc.wires = doc.wires.filter((w) => w.to !== tNode);
+            /* one wire per port, both ends: this port's previous wire moves with the new drop */
+            doc.wires = doc.wires.filter((w) => w.to !== tNode && w.from !== n.id);
             doc.wires.push({ from: n.id, to: tNode });
             touch();
           }
@@ -776,29 +777,43 @@ function touch() {
    their markdown nodes spliced out: every input is wired straight through to
    every output, so Text → Markdown → Output becomes Text → Output. */
 function migrateDoc() {
+  let changed = false;
   /* the Input and Output modules merged into the I/O node */
-  let merged = false;
   for (const n of doc.nodes) {
-    if (n.type === 'input' || n.type === 'output') { n.type = 'io'; merged = true; }
+    if (n.type === 'input' || n.type === 'output') { n.type = 'io'; changed = true; }
   }
   const gone = new Set(doc.nodes.filter((n) => !TYPES[n.type]).map((n) => n.id));
-  if (!gone.size) return false;
-  const wires = [];
-  for (const w of doc.wires) {
-    if (gone.has(w.to)) {
-      /* splice: wire this input straight through to the retired node's outputs */
-      for (const w2 of doc.wires) {
-        if (w2.from === w.to && !gone.has(w2.to) && !wires.some((x) => x.from === w.from && x.to === w2.to)) {
-          wires.push({ from: w.from, to: w2.to });
+  let wires = doc.wires;
+  if (gone.size) {
+    const nw = [];
+    for (const w of doc.wires) {
+      if (gone.has(w.to)) {
+        /* splice: wire this input straight through to the retired node's outputs */
+        for (const w2 of doc.wires) {
+          if (w2.from === w.to && !gone.has(w2.to) && !nw.some((x) => x.from === w.from && x.to === w2.to)) {
+            nw.push({ from: w.from, to: w2.to });
+          }
         }
+      } else if (!gone.has(w.from) && !nw.some((x) => x.from === w.from && x.to === w.to)) {
+        nw.push(w);
       }
-    } else if (!gone.has(w.from) && !wires.some((x) => x.from === w.from && x.to === w.to)) {
-      wires.push(w);
     }
+    doc.nodes = doc.nodes.filter((n) => !gone.has(n.id));
+    wires = nw.filter((w) => !gone.has(w.from) && !gone.has(w.to));   /* nothing dangling, ever */
+    changed = true;
   }
-  doc.nodes = doc.nodes.filter((n) => !gone.has(n.id));
-  doc.wires = wires.filter((w) => !gone.has(w.from) && !gone.has(w.to));   /* nothing dangling, ever */
-  return merged || gone.size > 0;
+  /* one wire per port, on both ends: a port holds exactly one connection,
+     so keep only the newest wire leaving each out port and entering each in port */
+  const kept = [];
+  for (const w of wires) {
+    const iOut = kept.findIndex((x) => x.from === w.from);
+    if (iOut >= 0) { kept.splice(iOut, 1); changed = true; }
+    const iIn = kept.findIndex((x) => x.to === w.to);
+    if (iIn >= 0) { kept.splice(iIn, 1); changed = true; }
+    kept.push(w);
+  }
+  doc.wires = kept;
+  return changed;
 }
 
 function openDoc(id) {
@@ -961,7 +976,8 @@ globalThis.__MOD = {
     /* standardized with the canvas: the source needs an out port, the target an in port */
     const A = nodeOf(a), B = nodeOf(b);
     if (!A || !B || !TYPES[A.type].hasOut || !TYPES[B.type].hasIn) return false;
-    doc.wires = doc.wires.filter((w) => w.to !== b);
+    /* one wire per port, both ends: rewiring moves the connection */
+    doc.wires = doc.wires.filter((w) => w.to !== b && w.from !== a);
     doc.wires.push({ from: a, to: b });
     redrawWires(); touch();
     return true;
