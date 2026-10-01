@@ -665,6 +665,9 @@ function removeNode(id) {
   touch();
 }
 function addNode(type, x, y) {
+  /* adding with no canvas on screen (files home) would silently mutate a
+     hidden, unsaved doc — start a fresh one instead so the addition is real */
+  if ($('modEditor').hidden) newDoc();
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
@@ -714,6 +717,7 @@ $('modZoomR').addEventListener('click', () => { view = { x: 40, y: 20, z: 1 }; s
 let running = false;
 async function run() {
   if (running) return [];
+  if ($('modEditor').hidden) return [];   /* never run a flow that is not on screen */
   running = true;
   $('modRun').disabled = true;
   try {
@@ -931,5 +935,6 @@ globalThis.__MOD = {
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),
+  latest: () => { const l = FS.docsList('flow'); return l.length ? l[0].id : null; },
   runCode: (lid, code, input) => (lid === 'java' ? javaRun(code, input || '', () => {}) : workerRun(lid, code, input || '', () => {})),
 };

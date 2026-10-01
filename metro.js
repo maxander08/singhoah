@@ -55,8 +55,10 @@ function zoomAnchor(X, Y, sx, sy, nk) {
   requestDraw();
 }
 /* portrait phones get the map rotated 90° so the lines' long axis runs
-   down the screen instead of across a thin strip */
-const PORTRAIT = (() => { try { return innerHeight > innerWidth; } catch { return false; } })();
+   down the screen instead of across a thin strip — but SMate's Action Block
+   embeds this page as a mini, and the mini map is ALWAYS north-up */
+const MINI = (() => { try { return new URLSearchParams(location.search).has('mini'); } catch { return false; } })();
+const PORTRAIT = MINI ? false : (() => { try { return innerHeight > innerWidth; } catch { return false; } })();
 const PROJ = {};
 const SYSS = ['TRTC', 'TY', 'KS', 'TC']; /* order = tab order */
 for (const sys of SYSS) {
@@ -900,7 +902,7 @@ function fitRoute(a, b) {
 
 /* SMate Action Block mode: the page itself, embedded as a true mini —
    chrome hidden, fare pair pre-selected from the URL hash */
-if (new URLSearchParams(location.search).get('mini')) {
+if (MINI) {
   document.body.classList.add('smmini');
   svgRect = null;   /* chrome just vanished — the cached rect is stale */
   measureSvg();

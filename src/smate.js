@@ -1075,12 +1075,21 @@
       if (has(text, KW.files)) { globalThis.__MOD.home(); note(t(curLang, 'flFiles')); abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
       else if (has(text, KW.newdoc)) { globalThis.__MOD.newDoc(); note(t(curLang, 'done')); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); }
       else if (has(text, KW.run)) {
-        /* the flow runs async; the output block lands the moment it finishes */
-        note(t(curLang, 'mRun'));
-        Promise.resolve(globalThis.__MOD.run()).then((r) => {
-          const snippet = (r && r.length) ? r.join(' · ').slice(0, 140) : t(curLang, 'mResult');
-          sayBlock({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
-        }).catch(() => { /* the canvas already shows the error */ });
+        /* on the files home, "run" hands off to the newest flow first — the
+           action must also visibly happen in the main window */
+        if (document.getElementById('modEditor').hidden) {
+          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
+          if (id) globalThis.__MOD.openDoc(id);
+          else note(t(curLang, 'flEmpty'));
+        }
+        if (!document.getElementById('modEditor').hidden) {
+          /* the flow runs async; the output block lands the moment it finishes */
+          note(t(curLang, 'mRun'));
+          Promise.resolve(globalThis.__MOD.run()).then((r) => {
+            const snippet = (r && r.length) ? r.join(' · ').slice(0, 140) : t(curLang, 'mResult');
+            sayBlock({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
+          }).catch(() => { /* the canvas already shows the error */ });
+        }
       }
     }
     /* the Scribe toolbar, by voice or text */

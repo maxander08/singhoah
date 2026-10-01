@@ -1395,6 +1395,36 @@ ok('the fare mini centers the route instead of the whole network', await sq.wait
   const a = M.ST.O07, b = M.ST.R10;
   return !!a && !!b && v.k > 1.4 && Math.abs(v.cx - (a.x + b.x) / 2) < 120 && Math.abs(v.cy - (a.y + b.y) / 2) < 120;
 }, null, { timeout: 6000, polling: 250 }).then(() => true).catch(() => false));
+/* the SMate fare mini is ALWAYS north-up, even in a portrait viewport where
+   the full metro page rotates 90 degrees for readability */
+{
+  const pc2 = await browser.newContext({ viewport: { width: 390, height: 700 } });
+  const pm = await pc2.newPage();
+  await pm.goto(URL + 'metro.html?mini=1', { waitUntil: 'load' });
+  const north = await pm.evaluate(() => new Promise((res) => {
+    let n = 0;
+    const go = () => {
+      const M = globalThis.__METRO;
+      if (M && M.ST && M.ST.R28 && M.ST.G01) res({ mini: { dy: M.ST.R28.y - M.ST.G01.y, dx: M.ST.R28.x - M.ST.G01.x } });
+      else if (++n < 40) setTimeout(go, 250); else res(null);
+    };
+    go();
+  }));
+  ok('the mini map is north-up in a portrait viewport (Tamsui above Xindian)', !!north && north.mini.dy < -100, JSON.stringify(north));
+  const pf = await pc2.newPage();
+  await pf.goto(URL + 'metro.html', { waitUntil: 'load' });
+  const rotated = await pf.evaluate(() => new Promise((res) => {
+    let n = 0;
+    const go = () => {
+      const M = globalThis.__METRO;
+      if (M && M.ST && M.ST.R28 && M.ST.G01) res({ dx: M.ST.R28.x - M.ST.G01.x, dy: M.ST.R28.y - M.ST.G01.y });
+      else if (++n < 40) setTimeout(go, 250); else res(null);
+    };
+    go();
+  }));
+  ok('the full metro page keeps its portrait 90-degree rotation for readability', !!rotated && Math.abs(rotated.dx) > Math.abs(rotated.dy), JSON.stringify(rotated));
+  await pc2.close();
+}
 const txBefore = await sq.evaluate(() => { try { return JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { return 0; } });
 await smSend('add 12 expense');
 await sq.waitForTimeout(500);
