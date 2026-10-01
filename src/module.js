@@ -213,7 +213,7 @@ async function javaRun(code, input, onStatus) {
       let log = '';
       try { log = await jRead('/files/ecj.txt'); } catch { /* no log written */ }
       if (log.startsWith('<?xml') || log.startsWith('<')) log = log.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      return { ok: false, output: log, error: '', ms: Date.now() - t0 };
+      return { ok: false, output: '', error: log, ms: Date.now() - t0 };
     }
     JAVA.compiled.set(key, 1);
   }
@@ -250,9 +250,17 @@ async function runCodeNode(n, ins) {
   } catch (e) {
     r = { ok: false, output: '', error: String((e && e.message) || e), ms: 0 };
   }
+  const errBlock = (txt) => {
+    if (!box) return;
+    box.textContent = '';
+    const d = document.createElement('div');
+    d.className = 'mod-err';
+    d.textContent = txt;
+    box.appendChild(d);
+  };
   if (r.timeout) {
     setStat(t(lang, 'mStopped'), 'bad');
-    if (box) box.textContent = t(lang, 'mStopped');
+    errBlock(t(lang, 'mStopped'));
     return { text: '' };
   }
   if (!r.ok && !r.output && !r.error) {
@@ -260,11 +268,25 @@ async function runCodeNode(n, ins) {
     if (box) box.innerHTML = `<span class="mod-empty">${t(lang, 'mNetErr', { name })}</span>`;
     return { text: '' };
   }
-  setStat(t(lang, 'mMs', { ms: r.ms || 0 }), 'ok');
+  setStat(t(lang, 'mMs', { ms: r.ms || 0 }), r.ok ? 'ok' : 'bad');
   if (box) {
-    const text = (r.output || '') + (r.error ? (r.output ? '\n' : '') + r.error : '');
-    if (text) box.textContent = text;
-    else box.innerHTML = `<span class="mod-empty">${t(lang, 'mResult')} —</span>`;
+    if (r.output || r.error) {
+      box.textContent = '';
+      if (r.output) {
+        const d = document.createElement('div');
+        d.className = 'mod-out';
+        d.textContent = r.output;   /* textContent: program output is never parsed as HTML */
+        box.appendChild(d);
+      }
+      if (r.error) {
+        const d = document.createElement('div');
+        d.className = 'mod-err';
+        d.textContent = r.error;
+        box.appendChild(d);
+      }
+    } else {
+      box.innerHTML = `<span class="mod-empty">${t(lang, 'mResult')} —</span>`;
+    }
   }
   if (el) { el.classList.remove('ran'); requestAnimationFrame(() => el.classList.add('ran')); }
   return { text: r.output || '' };

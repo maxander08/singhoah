@@ -31,18 +31,19 @@ function rewriteImports(code) {
 }
 
 let jsConsolePatched = false;
-function patchConsole(sink) {
+let jsId = null;   /* console output follows the live request, never the first one */
+function patchConsole() {
   if (jsConsolePatched) return;
   jsConsolePatched = true;
   for (const lvl of ['log', 'info', 'warn', 'error']) {
-    const orig = console[lvl].bind(console);
-    console[lvl] = (...args) => { sink(args.map(String).join(' ')); orig(...args); };
+    console[lvl] = (...args) => { out(jsId, args.map(String).join(' ') + '\n'); };
   }
 }
 
 async function runJS(id, code, input) {
+  jsId = id;
   globalThis.input = input;
-  patchConsole((s) => out(id, s + '\n'));
+  patchConsole();
   const src = rewriteImports(code);
   const url = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(src);
   await import(url);   /* module scope: static + dynamic imports both allowed */

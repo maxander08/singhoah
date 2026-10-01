@@ -2596,6 +2596,25 @@ await prn.close();
   });
   ok('the code editor shows line numbers and highlighted tokens', ed.lines === 1 && ed.toks >= 2, JSON.stringify(ed));
   ok(`the code editor renders in Saans Mono (${ed.mono})`, /MONO"?\s*100/i.test(ed.mono), ed.mono);
+  /* errors render red; a second JS run keeps its console output */
+  const errRun = await mp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const c = M.nodes().find((n) => n.type === 'code');
+    M.cfg(c.id, { code: "console.log('first ok')" });
+    await M.run();
+    M.cfg(c.id, { code: "console.log('second ok');\nthrow new Error('red boom');" });
+    await M.run();
+    const node = [...document.querySelectorAll('.mod-node')].find((n) => n.querySelector('.mod-codeta'));
+    const err = node.querySelector('.mod-result .mod-err');
+    return {
+      second: M.outputText().includes('second ok'),
+      err: err ? err.textContent : '',
+      red: err ? getComputedStyle(err).color : '',
+      bad: node.querySelector('.mod-cstat').className,
+    };
+  });
+  ok('a second JS run keeps its console output (live request id)', errRun.second, JSON.stringify(errRun).slice(0, 80));
+  ok(`errors render in red ("${errRun.red}") with the red status dot`, /red boom/.test(errRun.err) && /192|217/.test(errRun.red) && /bad/.test(errRun.bad), JSON.stringify(errRun).slice(0, 120));
   /* files home: create, rename, delete */
   await mp.evaluate(() => globalThis.__MOD.home());
   await mp.waitForTimeout(300);
