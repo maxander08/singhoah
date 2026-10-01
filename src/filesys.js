@@ -37,11 +37,63 @@ export function docsSave(id, patch) {
   writeAll(all);
   return true;
 }
-export function docsDelete(id) { const all = readAll(); if (!all[id]) return false; delete all[id]; writeAll(all); return true; }
 export function docsDuplicate(id) {
   const d = docsGet(id);
   if (!d) return null;
   return docsCreate(d.kind, d.title, JSON.parse(JSON.stringify(d.data)));
+}
+
+/* ---- cloud merge (used by auth.js when a Google account is signed in) ----
+   Documents sync through the same users/<uid> Firestore doc as the wallet,
+   but unlike the wallet they MERGE per document: each doc carries its own
+   `updated`, so a note created on the phone and a flow created on the laptop
+   both survive. Deletions carry tombstones (singhoah:docsdel) so a document
+   deleted on one device cannot resurrect from another. */
+const KEYDEL = 'singhoah:docsdel';
+function readDel() {
+  try { const m = JSON.parse(localStorage.getItem(KEYDEL) || '{}'); return m && typeof m === 'object' ? m : {}; } catch { return {}; }
+}
+function writeDel(m) { try { localStorage.setItem(KEYDEL, JSON.stringify(m)); } catch { /* storage full */ } }
+export function docsDelete(id) {
+  const all = readAll();
+  if (!all[id]) return false;
+  delete all[id];
+  writeAll(all);
+  const del = readDel();
+  del[id] = Date.now();
+  writeDel(del);   /* tombstone: other devices must not resurrect this doc */
+  return true;
+}
+/* Merge a remote docs snapshot into this browser. Per document, the newer
+   `updated` wins; a tombstone newer than the document wins over both; a doc
+   re-edited after its deletion beats the tombstone (legitimate re-creation). */
+export function mergeDocs(remote, remoteDel) {
+  const all = readAll();
+  const del = readDel();
+  const rdel = remoteDel && typeof remoteDel === 'object' ? remoteDel : {};
+  const okDoc = (d) => d && typeof d === 'object' && typeof d.kind === 'string';
+  const changedIds = [];
+  const ids = new Set([...Object.keys(all), ...Object.keys(remote || {})]);
+  for (const id of ids) {
+    const L = okDoc(all[id]) ? all[id] : null;
+    const R = okDoc(remote && remote[id]) ? remote[id] : null;
+    const lu = (L && L.updated) || 0;
+    const ru = (R && R.updated) || 0;
+    const tDel = Math.max(del[id] || 0, rdel[id] || 0);
+    if (L && R) {
+      if (ru > lu) { all[id] = R; changedIds.push(id); }
+    } else if (L && !R) {
+      if (lu <= tDel) { delete all[id]; changedIds.push(id); }
+    } else if (!L && R) {
+      if (ru > tDel) { all[id] = R; changedIds.push(id); }
+    }
+    if (tDel && Math.max(lu, ru) > tDel) delete del[id];   /* re-created after deletion */
+  }
+  const cutoff = Date.now() - 90 * 864e5;
+  for (const [id, ts] of Object.entries(del)) if (!ts || ts < cutoff) delete del[id];
+  writeAll(all);
+  writeDel(del);
+  return { changed: changedIds.length > 0, changedIds };
 }
 
 /* ---- JSON round-trips (Export downloads a file, Import reads one back) ---- */

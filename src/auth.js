@@ -68,6 +68,15 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       const sc = localStorage.getItem('singhoah:scribe');
       if (sc) o.scribe = sc;
     } catch { /* ignore */ }
+    /* SinghoScribe notes + SinghoModule flows: merged per document on adopt */
+    try {
+      const dd = JSON.parse(localStorage.getItem('singhoah:docs') || 'null');
+      if (dd && typeof dd === 'object') o.docs = dd;
+    } catch { /* ignore */ }
+    try {
+      const dl = JSON.parse(localStorage.getItem('singhoah:docsdel') || 'null');
+      if (dl && typeof dl === 'object') o.docsdel = dl;
+    } catch { /* ignore */ }
     return o;
   };
   const sig = (o) => JSON.stringify({ ...o, updated: 0 });
@@ -80,10 +89,12 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
   const setMeta = (v) => { try { localStorage.setItem(META, String(v)); } catch { /* ignore */ } };
   function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; } }
 
-  /* Write a newer remote state into this browser. Wallet changes go live via
-     an event; preference changes are reported so the caller can reload. */
-  function adoptRemote(d) {
-    let wallet = false, prefs = false;
+  /* Write a newer remote state into this browser. Wallet and document
+     changes go live via events; preference changes are reported so the
+     caller can reload. */
+  let FSMod = null;   /* filesys.js, loaded on first document merge */
+  async function adoptRemote(d) {
+    let wallet = false, prefs = false, docs = false;
     if (d.wallet && typeof d.wallet === 'object') {
       const next = JSON.stringify(d.wallet);
       if (localStorage.getItem('singhoah:wallet') !== next) {
@@ -102,8 +113,18 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       try { localStorage.setItem('singhoah:scribe', d.scribe); } catch { /* ignore */ }
       prefs = true;
     }
+    if (d.docs && typeof d.docs === 'object') {
+      try {
+        FSMod = FSMod || await import('./filesys.js');
+        const res = FSMod.mergeDocs(d.docs, d.docsdel);
+        if (res.changed) {
+          docs = true;
+          document.dispatchEvent(new CustomEvent('singhoah:docs', { detail: res }));
+        }
+      } catch { /* merge is best-effort; local docs stay */ }
+    }
     setMeta(d.updated || 0);
-    return { wallet, prefs };
+    return { wallet, prefs, docs };
   }
 
   async function pushLocal(F, ref) {
@@ -128,7 +149,7 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       const o = collect();
       const s = sig(o);
       if (d && (d.updated || 0) > getMeta() && sig(d) !== s) {
-        const ch = adoptRemote(d);
+        const ch = await adoptRemote(d);
         if (ch.prefs) location.reload();
         return;
       }
@@ -153,11 +174,15 @@ const G_SVG = '<svg width="15" height="15" viewBox="0 0 48 48" aria-hidden="true
       const d = snap.data() || {};
       const s = sig(collect());
       if ((d.updated || 0) > getMeta() && sig(d) !== s) {
-        const ch = adoptRemote(d);   /* wallet repaints live via the event */
+        const ch = await adoptRemote(d);   /* wallet/docs repaint live via events */
         if (ch.prefs) { location.reload(); return true; }
         lastSent = sig(collect());
       }
-      if (sig(d) !== s && getMeta() > (d.updated || 0)) {
+      /* converge: if our state still differs from the remote after adopting
+         (local-only edits made during the sign-in window, documents the
+         remote never saw), publish ours — adoption above already made sure
+         nothing fresher gets clobbered */
+      if (sig(collect()) !== sig(d)) {
         if (!(await pushLocal(F, ref))) return false;
       }
       lastSent = sig(collect());

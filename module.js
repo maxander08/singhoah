@@ -94,8 +94,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = 'bb8f8637';
-const BV = BUILD === 'bb8f8637' ? '' : '?v=' + BUILD;
+const BUILD = 'f67e3711';
+const BV = BUILD === 'f67e3711' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -765,9 +765,12 @@ async function run() {
 }
 
 /* ---------- persistence: a flow is a document ---------- */
+let pendingSave = false;   /* unsaved local edits keep authority over remote changes */
 function touch() {
   clearTimeout(saveTimer);
+  pendingSave = true;
   saveTimer = setTimeout(() => {
+    pendingSave = false;
     if (!docId) return;
     FS.docsSave(docId, { title: $('modTitle').value, data: { nodes: doc.nodes, wires: doc.wires, grid: doc.grid, seq } });
   }, 500);
@@ -911,6 +914,29 @@ function updateThemeBtn() {
 }
 document.addEventListener('singhoah:lang', updateThemeBtn);
 
+/* cloud sync (Google account): documents created, edited or deleted on
+   another signed-in device arrive as singhoah:docs on the page that adopted
+   them — and, when a sibling tab did the adopting, as a storage event here.
+   The files home repaints live; an open flow refreshes only when the user
+   is not mid-edit and nothing is unsaved — local edits always win until
+   their own save pushes back. */
+function docsChangedRemote(changedIds) {
+  if (!$('modHome').hidden) { showHome(); return; }
+  if (!docId || pendingSave) return;
+  const editing = document.activeElement && document.activeElement.closest('.mod-node, #modTitle');
+  if (editing) return;
+  if (changedIds && !changedIds.includes(docId)) return;
+  const L = FS.docsGet(docId);
+  if (!L) { showHome(); return; }   /* deleted on another device */
+  const same = JSON.stringify({ n: doc.nodes, w: doc.wires }) === JSON.stringify({ n: L.data.nodes || [], w: L.data.wires || [] })
+    && (L.title || '') === $('modTitle').value;
+  if (!same) openDoc(docId);
+}
+document.addEventListener('singhoah:docs', (e) => docsChangedRemote((e.detail && e.detail.changedIds) || null));
+addEventListener('storage', (e) => {
+  if (e.key === 'singhoah:docs' && e.newValue !== e.oldValue) docsChangedRemote(null);
+});
+
 /* ---------- boot ---------- */
 let saved = '';
 try { saved = localStorage.getItem('singhoah:lang') || ''; } catch { /* ignore */ }
@@ -931,7 +957,7 @@ globalThis.__MOD = {
   wires: () => JSON.parse(JSON.stringify(doc.wires)),
   wire: (a, b) => { doc.wires = doc.wires.filter((w) => w.to !== b); doc.wires.push({ from: a, to: b }); redrawWires(); touch(); },
   removeNode,
-  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && (patch.enc !== undefined || patch.lang !== undefined)) renderNode(n); return { ...n.cfg }; },
+  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && (patch.enc !== undefined || patch.lang !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),
