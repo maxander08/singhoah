@@ -2564,7 +2564,7 @@ await prn.close();
     const M = globalThis.__MOD;
     const a = M.add('text', 48, 48);
     M.cfg(a.id, { text: '# Hi **Singhoah**', enc: 'plain' });
-    const o = M.add('output', 420, 48);
+    const o = M.add('io', 420, 48);
     M.wire(a.id, o.id);
     M.run();
     return { out: M.outputText(), d: document.querySelector('.mod-wire').getAttribute('d') };
@@ -2609,17 +2609,17 @@ await prn.close();
     M.cfg(c.id, { code: "console.log('code ok ' + input)" });
     const t = M.nodes().find((n) => n.type === 'text');
     M.wire(t.id, c.id);
-    const o2 = M.add('output', 420, 300);
+    const o2 = M.add('io', 420, 300);
     M.wire(c.id, o2.id);
     await M.run();
     return { out: M.outputText(), lang: c.cfg.lang, stat: document.querySelector('.mod-cstat')?.textContent || '' };
   });
   ok('the Code module runs JavaScript with the wired input', /code ok SGk=/.test(codeOut.out), JSON.stringify(codeOut.out.slice(0, 60)));
   ok(`the code node reports its timing ("${codeOut.stat}")`, /ms/.test(codeOut.stat), codeOut.stat);
-  ok('the Code module has no inline output field — two right ports, results render in the Output module', await mp.evaluate(() => {
+  ok('the Code module has no inline output field — one right port, results render in the I/O node', await mp.evaluate(() => {
     const cn = [...document.querySelectorAll('.mod-node')].find((n) => n.querySelector('.mod-codeta'));
-    return !!cn && !cn.querySelector('.mod-result') && cn.querySelectorAll('.mod-port.out').length === 2
-      && !!cn.querySelector('.mod-port.out.stdin') && !!cn.querySelector('.mod-port.out:not(.stdin)');
+    return !!cn && !cn.querySelector('.mod-result') && cn.querySelectorAll('.mod-port.out').length === 1
+      && !cn.querySelector('.mod-port.out.stdin');
   }));
   /* the code editor: Saans Mono, line numbers, syntax highlighting */
   const ed = await mp.evaluate(() => {
@@ -2652,38 +2652,41 @@ await prn.close();
   });
   ok('a second JS run keeps its console output (live request id)', errRun.second, JSON.stringify(errRun).slice(0, 80));
   ok(`errors render in red ("${errRun.red}") with the red status dot`, /red boom/.test(errRun.err) && /192|217/.test(errRun.red) && /bad/.test(errRun.bad), JSON.stringify(errRun).slice(0, 120));
-  /* the Input module: same pane UI as Output, but it feeds the Code module's
-     stdin through the code node's second right-side port */
-  const inMod = await mp.evaluate(async () => {
+  /* the merged I/O node: one node, one wire — the typed text feeds the Code
+     module's stdin, and its stdout renders back in the same node */
+  const ioMod = await mp.evaluate(async () => {
     const M = globalThis.__MOD;
     const c = M.nodes().find((n) => n.type === 'code');
     M.cfg(c.id, { code: "console.log('read: ' + input)" });
-    const i = M.add('input', 48, 480);
-    M.cfg(i.id, { text: 'from the input module' });
+    const i = M.add('io', 48, 480);
+    M.cfg(i.id, { text: 'from the io node' });
     M.wire(c.id, i.id);
     await M.run();
     return { out: M.outputText() };
   });
-  ok('the Input module feeds the Code module\'s stdin (second right port)', /read: from the input module/.test(inMod.out), JSON.stringify(inMod.out.slice(0, 80)));
-  ok('an Input module accepts only the Code module\'s stdin link', await mp.evaluate(async () => {
+  ok('the I/O node feeds the Code module\'s stdin over the same wire that returns its output', /read: from the io node/.test(ioMod.out), JSON.stringify(ioMod.out.slice(0, 80)));
+  ok('wires follow the ports: only out-port nodes source, only in-port nodes receive', await mp.evaluate(async () => {
     const M = globalThis.__MOD;
-    const before = M.wires().length;
     const txt = M.nodes().find((n) => n.type === 'text');
-    const inp = M.nodes().find((n) => n.type === 'input');
-    const rejected = M.wire(txt.id, inp.id) === false;
-    const okWire = M.wire(M.nodes().find((n) => n.type === 'code').id, inp.id) === true;
-    return rejected && okWire && M.wires().length === before;
+    const io = M.nodes().find((n) => n.type === 'io');
+    const code = M.nodes().find((n) => n.type === 'code');
+    const before = M.wires().length;
+    const t2i = M.wire(txt.id, io.id);          /* Text -> I/O: markdown preview */
+    const i2c = M.wire(io.id, code.id);         /* I/O has no out port: rejected */
+    const back = M.wire(code.id, io.id);        /* Code -> I/O again: restored */
+    return t2i === true && i2c === false && back === true && M.wires().length === before;
   }));
   await mp.waitForTimeout(700);   /* let the debounced save land before serializing */
-  ok('the Input module keeps its pane UI and its text persists in the flow', await mp.evaluate(async () => {
+  ok('the I/O node keeps the standard pane UI and its text persists in the flow', await mp.evaluate(async () => {
     const M = globalThis.__MOD;
-    const inp = M.nodes().find((n) => n.type === 'input');
-    const el = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === inp.id);
+    const io = M.nodes().find((n) => n.type === 'io' && n.cfg.text === 'from the io node');
+    const el = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === io.id);
     const ta = el && el.querySelector('.mod-inta.mod-ta');
-    const has = !!ta && ta.value === 'from the input module';
+    const res = el && el.querySelector('.mod-result');
+    const has = !!ta && ta.value === 'from the io node' && !!res;
     const ser = JSON.parse(M.serialize());
-    const saved = ser.data.nodes.find((n) => n.type === 'input');
-    return has && saved && saved.cfg.text === 'from the input module';
+    const saved = ser.data.nodes.find((n) => n.type === 'io' && n.cfg.text === 'from the io node');
+    return has && !!saved;
   }));
   /* files home: create, rename, delete */
   await mp.evaluate(() => globalThis.__MOD.home());
@@ -2721,7 +2724,7 @@ await prn.close();
     const M = globalThis.__MOD;
     const a = M.add('text', 48, 48);
     M.cfg(a.id, { text: 'smate smoke' });
-    const o = M.add('output', 420, 48);
+    const o = M.add('io', 420, 48);
     M.wire(a.id, o.id);
   });
   await mp.fill('#smateIn', 'run');
@@ -2739,17 +2742,15 @@ await prn.close();
   await mm.waitForTimeout(600);
   ok('SinghoModule fits the phone without horizontal scroll', await mm.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 1));
-  ok('the Input module renders on the phone with the Code module\'s two stacked right ports', await mm.evaluate(() => {
+  ok('the I/O node renders on the phone; the Code module has a single right port', await mm.evaluate(() => {
     const M = globalThis.__MOD;
-    const i = M.add('input', 48, 200);
+    const i = M.add('io', 48, 200);
     const c = M.add('code', 60, 340);
     const el = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === i.id);
     const ta = el && el.querySelector('.mod-inta');
+    const res = el && el.querySelector('.mod-result');
     const cn = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === c.id);
-    const p1 = cn && cn.querySelector('.mod-port.out:not(.stdin)');
-    const p2 = cn && cn.querySelector('.mod-port.out.stdin');
-    return !!ta && ta.clientWidth > 100 && !!p1 && !!p2 && p1.offsetTop === 13 && p2.offsetTop === 44
-      && Math.abs(p1.getBoundingClientRect().right - p2.getBoundingClientRect().right) < 2;
+    return !!ta && ta.clientWidth > 100 && !!res && !!cn && cn.querySelectorAll('.mod-port.out').length === 1;
   }));
   await mm.close();
   await mc.close();

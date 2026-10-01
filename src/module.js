@@ -21,15 +21,13 @@ let seq = 0;
 const GRID = 24;
 const TYPES = {
   text: { w: 230, color: '#4a76b8', name: () => t(lang, 'mText'), hasIn: false, hasOut: true },
-  code: { w: 310, color: '#8b5fbf', name: () => t(lang, 'mCode'), hasIn: true, hasOut: true, hasStdin: true },
-  input: { w: 250, color: '#4aa08a', name: () => t(lang, 'mInput'), hasIn: true, hasOut: false },
-  output: { w: 250, color: '#c9a24a', name: () => t(lang, 'mOutput'), hasIn: true, hasOut: false },
+  code: { w: 310, color: '#8b5fbf', name: () => t(lang, 'mCode'), hasIn: true, hasOut: true },
+  /* I/O: one node, one wire — the text typed in it is the Code module's
+     stdin, and the Code module's stdout (and red errors) render back into
+     its result pane. Fed from a Text module, it previews the Markdown. */
+  io: { w: 250, color: '#c9a24a', name: () => t(lang, 'mIO'), hasIn: true, hasOut: false },
 };
-/* a wire whose target is an Input module is a stdin link: the CODE module it
-   leaves from reads the Input module's text on run. Target type tells them
-   apart, so the wire schema stays {from, to}. */
 const nodeOf = (id) => doc.nodes.find((x) => x.id === id);
-const isInputNode = (id) => { const n = nodeOf(id); return !!n && n.type === 'input'; };
 const ENCS = ['plain', 'b64', 'url', 'hex', 'uni', 'ent', 'rot'];
 
 /* ---------- text encoders ---------- */
@@ -286,14 +284,14 @@ function applyView() {
   canvas.classList.toggle('nogrid', !doc.grid);
 }
 
-function portPos(id, which, stdin) {
+function portPos(id, which) {
   const n = doc.nodes.find((x) => x.id === id);
   if (!n) return [0, 0];
-  return which === 'out' ? [n.x + TYPES[n.type].w, n.y + (stdin ? 50 : 18)] : [n.x, n.y + 18];
+  return which === 'out' ? [n.x + TYPES[n.type].w, n.y + 18] : [n.x, n.y + 18];
 }
 /* square connectors only: H-V-H polylines, sharp 90° corners, no curves */
 function wirePath(a, b) {
-  const [x1, y1] = portPos(a, 'out', isInputNode(b));
+  const [x1, y1] = portPos(a, 'out');
   const [x2, y2] = portPos(b, 'in');
   const mid = Math.round((x1 + x2) / 2);
   return `M ${x1} ${y1} H ${mid} V ${y2} H ${x2}`;
@@ -313,7 +311,7 @@ function redrawWires() {
   const old = world.querySelector('.mod-wdel');
   if (old) old.remove();
   if (sel >= 0 && doc.wires[sel]) {
-    const [x1, y1] = portPos(doc.wires[sel].from, 'out', isInputNode(doc.wires[sel].to));
+    const [x1, y1] = portPos(doc.wires[sel].from, 'out');
     const [x2, y2] = portPos(doc.wires[sel].to, 'in');
     const b = document.createElement('button');
     b.className = 'mod-wdel';
@@ -546,15 +544,13 @@ function renderNode(n) {
     /* no inline output field: results and errors render in the connected
        Output module, stdin comes from Text modules and Input modules */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div></div>`;
-  } else if (n.type === 'input') {
-    body = `<div class="mod-body"><textarea class="mod-ta mod-inta" rows="5" placeholder="${t(lang, 'mInputPh')}" aria-label="${t(lang, 'mInput')}"></textarea></div>`;
+  } else if (n.type === 'io') {
+    body = `<div class="mod-body"><textarea class="mod-ta mod-inta" rows="4" placeholder="${t(lang, 'mIOPh')}" aria-label="${t(lang, 'mIO')}"></textarea><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
-  el.innerHTML = head + body + (T.hasIn ? '<span class="mod-port in"></span>' : '') + (T.hasOut ? '<span class="mod-port out"></span>' : '') + (T.hasStdin ? `<span class="mod-port out stdin" aria-label="${t(lang, 'mInput')}" title="${t(lang, 'mInput')}"></span>` : '');
+  el.innerHTML = head + body + (T.hasIn ? '<span class="mod-port in"></span>' : '') + (T.hasOut ? '<span class="mod-port out"></span>' : '');
   el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
-  const po = el.querySelector('.mod-port.out:not(.stdin)');
-  if (po && n.type === 'code') { po.setAttribute('aria-label', t(lang, 'mOutput')); po.title = t(lang, 'mOutput'); }
 
   const ta = el.querySelector('.mod-ta');
   if (ta) {
@@ -615,8 +611,7 @@ function renderNode(n) {
         const r = canvas.getBoundingClientRect();
         return [(cx - r.left - view.x) / view.z, (cy - r.top - view.y) / view.z];
       };
-      const stdin = port.classList.contains('stdin');
-      const [x1, y1] = portPos(n.id, 'out', stdin);
+      const [x1, y1] = portPos(n.id, 'out');
       const move = (ev) => {
         const [wx, wy] = toWorld(ev.clientX, ev.clientY);
         const mid = Math.round((x1 + wx) / 2);
@@ -630,9 +625,7 @@ function renderNode(n) {
         const target = drop && drop.closest ? drop.closest('.mod-port.in') : null;
         if (target) {
           const tNode = target.closest('.mod-node').dataset.id;
-          /* the stdin port connects to Input modules only; the plain out
-             port connects to everything else — drops never land mixed */
-          if (tNode !== n.id && isInputNode(tNode) === stdin) {
+          if (tNode !== n.id) {
             doc.wires = doc.wires.filter((w) => w.to !== tNode);
             doc.wires.push({ from: n.id, to: tNode });
             touch();
@@ -662,7 +655,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'input' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -720,15 +713,6 @@ async function run() {
     let progressed = false;
     for (const n of doc.nodes) {
       if (done.has(n.id)) continue;
-      if (n.type === 'input') {
-        /* an Input module is a source: its own typed text is its value — the
-           wire from a Code module's stdin port is a link, not data flowing in */
-        val[n.id] = { text: String(n.cfg.text || '') };
-        done.add(n.id); progressed = true;
-        const iel = nodeEl(n.id);
-        if (iel) { iel.classList.remove('ran'); requestAnimationFrame(() => iel.classList.add('ran')); }
-        continue;
-      }
       const ins = doc.wires.filter((w) => w.to === n.id).map((w) => val[w.from]).filter((v) => v !== undefined);
       if (ins.length < doc.wires.filter((w) => w.to === n.id).length) continue;
       let v;
@@ -738,11 +722,13 @@ async function run() {
         if ((n.cfg.enc || 'plain') === 'plain') v.html = mdToHtml(n.cfg.text || '');
       }
       else if (n.type === 'code') {
-        /* stdin: text typed into attached Input modules first, then whatever
-           Text modules wire into the left port */
-        const stdinTexts = doc.wires.filter((w) => w.from === n.id && isInputNode(w.to))
-          .map((w) => ({ text: String(nodeOf(w.to).cfg.text || '') }));
-        v = await runCodeNode(n, [...stdinTexts, ...ins]);
+        /* stdin: the text typed into attached I/O nodes first, then whatever
+           Text modules wire into the left port. An empty I/O pane contributes
+           nothing — it must not shift the input with blank lines. */
+        const ioTexts = doc.wires
+          .filter((w) => w.from === n.id && nodeOf(w.to) && nodeOf(w.to).type === 'io' && String(nodeOf(w.to).cfg.text || '').length > 0)
+          .map((w) => ({ text: String(nodeOf(w.to).cfg.text) }));
+        v = await runCodeNode(n, [...ioTexts, ...ins]);
       }
       else {
         const texts = ins.map((x) => x.text ?? '').join('\n');
@@ -790,6 +776,11 @@ function touch() {
    their markdown nodes spliced out: every input is wired straight through to
    every output, so Text → Markdown → Output becomes Text → Output. */
 function migrateDoc() {
+  /* the Input and Output modules merged into the I/O node */
+  let merged = false;
+  for (const n of doc.nodes) {
+    if (n.type === 'input' || n.type === 'output') { n.type = 'io'; merged = true; }
+  }
   const gone = new Set(doc.nodes.filter((n) => !TYPES[n.type]).map((n) => n.id));
   if (!gone.size) return false;
   const wires = [];
@@ -807,7 +798,7 @@ function migrateDoc() {
   }
   doc.nodes = doc.nodes.filter((n) => !gone.has(n.id));
   doc.wires = wires.filter((w) => !gone.has(w.from) && !gone.has(w.to));   /* nothing dangling, ever */
-  return true;
+  return merged || gone.size > 0;
 }
 
 function openDoc(id) {
@@ -894,8 +885,7 @@ function applyLang(id, persist = true) {
   $('btnSettings').title = t(lang, 'settings');
   $('btnLaunch').title = t(lang, 'launchpad');
   $('modAddT').textContent = t(lang, 'mText');
-  $('modAddO').textContent = t(lang, 'mOutput');
-  $('modAddI').textContent = t(lang, 'mInput');
+  $('modAddIO').textContent = t(lang, 'mIO');
   $('modAddC').textContent = t(lang, 'mCode');
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
@@ -968,8 +958,9 @@ globalThis.__MOD = {
   nodes: () => JSON.parse(JSON.stringify(doc.nodes)),
   wires: () => JSON.parse(JSON.stringify(doc.wires)),
   wire: (a, b) => {
-    /* an Input module accepts the Code module's stdin link only */
-    if (isInputNode(b) && !(nodeOf(a) && nodeOf(a).type === 'code')) return false;
+    /* standardized with the canvas: the source needs an out port, the target an in port */
+    const A = nodeOf(a), B = nodeOf(b);
+    if (!A || !B || !TYPES[A.type].hasOut || !TYPES[B.type].hasIn) return false;
     doc.wires = doc.wires.filter((w) => w.to !== b);
     doc.wires.push({ from: a, to: b });
     redrawWires(); touch();

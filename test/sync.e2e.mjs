@@ -89,7 +89,7 @@ const flowId = await AM.evaluate(() => {
   const id = M.newDoc();
   const t2 = M.add('text', 40, 40);
   M.cfg(t2.id, { text: 'created on A' });
-  const o = M.add('output', 420, 40);
+  const o = M.add('io', 420, 40);
   M.wire(t2.id, o.id);
   const ti = document.getElementById('modTitle');
   ti.value = 'Cloud flow';

@@ -1610,7 +1610,6 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 /* ---- node ports: sharp squares in the node's accent color ---- */
 .mod-port { position: absolute; top: 13px; width: 13px; height: 13px; background: var(--paper); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
 .mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
-.mod-port.out.stdin { top: 44px; }   /* the Code module's second right-side port: the stdin link to an Input module */
 .mod-port:hover { border-color: var(--notification); background: var(--notification); }
 
 /* ---- the module dropdown: chip button + sharp panel, Singhoah style ---- */
@@ -1636,7 +1635,6 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-empty { opacity: .55; }
 .mod-port { position: absolute; top: 13px; width: 14px; height: 14px; background: var(--panel, #1a2027); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
 .mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
-.mod-port.out.stdin { top: 44px; }
 .mod-port:hover { border-color: var(--notification, #000dff); background: var(--notification, #000dff); }
 .mod-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
 .mod-zoom .btn { min-width: 34px; text-align: center; }
