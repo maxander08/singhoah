@@ -2581,6 +2581,18 @@ await prn.close();
   });
   ok('the Code module runs JavaScript with the wired input', /code ok SGk=/.test(codeOut.out), JSON.stringify(codeOut.out.slice(0, 60)));
   ok(`the code node reports its timing ("${codeOut.stat}")`, /ms/.test(codeOut.stat), codeOut.stat);
+  /* the code editor: Saans Mono, line numbers, syntax highlighting */
+  const ed = await mp.evaluate(() => {
+    const el = [...document.querySelectorAll('.mod-node')].find((n) => n.querySelector('.mod-codeta'));
+    if (!el) return { lines: 0, toks: 0, mono: '' };
+    return {
+      lines: el.querySelectorAll('.mod-gut-in span').length,
+      toks: el.querySelectorAll('.mod-hl [class^="tok-"]').length,
+      mono: getComputedStyle(el.querySelector('.mod-hl')).fontVariationSettings,
+    };
+  });
+  ok('the code editor shows line numbers and highlighted tokens', ed.lines === 1 && ed.toks >= 2, JSON.stringify(ed));
+  ok(`the code editor renders in Saans Mono (${ed.mono})`, /MONO"?\s*100/i.test(ed.mono), ed.mono);
   /* files home: create, rename, delete */
   await mp.evaluate(() => globalThis.__MOD.home());
   await mp.waitForTimeout(300);

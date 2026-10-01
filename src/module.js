@@ -325,6 +325,126 @@ function redrawWires() {
   }
 }
 
+/* ---------- the code editor: Saans with the MONO axis on (Saans Mono),
+   a highlight layer under a transparent textarea, and a line-number
+   gutter that scrolls in sync. No external editor library. ---------- */
+const GRAMMARS = {
+  js: {
+    line: '//', block: ['/*', '*/'],
+    kw: 'const let var function class return if else for while do switch case break continue new this typeof instanceof in of null undefined true false async await import export from default try catch finally throw yield delete void static get set super extends'.split(' '),
+    builtins: 'console Math JSON Object Array String Number Boolean Promise Map Set Date RegExp window document'.split(' '),
+  },
+  python: {
+    line: '#',
+    kw: 'def class return if elif else for while break continue pass import from as with try except finally raise lambda global nonlocal assert yield del in is not and or None True False async await match case'.split(' '),
+    builtins: 'print int str list dict set tuple float bool range len enumerate zip map filter sum min max abs sorted input type isinstance self super'.split(' '),
+    anno: true,
+  },
+  cpp: {
+    line: '//', block: ['/*', '*/'], pre: true,
+    kw: 'int float double char bool void long short unsigned signed auto const constexpr struct class union enum public private protected virtual override final return if else for while do switch case break continue new delete this nullptr true false using namespace template typename try catch throw operator sizeof explicit friend noexcept static_cast'.split(' '),
+    builtins: 'std cout cin cerr endl string vector map set array size_t move forward'.split(' '),
+  },
+  java: {
+    line: '//', block: ['/*', '*/'], anno: true,
+    kw: 'public private protected static final abstract class interface enum extends implements return if else for while do switch case break continue new this null true false void int long double float char byte short boolean try catch finally throw throws import package synchronized volatile transient instanceof super var record'.split(' '),
+    builtins: 'System String Math Integer Double Float Long Boolean Character List ArrayList Map HashMap Object Thread Exception Runnable StringBuilder'.split(' '),
+  },
+};
+
+function highlight(src, langId) {
+  const G = GRAMMARS[langId] || GRAMMARS.js;
+  const kw = new Set(G.kw);
+  const bi = new Set(G.builtins || []);
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const out = [];
+  const push = (cls, text) => out.push(cls ? `<span class="tok-${cls}">${esc(text)}</span>` : esc(text));
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const rest = src.slice(i);
+    if (G.block && rest.startsWith(G.block[0])) {
+      let e = src.indexOf(G.block[1], i + 2); if (e < 0) e = n; else e += 2;
+      push('c', src.slice(i, e)); i = e; continue;
+    }
+    if (G.line && rest.startsWith(G.line)) {
+      const e = src.indexOf('\n', i); const end = e < 0 ? n : e;
+      push('c', src.slice(i, end)); i = end; continue;
+    }
+    if (G.pre && src[i] === '#' && (i === 0 || src[i - 1] === '\n')) {
+      const e = src.indexOf('\n', i); const end = e < 0 ? n : e;
+      push('p', src.slice(i, end)); i = end; continue;
+    }
+    const ch = src[i];
+    if (ch === '"' || ch === "'" || ch === '`') {
+      let j = i + 1;
+      while (j < n) {
+        if (src[j] === '\\') { j += 2; continue; }
+        if (src[j] === ch) { j++; break; }
+        if (src[j] === '\n' && ch !== '`') break;
+        j++;
+      }
+      push('s', src.slice(i, j)); i = j; continue;
+    }
+    let mm = /^(?:0[xXbBoO][\da-fA-F_]+|\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(rest);
+    if (mm) { push('n', mm[0]); i += mm[0].length; continue; }
+    mm = /^[A-Za-z_$][\w$]*/.exec(rest);
+    if (mm) {
+      const w = mm[0];
+      push(kw.has(w) ? 'k' : bi.has(w) ? 'b' : '', w);
+      i += w.length; continue;
+    }
+    if (G.anno && ch === '@' && (mm = /^@\w+/.exec(rest))) { push('k', mm[0]); i += mm[0].length; continue; }
+    push('', ch); i++;
+  }
+  return out.join('');
+}
+
+function wireCodeEditor(el, n) {
+  const ta = el.querySelector('.mod-codeta');
+  const codeEl = el.querySelector('.mod-hl code');
+  const hlPre = el.querySelector('.mod-hl');
+  const gut = el.querySelector('.mod-gut-in');
+  if (!ta || !codeEl || !hlPre || !gut) return;
+  const syncActive = () => {
+    const line = ta.value.slice(0, ta.selectionStart).split('\n').length;
+    [...gut.children].forEach((s, k) => s.classList.toggle('on', k === line - 1));
+  };
+  const refresh = () => {
+    n.cfg.code = ta.value;
+    codeEl.innerHTML = highlight(ta.value, n.cfg.lang || 'js') || '\u00a0';
+    const lines = ta.value.split('\n').length;
+    if (gut.childElementCount !== lines) gut.innerHTML = Array.from({ length: lines }, (_, k) => `<span>${k + 1}</span>`).join('');
+    syncActive();
+    touch();
+  };
+  const sync = () => {
+    hlPre.scrollTop = ta.scrollTop; hlPre.scrollLeft = ta.scrollLeft;
+    gut.style.transform = `translateY(${-ta.scrollTop}px)`;
+  };
+  const ins = (txt) => {
+    if (!document.execCommand('insertText', false, txt)) {
+      const s = ta.selectionStart, e = ta.selectionEnd;
+      ta.setRangeText(txt, s, e, 'end');
+    }
+  };
+  ta.addEventListener('input', refresh);
+  ta.addEventListener('scroll', sync);
+  for (const ev of ['click', 'keyup', 'select']) ta.addEventListener(ev, syncActive);
+  ta.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;   /* never fight the IME (CJK input) */
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); ins('  '); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      const line = ta.value.slice(0, ta.selectionStart).split('\n').pop() || '';
+      const ind = (line.match(/^[ \t]*/) || [''])[0];
+      const extra = /[{([]\s*$/.test(line) ? '  ' : '';
+      ins('\n' + ind + extra);
+    }
+  });
+  refresh();
+}
+
 /* Singhoah's dropdown, miniaturized for node settings: a borderless chip that
    turns a solid blue on hover, and a sharp popup panel below, left-aligned,
    clamped to the viewport on small screens. No native <select> anywhere. */
@@ -421,7 +541,7 @@ function renderNode(n) {
   } else if (n.type === 'markdown') {
     body = `<div class="mod-body"><p class="mod-hint"># &nbsp;**b** &nbsp;*i* &nbsp;\`c\`</p></div>`;
   } else if (n.type === 'code') {
-    body = `<div class="mod-body"><div class="mod-dd-slot"></div><textarea class="mod-ta mod-codeta" rows="6" spellcheck="false" placeholder="${t(lang, 'mCodePh')}"></textarea><div class="mod-cstat" aria-live="polite"></div><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
@@ -436,7 +556,7 @@ function renderNode(n) {
   const cta = el.querySelector('.mod-codeta');
   if (cta) {
     cta.value = n.cfg.code || '';
-    cta.addEventListener('input', () => { n.cfg.code = cta.value; touch(); });
+    wireCodeEditor(el, n);
   }
   const slot = el.querySelector('.mod-dd-slot');
   if (slot && n.type === 'text') {
@@ -448,7 +568,7 @@ function renderNode(n) {
       const prev = n.cfg.lang || 'js';
       if ((n.cfg.code || '') === (CODE_DEFAULTS[prev] || '')) n.cfg.code = CODE_DEFAULTS[v] || '';
       n.cfg.lang = v;
-      if (cta) cta.value = n.cfg.code || '';
+      if (cta) { cta.value = n.cfg.code || ''; cta.dispatchEvent(new Event('input', { bubbles: true })); }
       touch();
     }));
   }
@@ -759,7 +879,7 @@ globalThis.__MOD = {
   wires: () => JSON.parse(JSON.stringify(doc.wires)),
   wire: (a, b) => { doc.wires = doc.wires.filter((w) => w.to !== b); doc.wires.push({ from: a, to: b }); redrawWires(); touch(); },
   removeNode,
-  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) ta.value = patch.code; } if (el && (patch.enc !== undefined || patch.lang !== undefined)) renderNode(n); return { ...n.cfg }; },
+  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && (patch.enc !== undefined || patch.lang !== undefined)) renderNode(n); return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),
