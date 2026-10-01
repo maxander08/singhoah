@@ -21,7 +21,6 @@ let seq = 0;
 const GRID = 24;
 const TYPES = {
   text: { w: 230, color: '#4a76b8', name: () => t(lang, 'mText'), hasIn: false, hasOut: true },
-  markdown: { w: 200, color: '#5f9e63', name: () => t(lang, 'mMarkdown'), hasIn: true, hasOut: true },
   code: { w: 310, color: '#8b5fbf', name: () => t(lang, 'mCode'), hasIn: true, hasOut: true },
   output: { w: 250, color: '#c9a24a', name: () => t(lang, 'mOutput'), hasIn: true, hasOut: false },
 };
@@ -521,6 +520,7 @@ function modDropdown(n, key, label, options, onPick) {
 
 function renderNode(n) {
   const T = TYPES[n.type];
+  if (!T) return;   /* retired module types are migrated on open; be safe anyway */
   let el = nodeEl(n.id);
   if (!el) {
     el = document.createElement('div');
@@ -537,9 +537,7 @@ function renderNode(n) {
     <button type="button" class="mod-nx" aria-label="${t(lang, 'flDelete')}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></div>`;
   let body = '';
   if (n.type === 'text') {
-    body = `<div class="mod-body"><textarea class="mod-ta" rows="4" placeholder="${t(lang, 'mText')}…"></textarea><div class="mod-dd-slot"></div></div>`;
-  } else if (n.type === 'markdown') {
-    body = `<div class="mod-body"><p class="mod-hint"># &nbsp;**b** &nbsp;*i* &nbsp;\`c\`</p></div>`;
+    body = `<div class="mod-body"><textarea class="mod-ta" rows="4" placeholder="${t(lang, 'mText')}…"></textarea><div class="mod-dd-slot"></div><p class="mod-hint"># &nbsp;**b** &nbsp;*i* &nbsp;\`c\`</p></div>`;
   } else if (n.type === 'code') {
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   } else {
@@ -708,9 +706,12 @@ async function run() {
       const ins = doc.wires.filter((w) => w.to === n.id).map((w) => val[w.from]).filter((v) => v !== undefined);
       if (ins.length < doc.wires.filter((w) => w.to === n.id).length) continue;
       let v;
-      if (n.type === 'text') v = { text: encode(n.cfg.enc || 'plain', n.cfg.text || '') };
+      if (n.type === 'text') {
+        /* Markdown is native: plain text renders as Markdown downstream */
+        v = { text: encode(n.cfg.enc || 'plain', n.cfg.text || '') };
+        if ((n.cfg.enc || 'plain') === 'plain') v.html = mdToHtml(n.cfg.text || '');
+      }
       else if (n.type === 'code') v = await runCodeNode(n, ins);
-      else if (n.type === 'markdown') v = { html: mdToHtml(ins.map((x) => x.text ?? '').join('\n\n')) };
       else {
         const texts = ins.map((x) => x.text ?? '').join('\n');
         v = { text: texts };
@@ -745,12 +746,37 @@ function touch() {
     FS.docsSave(docId, { title: $('modTitle').value, data: { nodes: doc.nodes, wires: doc.wires, grid: doc.grid, seq } });
   }, 500);
 }
+/* Markdown used to be its own module; it lives in Text now. Old flows get
+   their markdown nodes spliced out: every input is wired straight through to
+   every output, so Text → Markdown → Output becomes Text → Output. */
+function migrateDoc() {
+  const gone = new Set(doc.nodes.filter((n) => !TYPES[n.type]).map((n) => n.id));
+  if (!gone.size) return false;
+  const wires = [];
+  for (const w of doc.wires) {
+    if (gone.has(w.to)) {
+      /* splice: wire this input straight through to the retired node's outputs */
+      for (const w2 of doc.wires) {
+        if (w2.from === w.to && !gone.has(w2.to) && !wires.some((x) => x.from === w.from && x.to === w2.to)) {
+          wires.push({ from: w.from, to: w2.to });
+        }
+      }
+    } else if (!gone.has(w.from) && !wires.some((x) => x.from === w.from && x.to === w.to)) {
+      wires.push(w);
+    }
+  }
+  doc.nodes = doc.nodes.filter((n) => !gone.has(n.id));
+  doc.wires = wires.filter((w) => !gone.has(w.from) && !gone.has(w.to));   /* nothing dangling, ever */
+  return true;
+}
+
 function openDoc(id) {
   const d = FS.docsGet(id);
   if (!d || d.kind !== 'flow') return showHome();
   if (docId) { clearTimeout(saveTimer); }
   docId = id;
   doc = { nodes: (d.data && d.data.nodes) || [], wires: (d.data && d.data.wires) || [], grid: d.data ? d.data.grid !== false : true };
+  const migrated = migrateDoc();
   seq = (d.data && d.data.seq) || doc.nodes.length;
   view = { x: 40, y: 20, z: 1 };
   selectedWire = -1;
@@ -766,6 +792,7 @@ function openDoc(id) {
   redrawWires();
   applyView();
   setZoom(1);
+  if (migrated) touch();   /* save the migrated shape so it never migrates twice */
 }
 function showHome() {
   if (docId) { clearTimeout(saveTimer); touch(); }
@@ -827,7 +854,6 @@ function applyLang(id, persist = true) {
   $('btnSettings').title = t(lang, 'settings');
   $('btnLaunch').title = t(lang, 'launchpad');
   $('modAddT').textContent = t(lang, 'mText');
-  $('modAddM').textContent = t(lang, 'mMarkdown');
   $('modAddO').textContent = t(lang, 'mOutput');
   $('modAddC').textContent = t(lang, 'mCode');
   $('modGridT').textContent = t(lang, 'mGrid');

@@ -2541,6 +2541,9 @@ await prn.close();
   });
   ok('a Text -> Output flow runs and prints the text', flow.out.includes('Singhoah'), flow.out);
   ok('connectors are square: H-V-H only, no curve commands', /^[MHV\d\s.]+$/.test(flow.d) && !/[CcQqAaSsTt]/.test(flow.d), flow.d);
+  ok('Text renders Markdown natively (h1 + bold in Output, no Markdown module)', await mp.evaluate(() =>
+    !!document.querySelector('.mod-md h1') && !!document.querySelector('.mod-md strong')
+    && !document.querySelector('.mod-add[data-add="markdown"]')));
   const enc = await mp.evaluate(() => {
     const M = globalThis.__MOD;
     const a = M.nodes().find((n) => n.type === 'text');
