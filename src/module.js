@@ -240,28 +240,28 @@ async function runCodeNode(n, ins) {
   const input = ins.map((x) => x.text ?? '').join('\n');
   const lid = n.cfg.lang || 'js';
   const name = (CODE_LANGS.find((l) => l[0] === lid) || [, 'Code'])[1];
-  const setStat = (s) => { if (stat) stat.textContent = s; };
-  setStat(t(lang, 'mSetup', { name }));
+  const setStat = (s, st) => { if (stat) { stat.textContent = s; stat.className = 'mod-cstat' + (st ? ' ' + st : ''); } };
+  setStat(t(lang, 'mSetup', { name }), 'busy');
   if (box) box.innerHTML = `<span class="mod-empty">${t(lang, 'mBusy')}</span>`;
   let r;
   try {
     r = lid === 'java'
-      ? await javaRun(n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name)))
-      : await workerRun(lid, n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name)));
+      ? await javaRun(n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name), 'busy'))
+      : await workerRun(lid, n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name), 'busy'));
   } catch (e) {
     r = { ok: false, output: '', error: String((e && e.message) || e), ms: 0 };
   }
   if (r.timeout) {
-    setStat(t(lang, 'mStopped'));
+    setStat(t(lang, 'mStopped'), 'bad');
     if (box) box.textContent = t(lang, 'mStopped');
     return { text: '' };
   }
   if (!r.ok && !r.output && !r.error) {
-    setStat(t(lang, 'mNetErr', { name }));
+    setStat(t(lang, 'mNetErr', { name }), 'bad');
     if (box) box.innerHTML = `<span class="mod-empty">${t(lang, 'mNetErr', { name })}</span>`;
     return { text: '' };
   }
-  setStat(t(lang, 'mMs', { ms: r.ms || 0 }));
+  setStat(t(lang, 'mMs', { ms: r.ms || 0 }), 'ok');
   if (box) {
     const text = (r.output || '') + (r.error ? (r.output ? '\n' : '') + r.error : '');
     if (text) box.textContent = text;
@@ -325,6 +325,80 @@ function redrawWires() {
   }
 }
 
+/* Singhoah's dropdown, miniaturized for node settings: a borderless chip that
+   turns a solid blue on hover, and a sharp popup panel below, left-aligned,
+   clamped to the viewport on small screens. No native <select> anywhere. */
+function modDropdown(n, key, label, options, onPick) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mod-dd';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'mod-dd-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', label);
+  const txt = document.createElement('span');
+  txt.className = 'mod-dd-txt';
+  txt.textContent = (options.find((o) => o[0] === (n.cfg[key] || options[0][0])) || options[0])[1];
+  btn.appendChild(txt);
+  btn.insertAdjacentHTML('beforeend', '<svg class="mod-dd-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 9 7 7 7-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  const list = document.createElement('div');
+  list.className = 'mod-dd-list';
+  list.setAttribute('role', 'listbox');
+  list.setAttribute('aria-label', label);
+  list.hidden = true;
+  const cur = () => n.cfg[key] || options[0][0];
+  const sync = () => {
+    txt.textContent = (options.find((o) => o[0] === cur()) || options[0])[1];
+    [...list.children].forEach((b, i) => {
+      const sel = options[i][0] === cur();
+      b.classList.toggle('sel', sel);
+      b.setAttribute('aria-selected', String(sel));
+    });
+  };
+  for (const [v, l] of options) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mod-dd-opt';
+    b.setAttribute('role', 'option');
+    b.innerHTML = `<span class="mod-dd-lab"></span><svg class="mod-dd-chk" width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 12.5 5.5 5.5L20 6.5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    b.querySelector('.mod-dd-lab').textContent = l;
+    b.addEventListener('click', (e) => { e.stopPropagation(); onPick(v); sync(); close(); });
+    list.appendChild(b);
+  }
+  sync();
+  const close = () => {
+    list.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    const node = wrap.closest('.mod-node');
+    if (node) node.classList.remove('dd-open');
+    document.removeEventListener('pointerdown', outside, true);
+    document.removeEventListener('keydown', onKey, true);
+  };
+  const outside = (e) => { if (!wrap.contains(e.target)) close(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const open = () => {
+    list.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    const node = wrap.closest('.mod-node');
+    if (node) node.classList.add('dd-open');
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', onKey, true);
+    requestAnimationFrame(() => {   /* clamp inside the viewport, mobile included */
+      const r = list.getBoundingClientRect();
+      let dx = 0, dy = 0;
+      if (r.right > innerWidth - 8) dx = innerWidth - 8 - r.right;
+      if (r.left + dx < 8) dx = 8 - r.left;
+      if (r.bottom > innerHeight - 8) dy = innerHeight - 8 - r.bottom;
+      if (r.top + dy < 8) dy = 8 - r.top;
+      list.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : '';
+    });
+  };
+  btn.addEventListener('click', (e) => { e.stopPropagation(); if (list.hidden) open(); else close(); });
+  wrap.append(btn, list);
+  return wrap;
+}
+
 function renderNode(n) {
   const T = TYPES[n.type];
   let el = nodeEl(n.id);
@@ -343,38 +417,41 @@ function renderNode(n) {
     <button type="button" class="mod-nx" aria-label="${t(lang, 'flDelete')}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></div>`;
   let body = '';
   if (n.type === 'text') {
-    const encs = ENCS.map((e) => `<option value="${e}"${(n.cfg.enc || 'plain') === e ? ' selected' : ''}>${t(lang, 'enc' + ({ plain: 'Plain', b64: 'B64', url: 'Url', hex: 'Hex', uni: 'Uni', ent: 'Ent', rot: 'Rot' }[e]))}</option>`).join('');
-    body = `<div class="mod-body"><textarea class="mod-ta" rows="4" placeholder="${t(lang, 'mText')}…"></textarea><select class="mod-enc" aria-label="${t(lang, 'mText')}">${encs}</select></div>`;
+    body = `<div class="mod-body"><textarea class="mod-ta" rows="4" placeholder="${t(lang, 'mText')}…"></textarea><div class="mod-dd-slot"></div></div>`;
   } else if (n.type === 'markdown') {
     body = `<div class="mod-body"><p class="mod-hint"># &nbsp;**b** &nbsp;*i* &nbsp;\`c\`</p></div>`;
   } else if (n.type === 'code') {
-    const langs = CODE_LANGS.map(([v, nm]) => `<option value="${v}"${(n.cfg.lang || 'js') === v ? ' selected' : ''}>${nm}</option>`).join('');
-    body = `<div class="mod-body"><select class="mod-lang" aria-label="${t(lang, 'mLang')}">${langs}</select><textarea class="mod-ta mod-codeta" rows="6" spellcheck="false" placeholder="${t(lang, 'mCodePh')}"></textarea><div class="mod-cstat" aria-live="polite"></div><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><textarea class="mod-ta mod-codeta" rows="6" spellcheck="false" placeholder="${t(lang, 'mCodePh')}"></textarea><div class="mod-cstat" aria-live="polite"></div><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
   el.innerHTML = head + body + (T.hasIn ? '<span class="mod-port in"></span>' : '') + (T.hasOut ? '<span class="mod-port out"></span>' : '');
+  el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
 
   const ta = el.querySelector('.mod-ta');
   if (ta) {
     ta.value = n.cfg.text || '';
     ta.addEventListener('input', () => { n.cfg.text = ta.value; touch(); });
   }
-  const enc = el.querySelector('.mod-enc');
-  if (enc) enc.addEventListener('change', () => { n.cfg.enc = enc.value; touch(); });
   const cta = el.querySelector('.mod-codeta');
   if (cta) {
     cta.value = n.cfg.code || '';
     cta.addEventListener('input', () => { n.cfg.code = cta.value; touch(); });
   }
-  const clang = el.querySelector('.mod-lang');
-  if (clang) clang.addEventListener('change', () => {
-    const prev = n.cfg.lang || 'js';
-    if ((n.cfg.code || '') === (CODE_DEFAULTS[prev] || '')) n.cfg.code = CODE_DEFAULTS[clang.value] || '';
-    n.cfg.lang = clang.value;
-    if (cta) cta.value = n.cfg.code || '';
-    touch();
-  });
+  const slot = el.querySelector('.mod-dd-slot');
+  if (slot && n.type === 'text') {
+    slot.appendChild(modDropdown(n, 'enc', t(lang, 'mText'),
+      ENCS.map((e) => [e, t(lang, 'enc' + ({ plain: 'Plain', b64: 'B64', url: 'Url', hex: 'Hex', uni: 'Uni', ent: 'Ent', rot: 'Rot' }[e]))]),
+      (v) => { n.cfg.enc = v; touch(); }));
+  } else if (slot && n.type === 'code') {
+    slot.appendChild(modDropdown(n, 'lang', t(lang, 'mLang'), CODE_LANGS, (v) => {
+      const prev = n.cfg.lang || 'js';
+      if ((n.cfg.code || '') === (CODE_DEFAULTS[prev] || '')) n.cfg.code = CODE_DEFAULTS[v] || '';
+      n.cfg.lang = v;
+      if (cta) cta.value = n.cfg.code || '';
+      touch();
+    }));
+  }
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
 
   /* drag the node by its header (mouse or touch, one pointer API) */
@@ -682,7 +759,7 @@ globalThis.__MOD = {
   wires: () => JSON.parse(JSON.stringify(doc.wires)),
   wire: (a, b) => { doc.wires = doc.wires.filter((w) => w.to !== b); doc.wires.push({ from: a, to: b }); redrawWires(); touch(); },
   removeNode,
-  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (n) Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.enc !== undefined) { const s = el.querySelector('.mod-enc'); if (s) s.value = patch.enc; } return n ? { ...n.cfg } : null; },
+  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) ta.value = patch.code; } if (el && (patch.enc !== undefined || patch.lang !== undefined)) renderNode(n); return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),

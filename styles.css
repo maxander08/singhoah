@@ -1535,23 +1535,57 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .mod-wire.sel { stroke: var(--notification, #000dff); stroke-width: 3; }
 .mod-wire.temp { stroke-dasharray: 5 4; }
 .mod-wdel { position: absolute; width: 22px; height: 22px; display: grid; place-items: center; background: var(--notification, #000dff); color: #fff; border: none; cursor: pointer; }
-.mod-node { position: absolute; background: var(--panel, #1a2027); border: 1px solid rgba(127, 127, 127, .4); border-radius: 0; box-shadow: 0 3px 10px rgba(0, 0, 0, .3); user-select: none; }
-.mod-node.drag { box-shadow: 0 8px 20px rgba(0, 0, 0, .45); }
-.mod-node.ran .mod-head { animation: modRan .5s ease; }
-@keyframes modRan { 0% { background: rgba(0, 0, 0, .25); } }
-.mod-head { display: flex; align-items: center; gap: 7px; padding: 8px 10px; font: 600 12.5px/1 var(--font-sans); cursor: grab; background: rgba(127, 127, 127, .12); }
+/* ---- module nodes: paper cards, strong outlines, sharp corners ---- */
+.mod-node { position: absolute; background: var(--paper); border: 2px solid var(--border); border-radius: 0; box-shadow: 4px 4px 0 rgb(0 0 0 / .10); user-select: none; }
+.mod-node.drag { box-shadow: 8px 8px 0 rgb(0 0 0 / .16); }
+.mod-node.dd-open { z-index: 30; }
+.mod-node.ran { animation: modRan .9s ease; }
+@keyframes modRan {
+  0% { border-color: var(--notification); box-shadow: 0 0 0 3px var(--notification), 4px 4px 0 rgb(0 0 0 / .10); }
+  100% { border-color: var(--border); }
+}
+.mod-head { display: flex; align-items: center; gap: 8px; padding: 9px 10px; font: 650 12.5px/1 var(--font-sans); letter-spacing: .2px; cursor: grab; background: var(--paper-2); border-bottom: 1px solid rgb(127 127 127 / .30); }
 .mod-ndot { width: 9px; height: 9px; flex: 0 0 auto; }
 .mod-nname { flex: 1; }
-.mod-nx { background: none; border: none; color: inherit; opacity: .55; cursor: pointer; display: grid; place-items: center; padding: 2px; }
+.mod-nx { background: none; border: 0; border-radius: 0; color: var(--pigeon); opacity: .75; cursor: pointer; display: grid; place-items: center; padding: 3px; }
 .mod-nx:hover { opacity: 1; color: var(--bad, #c0392b); }
-.mod-body { padding: 8px 10px 10px; }
-.mod-ta { width: 100%; box-sizing: border-box; background: transparent; border: 1px solid rgba(127, 127, 127, .35); color: inherit; font-family: var(--font-sans); font-size: 13px; line-height: 1.35; padding: 6px; resize: vertical; min-height: 64px; border-radius: 0; }
-.mod-enc { margin-top: 6px; width: 100%; background: transparent; color: inherit; border: 1px solid rgba(127, 127, 127, .35); border-radius: 0; padding: 4px; font-family: var(--font-sans); font-size: 12px; }
-.mod-lang { margin-top: 6px; width: 100%; background: transparent; color: inherit; border: 1px solid rgba(127, 127, 127, .35); border-radius: 0; padding: 4px; font-family: var(--font-sans); font-size: 12px; }
-.mod-codeta { min-height: 118px; font-size: 12.5px; line-height: 1.45; }
-.mod-cstat { font: 11.5px/1.3 var(--font-sans); opacity: .65; margin-top: 5px; min-height: 15px; }
-.mod-hint { margin: 0; font: 13px/1.4 var(--font-sans); opacity: .8; }
-.mod-result { max-height: 180px; overflow: auto; font: 12.5px/1.4 var(--font-sans); white-space: pre-wrap; word-break: break-word; }
+.mod-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.mod-ta { width: 100%; box-sizing: border-box; background: var(--paper-2); border: 1px solid rgb(127 127 127 / .40); color: var(--black); font-family: var(--font-sans); font-size: 13px; line-height: 1.4; padding: 7px 8px; resize: vertical; min-height: 64px; border-radius: 0; }
+.mod-ta:focus { outline: none; border-color: var(--notification); box-shadow: inset 0 0 0 1px var(--notification); background: var(--paper); }
+.mod-ta::placeholder { color: var(--pigeon); }
+.mod-codeta { min-height: 118px; font-size: 12.5px; line-height: 1.5; }
+.mod-cstat { display: flex; align-items: center; gap: 6px; font: 11.5px/1.3 var(--font-sans); color: var(--pigeon); min-height: 13px; }
+.mod-cstat::before { content: ''; width: 6px; height: 6px; background: currentColor; flex: 0 0 auto; }
+.mod-cstat.busy { color: var(--notification); }
+.mod-cstat.busy::before { animation: modPulse 1s ease-in-out infinite; }
+.mod-cstat.bad { color: var(--bad, #c0392b); }
+@keyframes modPulse { 50% { opacity: .2; } }
+.mod-hint { margin: 0; font: 12.5px/1.45 var(--font-sans); color: var(--pigeon); background: var(--paper-2); border: 1px solid rgb(127 127 127 / .30); padding: 7px 9px; }
+.mod-result { max-height: 180px; overflow: auto; scrollbar-width: none; font: 12.5px/1.45 var(--font-sans); white-space: pre-wrap; word-break: break-word; background: var(--paper-2); border: 1px solid rgb(127 127 127 / .30); color: var(--black); padding: 8px 10px; }
+.mod-result::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.mod-empty { color: var(--pigeon); }
+
+/* ---- node ports: sharp squares in the node's accent color ---- */
+.mod-port { position: absolute; top: 13px; width: 13px; height: 13px; background: var(--paper); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
+.mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
+.mod-port:hover { border-color: var(--notification); background: var(--notification); }
+
+/* ---- the module dropdown: chip button + sharp panel, Singhoah style ---- */
+.mod-dd { position: relative; }
+.mod-dd-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 4px 9px; border: 0; border-radius: 0; background: var(--paper-2); color: var(--black); font: 650 12px/1.2 var(--font-sans); cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.mod-dd-btn:hover, .mod-dd-btn[aria-expanded="true"] { background: var(--notification); color: var(--on-notification); }
+.mod-dd-txt { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-dd-chev { flex: 0 0 auto; transition: transform .15s ease; }
+.mod-dd-btn[aria-expanded="true"] .mod-dd-chev { transform: rotate(180deg); }
+.mod-dd-list { position: absolute; top: calc(100% + 6px); left: 0; z-index: 70; min-width: 100%; width: max-content; max-width: min(230px, calc(100vw - 24px)); background: var(--paper); border: 2px solid var(--border); border-radius: 0; box-shadow: 4px 4px 0 rgb(0 0 0 / .12); padding: 4px; }
+.mod-dd-list[hidden] { display: none; }
+.mod-dd-opt { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 5px 9px; border: 0; border-radius: 0; background: transparent; color: inherit; font: 500 13px/1.2 var(--font-sans); cursor: pointer; text-align: left; }
+.mod-dd-opt:hover { background: var(--notification); color: var(--on-notification); }
+.mod-dd-lab { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-dd-chk { flex: 0 0 auto; visibility: hidden; }
+.mod-dd-opt.sel { font-weight: 650; }
+.mod-dd-opt.sel .mod-dd-chk { visibility: visible; }
+
 .mod-md p { margin: 0 0 6px; } .mod-md h1, .mod-md h2, .mod-md h3, .mod-md h4 { margin: 6px 0 4px; line-height: 1.2; }
 .mod-md ul, .mod-md ol { margin: 4px 0; padding-left: 18px; } .mod-md code { font-family: var(--font-sans); background: rgba(127, 127, 127, .2); padding: 0 3px; } .mod-md pre { font-family: var(--font-sans); margin: 6px 0; white-space: pre-wrap; }
 .mod-md pre { background: rgba(127, 127, 127, .18); padding: 6px; overflow: auto; } .mod-md blockquote { border-left: 3px solid var(--notification, #000dff); margin: 4px 0; padding-left: 8px; opacity: .9; }
