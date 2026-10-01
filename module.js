@@ -98,8 +98,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '10d7a9a8';
-const BV = BUILD === '10d7a9a8' ? '' : '?v=' + BUILD;
+const BUILD = '77965e6f';
+const BV = BUILD === '77965e6f' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -252,6 +252,11 @@ async function runCodeNode(n, ins) {
       : await workerRun(lid, n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name), 'busy'));
   } catch (e) {
     r = { ok: false, output: '', error: String((e && e.message) || e), ms: 0 };
+  }
+  /* a program that reads past its input gets a plain-language hint, not just
+     a bare traceback: the input belongs in the connected I/O node */
+  if (r.error && /EOFError|NoSuchElementException|NoLineFoundException/.test(r.error)) {
+    r.error += '\n\n' + t(lang, 'mFeedHint');
   }
   /* no inline output field: the status dot reports the outcome on the node,
      and the connected Output module renders stdout plus the error in red */

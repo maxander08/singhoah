@@ -253,6 +253,11 @@ async function runCodeNode(n, ins) {
   } catch (e) {
     r = { ok: false, output: '', error: String((e && e.message) || e), ms: 0 };
   }
+  /* a program that reads past its input gets a plain-language hint, not just
+     a bare traceback: the input belongs in the connected I/O node */
+  if (r.error && /EOFError|NoSuchElementException|NoLineFoundException/.test(r.error)) {
+    r.error += '\n\n' + t(lang, 'mFeedHint');
+  }
   /* no inline output field: the status dot reports the outcome on the node,
      and the connected Output module renders stdout plus the error in red */
   if (r.timeout) {

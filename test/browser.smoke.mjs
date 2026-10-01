@@ -2884,6 +2884,35 @@ await browser.close();
     }
     return out;
   });
+  /* Python's builtin input() works like real Python: the I/O node's text is
+     its stdin — prompts echo, successive calls read successive lines, and an
+     empty I/O node is an empty stdin (EOFError plus a plain-language hint) */
+  const PYIN = await tp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const c = M.nodes().find((n) => n.type === 'code');
+    const io = M.nodes().find((n) => n.type === 'io');
+    const el = (id) => [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === id);
+    const pane = () => el(io.id).querySelector('.mod-result');
+    M.cfg(c.id, { lang: 'python', code: 'name = input("Enter your name: ")\nprint(f"Hello, {name}!")' });
+    M.cfg(io.id, { text: '' });
+    await M.run();
+    const empty = { err: (pane().querySelector('.mod-err') || {}).textContent || '', bad: /bad/.test(el(c.id).querySelector('.mod-cstat').className) };
+    M.cfg(io.id, { text: 'Max' });
+    await M.run();
+    const named = (pane().querySelector('.mod-out') || {}).textContent || '';
+    M.cfg(io.id, { text: 'Ada\nGrace' });
+    M.cfg(c.id, { code: 'a = input()\nb = input("second: ")\nprint(a + " & " + b)' });
+    await M.run();
+    const two = (pane().querySelector('.mod-out') || {}).textContent || '';
+    M.cfg(c.id, { code: "print('old style: ' + input.upper())" });
+    await M.run();
+    const oldStyle = (pane().querySelector('.mod-out') || {}).textContent || '';
+    return { empty, named, two, oldStyle };
+  });
+  ok('Python input() reads the I/O node: prompt echoes and the greeting comes back', /Enter your name:/.test(PYIN.named) && /Hello, Max!/.test(PYIN.named), JSON.stringify(PYIN.named));
+  ok('Python input() reads successive lines of the I/O text', /Ada & Grace/.test(PYIN.two), JSON.stringify(PYIN.two));
+  ok('Python input stays the wired text for existing flows (input.upper())', /old style: ADA/.test(PYIN.oldStyle), JSON.stringify(PYIN.oldStyle));
+  ok('an empty I/O node is an empty stdin: EOFError plus the plain-language hint', /EOFError/.test(PYIN.empty.err) && PYIN.empty.err.includes('I/O node') && PYIN.empty.bad, JSON.stringify(PYIN.empty.err.slice(-140)));
   await tbr.close();
   const WANTS = { js: 'js ok: singhoah terminal', python: 'py ok: singhoah terminal', cpp: 'cpp ok: singhoah terminal', java: 'java ok: singhoah terminal' };
   for (const [lang, r] of Object.entries(TERMS)) {

@@ -68,7 +68,31 @@ async function py(id) {
 async function runPython(id, code, input) {
   pyId = id;
   const pyodide = await py(id);
-  pyodide.globals.set('input', input);
+  /* `input` is the wired text AND the builtin input(): a str subclass that
+     keeps string behavior for existing flows (input.upper()) and, when
+     called like normal Python code (name = input("Enter your name: ")),
+     echoes the prompt and returns the next line of the wired text. Empty
+     text is an empty stdin: input() raises EOFError, like the real thing. */
+  pyodide.globals.set('_sing_stdin_text', String(input ?? ''));
+  pyodide.runPython([
+    'import sys as _sys',
+    'class _SingStdin(str):',
+    '    def __new__(cls, s):',
+    '        self = super().__new__(cls, s)',
+    '        self._lines = s.splitlines()',
+    '        self._i = 0',
+    '        return self',
+    "    def __call__(self, prompt=''):",
+    '        if prompt:',
+    "            _sys.stdout.write(str(prompt) + '\\n')",
+    '        if self._i < len(self._lines):',
+    '            line = self._lines[self._i]',
+    '            self._i += 1',
+    '            return line',
+    "        raise EOFError('EOF when reading a line')",
+    'input = _SingStdin(_sing_stdin_text)',
+    'del _sing_stdin_text',
+  ].join('\n'));
   /* libraries: anything the code imports is installed automatically */
   status(id, 'imports');
   try { await pyodide.loadPackagesFromImports(code); } catch { /* best effort */ }
