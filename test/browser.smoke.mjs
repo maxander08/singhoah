@@ -2884,9 +2884,9 @@ await browser.close();
     }
     return out;
   });
-  /* Python's builtin input() works like real Python: the I/O node's text is
-     its stdin — prompts echo, successive calls read successive lines, and an
-     empty I/O node is an empty stdin (EOFError plus a plain-language hint) */
+  /* Python's builtin input() works like real Python: pre-fed I/O text is
+     stdin (transcript-style echo), successive calls read successive lines,
+     and an empty I/O node prompts LIVE in the pane */
   const PYIN = await tp.evaluate(async () => {
     const M = globalThis.__MOD;
     const c = M.nodes().find((n) => n.type === 'code');
@@ -2894,9 +2894,6 @@ await browser.close();
     const el = (id) => [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === id);
     const pane = () => el(io.id).querySelector('.mod-result');
     M.cfg(c.id, { lang: 'python', code: 'name = input("Enter your name: ")\nprint(f"Hello, {name}!")' });
-    M.cfg(io.id, { text: '' });
-    await M.run();
-    const empty = { err: (pane().querySelector('.mod-err') || {}).textContent || '', bad: /bad/.test(el(c.id).querySelector('.mod-cstat').className) };
     M.cfg(io.id, { text: 'Max' });
     await M.run();
     const named = (pane().querySelector('.mod-out') || {}).textContent || '';
@@ -2907,12 +2904,41 @@ await browser.close();
     M.cfg(c.id, { code: "print('old style: ' + input.upper())" });
     await M.run();
     const oldStyle = (pane().querySelector('.mod-out') || {}).textContent || '';
-    return { empty, named, two, oldStyle };
+    return { named, two, oldStyle };
   });
-  ok('Python input() reads the I/O node: prompt echoes and the greeting comes back', /Enter your name:/.test(PYIN.named) && /Hello, Max!/.test(PYIN.named), JSON.stringify(PYIN.named));
-  ok('Python input() reads successive lines of the I/O text', /Ada & Grace/.test(PYIN.two), JSON.stringify(PYIN.two));
+  ok('Python input() reads the pre-fed I/O text: prompt + answer + greeting in the pane', /Enter your name: Max/.test(PYIN.named) && /Hello, Max!/.test(PYIN.named), JSON.stringify(PYIN.named));
+  ok('Python input() reads successive lines of the I/O text', /Ada & Grace/.test(PYIN.two) && /second: Grace/.test(PYIN.two), JSON.stringify(PYIN.two));
   ok('Python input stays the wired text for existing flows (input.upper())', /old style: ADA/.test(PYIN.oldStyle), JSON.stringify(PYIN.oldStyle));
-  ok('an empty I/O node is an empty stdin: EOFError plus the plain-language hint', /EOFError/.test(PYIN.empty.err) && PYIN.empty.err.includes('I/O node') && PYIN.empty.bad, JSON.stringify(PYIN.empty.err.slice(-140)));
+  /* the once-and-for-all case: NOTHING pre-fed — the pane itself prompts */
+  await tp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const c = M.nodes().find((n) => n.type === 'code');
+    const io = M.nodes().find((n) => n.type === 'io');
+    M.cfg(io.id, { text: '' });
+    M.cfg(c.id, { lang: 'python', code: 'name = input("Enter your name: ")\nprint(f"Hello, {name}!")' });
+    M.run();   /* not awaited: it pauses until the pane answers */
+  });
+  await tp.waitForSelector('.mod-ioin', { timeout: 20000 });
+  await tp.fill('.mod-ioin', 'Grace');
+  await tp.press('.mod-ioin', 'Enter');
+  const live = await tp.waitForFunction(() => {
+    const outs = [...document.querySelectorAll('.mod-node .mod-result .mod-out')].map((o) => o.textContent);
+    return outs.some((o) => /Enter your name: Grace/.test(o)) && outs.some((o) => /Hello, Grace!/.test(o));
+  }, null, { timeout: 20000 }).then(() => true).catch(() => false);
+  ok('interactive stdin: the pane prompts mid-run and the typed line feeds the program', live);
+  await tp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const io = M.nodes().find((n) => n.type === 'io');
+    M.cfg(io.id, { text: '' });
+    M.run();
+  });
+  await tp.waitForSelector('.mod-ioin', { timeout: 20000 });
+  await tp.press('.mod-ioin', 'Escape');
+  const esc = await tp.waitForFunction(() => {
+    const e = [...document.querySelectorAll('.mod-node .mod-result .mod-err')].pop();
+    return !!e && /EOFError/.test(e.textContent) && e.textContent.includes('I/O node');
+  }, null, { timeout: 20000 }).then(() => true).catch(() => false);
+  ok('Escape ends the input: EOFError plus the plain-language hint', esc);
   await tbr.close();
   const WANTS = { js: 'js ok: singhoah terminal', python: 'py ok: singhoah terminal', cpp: 'cpp ok: singhoah terminal', java: 'java ok: singhoah terminal' };
   for (const [lang, r] of Object.entries(TERMS)) {

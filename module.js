@@ -98,8 +98,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '77965e6f';
-const BV = BUILD === '77965e6f' ? '' : '?v=' + BUILD;
+const BUILD = '3b3c328d';
+const BV = BUILD === '3b3c328d' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -113,6 +113,17 @@ function codeWorker(lid) {
     if (!p) return;
     if (msg.type === 'out') p.out += msg.chunk;
     else if (msg.type === 'status') { if (p.onStatus) p.onStatus(msg.msg); }
+    else if (msg.type === 'needin') {
+      /* the program is asking for a line of stdin: the pane answers it. The
+         typed line joins the run's stdout in chronological order, so the
+         pane renders a real terminal transcript */
+      const reply = (line) => {
+        if (line !== null && line !== undefined) p.out += msg.prompt + line + '\n';
+        try { S.w.postMessage({ type: 'providein', line }); } catch { /* worker gone */ }
+      };
+      if (p.onNeedIn) p.onNeedIn(msg.prompt, reply);
+      else reply(null);   /* no pane attached (API runs): end of input */
+    }
     else if (msg.type === 'done') {
       S.pending.delete(msg.id);
       clearTimeout(p.timer);
@@ -123,7 +134,7 @@ function codeWorker(lid) {
   return S;
 }
 
-function workerRun(lid, code, input, onStatus) {
+function workerRun(lid, code, input, onStatus, onNeedIn) {
   const S = codeWorker(lid);
   const id = S.next++;
   return new Promise((resolve) => {
@@ -133,7 +144,7 @@ function workerRun(lid, code, input, onStatus) {
       codeWorkers[lid] = null; /* respawn fresh next time */
       resolve({ ok: false, output: '', error: '', ms: WORKER_TIMEOUT[lid], timeout: true });
     }, WORKER_TIMEOUT[lid] || 120000);
-    S.pending.set(id, { resolve, timer, out: '', onStatus });
+    S.pending.set(id, { resolve, timer, out: '', onStatus, onNeedIn });
     S.w.postMessage({ id, lang: lid, code, input });
   });
 }
@@ -244,12 +255,16 @@ async function runCodeNode(n, ins) {
   const name = (CODE_LANGS.find((l) => l[0] === lid) || [, 'Code'])[1];
   const setStat = (s, st) => { if (stat) { stat.textContent = s; stat.className = 'mod-cstat' + (st ? ' ' + st : ''); } };
   const flash = () => { if (el) { el.classList.remove('ran'); requestAnimationFrame(() => el.classList.add('ran')); } };
+  /* a new run supersedes any prompt the previous run left open */
+  const staleAsk = world.querySelector('.mod-ioask');
+  if (staleAsk && staleAsk.__reply) staleAsk.__reply(null);
   setStat(t(lang, 'mSetup', { name }), 'busy');
   let r;
   try {
     r = lid === 'java'
       ? await javaRun(n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name), 'busy'))
-      : await workerRun(lid, n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name), 'busy'));
+      : await workerRun(lid, n.cfg.code || '', input, (ph) => setStat(phaseText(ph, name), 'busy'),
+        lid === 'python' ? (prompt, reply) => askInIo(n, prompt, reply) : undefined);
   } catch (e) {
     r = { ok: false, output: '', error: String((e && e.message) || e), ms: 0 };
   }
@@ -275,6 +290,59 @@ async function runCodeNode(n, ins) {
   /* stdout keeps flowing as data; the error is display-only, so it never
      reaches a second Code node wired downstream */
   return { text: r.output || '', err: r.error || '' };
+}
+
+/* the program asked for stdin: the connected I/O node's pane turns into a
+   live prompt — type the answer, the program continues. If the code node has
+   no I/O terminal yet, one is created and wired right there. */
+function askInIo(n, prompt, reply) {
+  let io = null;
+  for (const w of doc.wires) {
+    const tgt = nodeOf(w.to);
+    if (w.from === n.id && tgt && tgt.type === 'io') { io = tgt; break; }
+  }
+  if (!io) {
+    io = addNode('io', n.x + TYPES[n.type].w + 80, n.y);
+    globalThis.__MOD.wire(n.id, io.id);
+  }
+  const el = nodeEl(io.id);
+  const box = el && el.querySelector('.mod-result');
+  if (!box) { reply(null); return; }
+  const stale = world.querySelector('.mod-ioask');
+  if (stale && stale.__reply) stale.__reply(null);
+  world.querySelectorAll('.mod-ioask').forEach((r) => r.remove());
+  const row = document.createElement('div');
+  row.className = 'mod-ioask';
+  row.__reply = reply;
+  const lbl = document.createElement('span');
+  lbl.className = 'mod-iop';
+  lbl.textContent = prompt;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'mod-ioin';
+  inp.autocomplete = 'off';
+  inp.setAttribute('aria-label', t(lang, 'mIO'));
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'mod-iogo';
+  go.setAttribute('aria-label', t(lang, 'mIO'));
+  go.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const finish = (line) => {
+    row.remove();
+    box.scrollTop = box.scrollHeight;
+    reply(line);   /* the typed line joins the run's stdout: chronological transcript */
+  };
+  const submit = () => finish(inp.value);
+  go.addEventListener('click', submit);
+  inp.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;   /* IME mid-composition: not a submit */
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(null); }   /* end of input */
+  });
+  row.append(lbl, inp, go);
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
+  requestAnimationFrame(() => { try { inp.focus(); } catch { /* detached */ } });
 }
 
 /* ---------- the canvas ---------- */

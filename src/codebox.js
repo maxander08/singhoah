@@ -65,39 +65,100 @@ async function py(id) {
   return pyodide;
 }
 
+/* Python: the I/O pane is a real terminal. Pre-fed text (typed into the I/O
+   node before Run) is stdin; when the program asks for more, the worker asks
+   the page, the pane shows a live prompt, the typed line is returned to the
+   running program. `input` stays a str subclass for existing flows. */
+const PY_PRELUDE = [
+  'import sys as _sys',
+  'import ast as _ast',
+  'class _SingStdin(str):',
+  '    def __new__(cls, s):',
+  '        self = super().__new__(cls, s)',
+  '        self._lines = s.splitlines()',
+  '        self._i = 0',
+  '        return self',
+  "    def __call__(self, prompt=''):",
+  '        if self._i < len(self._lines):',
+  '            line = self._lines[self._i]',
+  '            self._i += 1',
+  "            _sys.stdout.write(str(prompt) + line + '\\n')",
+  '            return line',
+  "        raise EOFError('EOF when reading a line')",
+  'def __sing_set_stdin(text):',
+  '    global input',
+  '    input = _SingStdin(text)',
+  'async def __sing_input(prompt=""):',
+  '    s = input',
+  '    if isinstance(s, _SingStdin) and s._i < len(s._lines):',
+  '        return s(prompt)',
+  '    v = await __sing_ask_main(prompt)',
+  '    if v is None:',
+  "        raise EOFError('EOF when reading a line')",
+  '    return v',
+  'class _RewriteInput(_ast.NodeTransformer):',
+  '    # module-level input(...) calls are wrapped in await so they can prompt',
+  '    # live; never descends where await is not allowed (functions, lambdas,',
+  '    # classes, comprehensions, f-strings) - those keep the buffered stdin',
+  '    def __init__(self):',
+  '        self.hits = 0',
+  '    def _skip(self, node):',
+  '        return node',
+  '    visit_FunctionDef = _skip',
+  '    visit_AsyncFunctionDef = _skip',
+  '    visit_Lambda = _skip',
+  '    visit_ClassDef = _skip',
+  '    visit_ListComp = _skip',
+  '    visit_SetComp = _skip',
+  '    visit_DictComp = _skip',
+  '    visit_GeneratorExp = _skip',
+  '    visit_JoinedStr = _skip',
+  '    def visit_Call(self, node):',
+  '        self.generic_visit(node)',
+  "        if isinstance(node.func, _ast.Name) and node.func.id == 'input':",
+  '            self.hits += 1',
+  '            node.func = _ast.Name(id="__sing_input", ctx=_ast.Load())',
+  '            return _ast.Await(value=node)',
+  '        return node',
+  'async def __sing_run_user(src):',
+  '    tree = _ast.parse(src)',
+  '    rw = _RewriteInput()',
+  '    tree = rw.visit(tree)',
+  '    _ast.fix_missing_locations(tree)',
+  '    flags = _ast.PyCF_ALLOW_TOP_LEVEL_AWAIT',
+  '    if rw.hits:',
+  "        code = compile(tree, '<exec>', 'exec', flags)",
+  '    else:',
+  "        code = compile(src, '<exec>', 'exec', flags)",
+  '    coro = eval(code, globals())',
+  '    if coro is not None:',
+  '        await coro',
+].join('\n');
+let pyPrelude = false;
+let pyAsk = null;   /* the pending interactive prompt's resolver, if any */
+
 async function runPython(id, code, input) {
   pyId = id;
+  if (pyAsk) { const r = pyAsk; pyAsk = null; r(null); }   /* a stale prompt from a superseded run */
   const pyodide = await py(id);
-  /* `input` is the wired text AND the builtin input(): a str subclass that
-     keeps string behavior for existing flows (input.upper()) and, when
-     called like normal Python code (name = input("Enter your name: ")),
-     echoes the prompt and returns the next line of the wired text. Empty
-     text is an empty stdin: input() raises EOFError, like the real thing. */
-  pyodide.globals.set('_sing_stdin_text', String(input ?? ''));
-  pyodide.runPython([
-    'import sys as _sys',
-    'class _SingStdin(str):',
-    '    def __new__(cls, s):',
-    '        self = super().__new__(cls, s)',
-    '        self._lines = s.splitlines()',
-    '        self._i = 0',
-    '        return self',
-    "    def __call__(self, prompt=''):",
-    '        if prompt:',
-    "            _sys.stdout.write(str(prompt) + '\\n')",
-    '        if self._i < len(self._lines):',
-    '            line = self._lines[self._i]',
-    '            self._i += 1',
-    '            return line',
-    "        raise EOFError('EOF when reading a line')",
-    'input = _SingStdin(_sing_stdin_text)',
-    'del _sing_stdin_text',
-  ].join('\n'));
+  if (!pyPrelude) {
+    /* the bridge Python awaits: asks the page for a line of stdin */
+    pyodide.globals.set('__sing_ask_main', (prompt) => new Promise((res) => {
+      pyAsk = res;
+      post({ id: pyId, type: 'needin', prompt: String(prompt ?? '') });
+    }));
+    pyodide.runPython(PY_PRELUDE);
+    pyPrelude = true;
+  }
+  const setStdin = pyodide.globals.get('__sing_set_stdin');
+  setStdin(String(input ?? ''));
+  if (setStdin.destroy) setStdin.destroy();
   /* libraries: anything the code imports is installed automatically */
   status(id, 'imports');
   try { await pyodide.loadPackagesFromImports(code); } catch { /* best effort */ }
   status(id, 'run');
-  await pyodide.runPythonAsync(code);
+  pyodide.globals.set('__sing_user_src', code);
+  await pyodide.runPythonAsync('await __sing_run_user(__sing_user_src)');
 }
 
 /* ---------------- C++ (wasm-clang) ---------------- */
@@ -149,6 +210,11 @@ async function runCpp(id, code, input) {
 /* ---------------- dispatch ---------------- */
 
 self.onmessage = async (ev) => {
+  if (ev.data && ev.data.type === 'providein') {
+    /* the pane answered the program's prompt (null = end of input) */
+    if (pyAsk) { const r = pyAsk; pyAsk = null; r(ev.data.line == null ? null : String(ev.data.line)); }
+    return;
+  }
   const { id, lang, code, input } = ev.data;
   const t0 = Date.now();
   try {
