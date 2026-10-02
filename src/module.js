@@ -26,11 +26,11 @@ const TYPES = {
      Decimal arbitrary-precision, Float/Fixed configurable to 100 digits */
   number: { w: 210, color: '#5f9e63', name: () => t(lang, 'mNumber'), hasIn: false, hasOut: true },
   /* Operator: exact math on its two wired operands — +, −, ×, ÷, %, ^.
-     Two in ports (A above, B below); each port still holds exactly one wire. */
+     Two input nodes (A above, B below); each holds exactly one wire. */
   operator: { w: 210, color: '#b8764a', name: () => t(lang, 'mOperator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
   /* Comparator: exact yes/no over its two wired operands — >, <, ≥, ≤, =, ≠.
      The verdict shows as true/false and flows on as 1/0 (base-10 integer), so
-     a comparison can feed the Operator. Same two in ports as the Operator. */
+     a comparison can feed the Operator. Same two input nodes as the Operator. */
   comparator: { w: 210, color: '#4a8f9e', name: () => t(lang, 'mComparator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
   /* I/O: one node, one wire — the text typed in it is the Code module's
      stdin, and the Code module's stdout (and red errors) render back into
@@ -697,12 +697,23 @@ function applyView() {
   canvas.classList.toggle('nogrid', !doc.grid);
 }
 
+/* the exact center of a connection square, in world coordinates — measured
+   from the rendered square so a wire always lands on its true center,
+   whatever the theme, the zoom or the CSS. (The offset math below is only
+   a fallback for squares that are not on screen.) */
 function portPos(id, which) {
   const n = doc.nodes.find((x) => x.id === id);
   if (!n) return [0, 0];
-  if (which === 'out') return [n.x + TYPES[n.type].w, n.y + 18];
-  if (which === 'in:b') return [n.x, n.y + 72];   /* the Operator's B port, below A */
-  return [n.x, n.y + 18];
+  const el = nodeEl(id);
+  const sel = which === 'out' ? '.mod-port.out' : `.mod-port.in[data-port="${which === 'in:b' ? 'b' : 'a'}"]`;
+  const p = el && el.querySelector(sel);
+  if (p) {
+    const r = p.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+    return [(r.x + r.width / 2 - c.x - view.x) / view.z, (r.y + r.height / 2 - c.y - view.y) / view.z];
+  }
+  if (which === 'out') return [n.x + TYPES[n.type].w - 1, n.y + 22];
+  if (which === 'in:b') return [n.x + 1, n.y + 81];
+  return [n.x + 1, TYPES[n.type].inPorts ? n.y + 49 : n.y + 22];
 }
 /* square connectors only: H-V-H polylines, sharp 90° corners, no curves */
 function wirePath(a, b, toPort) {
@@ -1049,8 +1060,9 @@ function renderNode(n) {
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
+  /* connection squares ("nodes"): one per input on the left edge, A above B */
   const inPortsHtml = T.inPorts
-    ? T.inPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${40 + i * 32}px"></span><span class="mod-plab" style="top:${45 + i * 32}px">${pt.toUpperCase()}</span>`).join('')
+    ? T.inPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${40 + i * 32}px"></span>`).join('')
     : (T.hasIn ? '<span class="mod-port in" data-port="a"></span>' : '');
   el.innerHTML = head + body + inPortsHtml + (T.hasOut ? '<span class="mod-port out"></span>' : '');
   el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
@@ -1172,7 +1184,7 @@ function renderNode(n) {
           const tn = nodeOf(tNode);
           const okPort = !TYPES[tn.type].inPorts || TYPES[tn.type].inPorts.includes(tPort);
           if (tNode !== n.id && okPort) {
-            /* one wire per port, both ends: this port's previous wire moves with the new drop */
+            /* one wire per node, both ends: this node's previous wire moves with the new drop */
             doc.wires = doc.wires.filter((w) => !(w.to === tNode && (w.toPort || 'a') === tPort) && w.from !== n.id);
             doc.wires.push({ from: n.id, to: tNode, toPort: tPort });
             touch();
@@ -1276,13 +1288,13 @@ async function run() {
         if (r.ok) v.num = { numtype: n.cfg.numtype || 'int', base: n.cfg.base | 0 || 10, digits: n.cfg.digits | 0 || 6, n: r.rat.n, d: r.rat.d };
       }
       else if (n.type === 'operator') {
-        /* each in port feeds one operand: A (top) and B (bottom) */
+        /* each input node feeds one operand: A (top) and B (bottom) */
         const wa = doc.wires.find((w) => w.to === n.id && (w.toPort || 'a') === 'a');
         const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
         v = runOperatorNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
       }
       else if (n.type === 'comparator') {
-        /* same two-port shape as the Operator: A above, B below */
+        /* same two-node shape as the Operator: A above, B below */
         const wa = doc.wires.find((w) => w.to === n.id && (w.toPort || 'a') === 'a');
         const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
         v = runComparatorNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
@@ -1367,8 +1379,8 @@ function migrateDoc() {
     wires = nw.filter((w) => !gone.has(w.from) && !gone.has(w.to));   /* nothing dangling, ever */
     changed = true;
   }
-  /* one wire per port, on both ends: a port holds exactly one connection,
-     so keep only the newest wire leaving each out port and entering each in port */
+  /* one wire per node, on both ends: a connection node holds exactly one wire,
+     so keep only the newest wire leaving each out node and entering each in node */
   const kept = [];
   for (const w of wires) {
     const iOut = kept.findIndex((x) => x.from === w.from);
@@ -1541,7 +1553,7 @@ globalThis.__MOD = {
   nodes: () => JSON.parse(JSON.stringify(doc.nodes)),
   wires: () => JSON.parse(JSON.stringify(doc.wires)),
   wire: (a, b, port = 'a') => {
-    /* standardized with the canvas: the source needs an out port, the target an in port */
+    /* standardized with the canvas: the source needs an out node, the target an in node */
     const A = nodeOf(a), B = nodeOf(b);
     if (!A || !B || !TYPES[A.type].hasOut || !TYPES[B.type].hasIn) return false;
     if (TYPES[B.type].inPorts && !TYPES[B.type].inPorts.includes(port)) return false;

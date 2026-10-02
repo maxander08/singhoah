@@ -3156,14 +3156,14 @@ await prn.close();
     const std = getComputedStyle(el.querySelector('.mod-dd-btn'));
     return {
       ports: [...el.querySelectorAll('.mod-port.in')].map((p) => p.dataset.port),
-      labels: [...el.querySelectorAll('.mod-plab')].map((l) => l.textContent),
+      labels: document.querySelectorAll('.mod-plab').length,
       out: !!el.querySelector('.mod-port.out'),
       dd: el.querySelector('.mod-dd-btn .mod-dd-txt').textContent,
       radius: std.borderRadius, w: std.fontWeight,
     };
   }, ids);
-  ok('the Operator node has TWO in ports (A above, B below) plus its out port, standard chips',
-    node.ports.join('|') === 'a|b' && node.labels.join('|') === 'A|B' && node.out
+  ok('the Operator node has TWO input nodes (A above, B below) plus its out node, standard chips, no A/B text labels',
+    node.ports.join('|') === 'a|b' && node.labels === 0 && node.out
       && node.radius === '0px' && node.w === '650',
     JSON.stringify(node));
   const wired = await opg.evaluate((x) => {
@@ -3327,14 +3327,14 @@ await prn.close();
       a: a.id, b: b.id, cp: cp.id, io: io.id,
       name: el.querySelector('.mod-nname').textContent,
       ports: [...el.querySelectorAll('.mod-port.in')].map((p) => p.dataset.port).join('|'),
-      labels: [...el.querySelectorAll('.mod-plab')].map((l) => l.textContent).join(''),
+      labels: document.querySelectorAll('.mod-plab').length,
       out: !!el.querySelector('.mod-port.out'),
       refused: M.wire(a.id, cp.id, 'c'),
       portsWired: M.wires().filter((w) => w.to === cp.id).map((w) => w.toPort).sort().join(''),
     };
   });
-  ok('the Comparator node: A|B ports labeled like the Operator, out port, unknown ports refused',
-    kids.name === 'Comparator' && kids.ports === 'a|b' && kids.labels === 'AB' && kids.out
+  ok('the Comparator node: A|B input nodes like the Operator, out node, unknown targets refused, no text labels',
+    kids.name === 'Comparator' && kids.ports === 'a|b' && kids.labels === 0 && kids.out
       && kids.refused === false && kids.portsWired === 'ab',
     JSON.stringify(kids));
   const runCmp = (cmp, va, vb) => kpg.evaluate(async (q) => {
@@ -3401,6 +3401,40 @@ await prn.close();
     };
   });
   ok('true flows on as 1: (6 = 6) + 5 = 6', kchain.out === '6' && kchain.hint === 'true + 5 = 6', JSON.stringify(kchain));
+  /* wires anchor at the EXACT center of every connection square they join */
+  const anchor = await kpg.evaluate(() => {
+    const M = globalThis.__MOD;
+    const view = M.view();
+    const cr = document.getElementById('modCanvas').getBoundingClientRect();
+    const center = (el) => { const r2 = el.getBoundingClientRect(); return [(r2.x + r2.width / 2 - cr.x - view.x) / view.z, (r2.y + r2.height / 2 - cr.y - view.y) / view.z]; };
+    let worst = 0; const rows = [];
+    for (const path of document.getElementById('modWires').querySelectorAll('.mod-wire')) {
+      const m = /M ([\d.-]+) ([\d.-]+) H ([\d.-]+) V ([\d.-]+) H ([\d.-]+)/.exec(path.getAttribute('d'));
+      const w = M.wires()[+[path.dataset.i]];
+      const c1 = center(document.querySelector(`.mod-node[data-id="${w.from}"] .mod-port.out`));
+      const c2 = center(document.querySelector(`.mod-node[data-id="${w.to}"] .mod-port.in[data-port="${w.toPort || 'a'}"]`));
+      const d = Math.max(Math.abs(m[1] - c1[0]), Math.abs(m[2] - c1[1]), Math.abs(m[5] - c2[0]), Math.abs(m[4] - c2[1]));
+      rows.push(`${w.toPort || 'a'}:${d.toFixed(2)}`);
+      worst = Math.max(worst, d);
+    }
+    return { worst: +worst.toFixed(2), rows };
+  });
+  ok('every wire lands on the exact CENTER of its connection squares (≤0.75px, out and in)',
+    anchor.worst <= 0.75, JSON.stringify(anchor.rows) + ' worst=' + anchor.worst);
+  /* the status square only exists when there is status: no orphan black square */
+  const dot = await kpg.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const after = [...document.querySelectorAll('.mod-node .mod-cstat')].map((s) => ({
+      empty: s.textContent === '', dot: getComputedStyle(s, '::before').display }));
+    M.newDoc();
+    const cp = M.add('comparator', 60, 60);
+    M.run();   /* nothing wired: the status line speaks (and shows its dot) */
+    const need = document.querySelector(`.mod-node[data-id="${cp.id}"] .mod-cstat`);
+    return { after, emptyHide: after.filter((x) => x.empty).every((x) => x.dot === 'none'),
+      textDot: getComputedStyle(need, '::before').display, text: need.textContent };
+  });
+  ok('no orphan status square on silent nodes; the dot returns when the status speaks',
+    dot.emptyHide && dot.textDot === 'block' && dot.text.length > 0, JSON.stringify(dot));
   /* a missing operand is red and plain */
   const kunwired = await kpg.evaluate(async (x) => {
     const M = globalThis.__MOD;
@@ -3460,7 +3494,7 @@ await prn.close();
     const effBg = (e) => { for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0.85) return c; } return [255, 255, 255, 1]; };
     const bad = [];
     for (const e of document.querySelectorAll('.mod-node')) {
-      for (const e2 of e.querySelectorAll('.mod-plab, .mod-cstat, .mod-numhint, .mod-dd-txt')) {
+      for (const e2 of e.querySelectorAll('.mod-cstat, .mod-numhint, .mod-dd-txt')) {
         if (!e2.getClientRects().length || !e2.textContent.trim()) continue;
         const fg = parse(getComputedStyle(e2).color), bg = effBg(e2);
         const la = lum(...fg.slice(0, 3)), lb = lum(...bg.slice(0, 3));
