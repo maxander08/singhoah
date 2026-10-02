@@ -2712,14 +2712,25 @@ await prn.close();
     const saved = ser.data.nodes.find((n) => n.type === 'io' && n.cfg.text === 'from the io node');
     return term && !!saved;
   }));
-  ok('the terminal screen stays dark in the light theme too', await mp.evaluate(async () => {
-    localStorage.setItem('singhoah:night', '0');
-    await new Promise((r) => setTimeout(r, 250));
-    const screen = document.querySelector('.mod-node .mod-tscreen');
-    const dark = /rgb\(15, ?20, ?26\)/.test(getComputedStyle(screen).backgroundColor);
-    localStorage.setItem('singhoah:night', '1');
-    return dark;
+  /* the theme class is applied at boot: flip the preference and reload */
+  await mp.evaluate(() => localStorage.setItem('singhoah:night', '0'));
+  await mp.reload();
+  await mp.waitForTimeout(1000);
+  ok('the terminal follows the theme: classic light terminal in light mode', await mp.evaluate(() => {
+    const node = [...document.querySelectorAll('.mod-node')].find((n) => n.querySelector('.mod-tscreen'));
+    const screen = getComputedStyle(node.querySelector('.mod-tscreen'));
+    const bar = getComputedStyle(node.querySelector('.mod-tbar'));
+    const tp2 = getComputedStyle(node.querySelector('.mod-tp'));
+    const ta = getComputedStyle(node.querySelector('.mod-inta'));
+    return !document.documentElement.classList.contains('dark')
+      && /rgb\(251, ?250, ?246\)/.test(screen.backgroundColor)      /* paper screen */
+      && /rgb\(233, ?230, ?221\)/.test(bar.backgroundColor)        /* light chrome bar */
+      && /rgb\(26, ?127, ?55\)/.test(tp2.color)                    /* the > prompt reads green on paper */
+      && /rgb\(31, ?35, ?40\)/.test(ta.color);                     /* dark ink on the input line */
   }));
+  await mp.evaluate(() => localStorage.setItem('singhoah:night', '1'));
+  await mp.reload();
+  await mp.waitForTimeout(1000);
   /* files home: create, rename, delete */
   await mp.evaluate(() => globalThis.__MOD.home());
   await mp.waitForTimeout(300);
@@ -2956,6 +2967,22 @@ await browser.close();
     return !!e && /EOFError/.test(e.textContent) && e.textContent.includes('I/O node');
   }, null, { timeout: 20000 }).then(() => true).catch(() => false);
   ok('Escape ends the input: EOFError plus the plain-language hint', esc);
+  /* the live prompt is borderless like a real terminal: no box, no button */
+  await tp.evaluate(() => {
+    const M = globalThis.__MOD;
+    M.nodes().find((n) => n.type === 'io') && M.run();
+  });
+  await tp.waitForSelector('.mod-ioin', { timeout: 20000 });
+  ok('the live prompt has no border and no submit button - type and Enter, like a real terminal', await tp.evaluate(() => {
+    const inp = document.querySelector('.mod-ioin');
+    const cs = getComputedStyle(inp);
+    const prompt = document.querySelector('.mod-iop');
+    return cs.borderTopWidth === '0px' && cs.borderLeftWidth === '0px'
+      && cs.backgroundColor === 'rgba(0, 0, 0, 0)' && !document.querySelector('.mod-iogo')
+      && !!prompt && /MONO"?:?\s*100/i.test(cs.fontVariationSettings)
+      && cs.caretColor !== 'rgb(0, 0, 0)' && cs.caretColor !== '';
+  }));
+  await tp.press('.mod-ioin', 'Escape');   /* clean up the prompt */
   await tbr.close();
   const WANTS = { js: 'js ok: singhoah terminal', python: 'py ok: singhoah terminal', cpp: 'cpp ok: singhoah terminal', java: 'java ok: singhoah terminal' };
   for (const [lang, r] of Object.entries(TERMS)) {

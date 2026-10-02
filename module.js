@@ -98,8 +98,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = 'e155a47b';
-const BV = BUILD === 'e155a47b' ? '' : '?v=' + BUILD;
+const BUILD = '82b8249c';
+const BV = BUILD === '82b8249c' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -322,24 +322,19 @@ function askInIo(n, prompt, reply) {
   inp.className = 'mod-ioin';
   inp.autocomplete = 'off';
   inp.setAttribute('aria-label', t(lang, 'mIO'));
-  const go = document.createElement('button');
-  go.type = 'button';
-  go.className = 'mod-iogo';
-  go.setAttribute('aria-label', t(lang, 'mIO'));
-  go.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const finish = (line) => {
     row.remove();
     box.scrollTop = box.scrollHeight;
     reply(line);   /* the typed line joins the run's stdout: chronological transcript */
   };
   const submit = () => finish(inp.value);
-  go.addEventListener('click', submit);
+  /* like a real terminal: no button, no box - Enter sends, Escape ends */
   inp.addEventListener('keydown', (e) => {
     if (e.isComposing) return;   /* IME mid-composition: not a submit */
     if (e.key === 'Enter') { e.preventDefault(); submit(); }
     else if (e.key === 'Escape') { e.preventDefault(); finish(null); }   /* end of input */
   });
-  row.append(lbl, inp, go);
+  row.append(lbl, inp);
   box.appendChild(row);
   box.scrollTop = box.scrollHeight;
   requestAnimationFrame(() => { try { inp.focus(); } catch { /* detached */ } });
