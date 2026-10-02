@@ -266,8 +266,24 @@ ok('scrolling the picker pins the region title and rests on clean rows', await p
 }));
 await page.locator('#tzBtn').click();
 await page.waitForTimeout(120);
-ok('page scrollbars are disabled site-wide',
-  await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth === 'none'));
+ok('scrollbars are Singhoah elements: the custom bar is in charge, not the browser',
+  await page.evaluate(async () => {
+    /* Chromium/Safari: the pseudo-element bar renders; the standard properties
+       must stay at their initial values so they cannot override it */
+    if (CSS.supports('selector(::-webkit-scrollbar)')) {
+      const html = getComputedStyle(document.documentElement);
+      if (html.scrollbarWidth !== 'auto' || html.scrollbarColor !== 'auto') return false;
+      /* the served sheet carries the full spec: 8px, square pigeon thumb, blue on grab, no buttons */
+      const css = await (await fetch('styles.css')).text();
+      return /::-webkit-scrollbar \{ width: 8px; height: 8px; \}/.test(css)
+        && /::-webkit-scrollbar-thumb \{ background: var\(--pigeon\); border-radius: 0; \}/.test(css)
+        && /::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active \{ background: var\(--notification\); \}/.test(css)
+        && /::-webkit-scrollbar-button \{ display: none; width: 0; height: 0; \}/.test(css)
+        && !/scrollbar-width: none/.test(css);
+    }
+    /* Firefox: the standard thin bar in the same colors */
+    return getComputedStyle(document.documentElement).scrollbarWidth === 'thin';
+  }));
 
 /* --- extra zones join the CURRENT window — never a new tab --- */
 await page.locator('#tzBtn').click();
@@ -2900,7 +2916,11 @@ await prn.close();
       const s = getComputedStyle(document.querySelector('.lp-start'));
       return z.borderRadius === '0px' && z.fontWeight === '650' && s.fontWeight === '650';
     }],
-    ['metro.html', () => document.querySelector('.metro-sysbtn') && getComputedStyle(document.querySelector('.metro-sysbtn')).fontWeight === '650'],
+    ['metro.html', () => {
+      const sys = document.querySelector('.metro-sysbtn');
+      const card = document.querySelector('.metro-acts .btn');
+      return sys && card && getComputedStyle(sys).fontWeight === '650' && getComputedStyle(card).fontWeight === '650';
+    }],
     ['wallet.html', () => {
       const d = getComputedStyle(document.getElementById('walDateBtn'));
       const c = getComputedStyle(document.getElementById('walCurBtn'));
@@ -2914,6 +2934,102 @@ await prn.close();
     ok(`light mode: ${pg.replace('.html', '')} controls follow the standard (sharp chips, 650 weight)`, await sp.evaluate(fn));
   }
   await scx.close();
+}
+
+/* ---- Singhoah scrollbars: every scrollable surface, every app ---- */
+{
+  /* the code editor is a wide text area: long lines must scroll sideways with
+     the Singhoah bar while the highlight layer and gutter stay glued to it */
+  const ecx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const ep = await ecx.newPage();
+  await ep.goto(URL + 'module.html', { waitUntil: 'load' });
+  await ep.waitForTimeout(900);
+  const edr = await ep.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const n = M.add('code', 60, 60);
+    M.cfg(n.id, { code: Array.from({ length: 30 }, (_, i) => `# ${i + 1} ${'wide '.repeat(12)}`).join('\n') });
+    await new Promise((r) => setTimeout(r, 250));
+    const t = document.querySelector('textarea.mod-codeta');
+    const pre = document.querySelector('.mod-hl');
+    t.scrollLeft = t.scrollWidth; t.dispatchEvent(new Event('scroll'));
+    const sw = getComputedStyle(t).scrollbarWidth;
+    return {
+      wide: t.scrollWidth > t.clientWidth,
+      syncL: pre.scrollLeft === t.scrollLeft,
+      sw: sw === 'auto' || sw === 'thin',
+    };
+  });
+  ok('the code editor scrolls wide lines with the Singhoah bar, highlight layer in lockstep',
+    edr.wide && edr.syncL && edr.sw, JSON.stringify(edr));
+  /* long program output scrolls in the terminal pane */
+  const trm = await ep.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const c = M.nodes().find((x) => x.type === 'code');
+    M.cfg(c.id, { code: 'let s="";for(let i=0;i<60;i++)s+="output line "+i+"\\n";console.log(s)' });
+    const io = M.add('io', 420, 60);
+    M.wire(c.id, io.id);
+    await M.run();
+    await new Promise((r) => setTimeout(r, 4000));
+    const res = [...document.querySelectorAll('.mod-node .mod-result')].pop();
+    const sw = getComputedStyle(res).scrollbarWidth;
+    return { out: res.textContent.includes('output line 59'), overflow: res.scrollHeight > res.clientHeight, sw: sw === 'auto' || sw === 'thin' };
+  });
+  ok('the terminal pane scrolls long output with the Singhoah bar', trm.out && trm.overflow && trm.sw, JSON.stringify(trm));
+  /* a wide code block inside the markdown preview (Text -> I/O) */
+  const mdr = await ep.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const t = M.add('text', 60, 480);
+    M.cfg(t.id, { text: '```\n' + Array.from({ length: 8 }, (_, i) => 'code block line ' + i + ' ' + '='.repeat(100)).join('\n') + '\n```' });
+    const io = M.nodes().find((x) => x.type === 'io');
+    M.wire(t.id, io.id);
+    M.run();
+    await new Promise((r) => setTimeout(r, 600));
+    const pre = document.querySelector('.mod-node .mod-md pre');
+    if (!pre) return { missing: true };
+    const sw = getComputedStyle(pre).scrollbarWidth;
+    return { wide: pre.scrollWidth > pre.clientWidth, sw: sw === 'auto' || sw === 'thin' };
+  });
+  ok('markdown code blocks scroll with the Singhoah bar (never the browser\'s)', !mdr.missing && mdr.wide && mdr.sw, JSON.stringify(mdr));
+  await ecx.close();
+
+  /* the wallet currency dropdown was a native-scrollbar holdout */
+  const wcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const wp = await wcx.newPage();
+  await wp.goto(URL + 'wallet.html', { waitUntil: 'load' });
+  await wp.waitForTimeout(900);
+  await wp.locator('#walCurBtn').click();
+  await wp.waitForTimeout(350);
+  const cur = await wp.evaluate(() => {
+    const l = document.querySelector('.wal-cur-list');
+    const sw = getComputedStyle(l).scrollbarWidth;
+    return { open: !!l && l.scrollHeight > l.clientHeight, sw: sw === 'auto' || sw === 'thin' };
+  });
+  ok('the currency dropdown scrolls its list with the Singhoah bar', cur.open && cur.sw, JSON.stringify(cur));
+  await wcx.close();
+
+  /* site-wide: no surface may hide or override the Singhoah bar */
+  const ascx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const asp = await ascx.newPage();
+  let badSurface = '';
+  for (const pg of ['index.html', 'wallet.html', 'scribe.html', 'settings.html', 'metro.html', 'module.html']) {
+    await asp.goto(URL + pg, { waitUntil: 'load' });
+    await asp.waitForTimeout(pg === 'metro.html' ? 1500 : 600);
+    badSurface = badSurface || await asp.evaluate((pgname) => {
+      const webkit = CSS.supports('selector(::-webkit-scrollbar)');
+      for (const el of document.querySelectorAll('body *')) {
+        const cs = getComputedStyle(el);
+        if (!/auto|scroll/.test(cs.overflowY + cs.overflowX)) continue;
+        if (!el.getClientRects().length) continue;
+        if (webkit ? cs.scrollbarWidth !== 'auto' : cs.scrollbarWidth !== 'thin') {
+          return `${pgname}: ${el.className || el.tagName} hides the Singhoah bar (${cs.scrollbarWidth})`;
+        }
+      }
+      return '';
+    }, pg);
+  }
+  ok('every scrollable surface on every page uses the Singhoah bar (none hidden, none native)', badSurface === '', badSurface);
+  await ascx.close();
 }
 
 
