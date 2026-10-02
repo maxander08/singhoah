@@ -3694,6 +3694,123 @@ await prn.close();
   ok('"add a comparator >=" lands a ≥ node (no flow built)', ksm.n === 5 && ksm.cmp === 'gte' && ksm.dd.includes('≥'), JSON.stringify(ksm));
   ok('no stray navigations through any of it', kstray.length === 0, JSON.stringify(kstray));
   await kscx.close();
+
+  /* ---- canvas zoom + placement: cursor-anchored zoom, in-view adds,
+         connection nodes on the standard alignment ---- */
+  const zcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const zp = await zcx.newPage();
+  await zp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await zp.waitForTimeout(900);
+  const zr = await zp.evaluate(() => {
+    const cv = document.getElementById('modCanvas');
+    const r = cv.getBoundingClientRect();
+    const ev = (t, id, x, y, extra = {}) => cv.dispatchEvent(new PointerEvent(t, { pointerId: id, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true, button: 0, buttons: 1, ...extra }));
+    const out = {};
+    /* wheel zoom anchors at the cursor */
+    const cx = r.left + 731, cy = r.top + 397;
+    const v0 = globalThis.__MOD.view();
+    const w0 = [(cx - r.left - v0.x) / v0.z, (cy - r.top - v0.y) / v0.z];
+    cv.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, clientX: cx, clientY: cy, bubbles: true, cancelable: true }));
+    const v1 = globalThis.__MOD.view();
+    out.wheelDrift = Math.max(Math.abs(r.left + v1.x + w0[0] * v1.z - cx), Math.abs(r.top + v1.y + w0[1] * v1.z - cy));
+    out.wheelZoom = v1.z > v0.z;
+    /* zoom buttons anchor at the viewport center */
+    const mcx = r.left + r.width / 2, mcy = r.top + r.height / 2;
+    const c0 = [(mcx - r.left - v1.x) / v1.z, (mcy - r.top - v1.y) / v1.z];
+    document.getElementById('modZoomIn').click();
+    const v2 = globalThis.__MOD.view();
+    out.btnDrift = Math.max(Math.abs(r.left + v2.x + c0[0] * v2.z - mcx), Math.abs(r.top + v2.y + c0[1] * v2.z - mcy));
+    /* pinch: two fingers, spread 200→300px, anchored at the midpoint */
+    document.getElementById('modZoomR').click();
+    const v3 = globalThis.__MOD.view();
+    const mx = r.left + 500, my = r.top + 400;
+    const p0 = [(mx - r.left - v3.x) / v3.z, (my - r.top - v3.y) / v3.z];
+    const t = (id, x, y) => ({ pointerId: id, pointerType: 'touch', isPrimary: false, clientX: x, clientY: y, bubbles: true, cancelable: true });
+    cv.dispatchEvent(new PointerEvent('pointerdown', t(7, mx - 100, my)));
+    cv.dispatchEvent(new PointerEvent('pointerdown', t(8, mx + 100, my)));
+    cv.dispatchEvent(new PointerEvent('pointermove', t(7, mx - 150, my)));
+    cv.dispatchEvent(new PointerEvent('pointermove', t(8, mx + 150, my)));
+    const v4 = globalThis.__MOD.view();
+    out.pinchDrift = Math.max(Math.abs(r.left + v4.x + p0[0] * v4.z - mx), Math.abs(r.top + v4.y + p0[1] * v4.z - my));
+    out.pinchRatio = +(v4.z / v3.z).toFixed(2);
+    cv.dispatchEvent(new PointerEvent('pointerup', t(7, mx - 150, my)));
+    cv.dispatchEvent(new PointerEvent('pointerup', t(8, mx + 150, my)));
+    /* pan far from the origin, then add: the module lands in the CURRENT view */
+    document.getElementById('modZoomR').click();
+    const vp = globalThis.__MOD.view();
+    const dx = -2200 - vp.x, dy = -1400 - vp.y;
+    ev('pointerdown', 3, r.left + 300, r.top + 200);
+    for (let i = 1; i <= 10; i++) ev('pointermove', 3, r.left + 300 + (dx * i) / 10, r.top + 200 + (dy * i) / 10);
+    ev('pointerup', 3, r.left + 300 + dx, r.top + 200 + dy);
+    const view = globalThis.__MOD.view();
+    const vl = -view.x / view.z, vt = -view.y / view.z;
+    const vw = r.width / view.z, vh = r.height / view.z;
+    document.querySelector('.mod-add[data-add="comparator"]').click();
+    const n1 = globalThis.__MOD.nodes().pop();
+    out.addInview = n1.x >= vl - 1 && n1.x + 210 <= vl + vw + 1 && n1.y >= vt - 1 && n1.y + 140 <= vt + vh + 1;
+    out.addSpot = [n1.x, n1.y];
+    out.viewAt = [Math.round(vl), Math.round(vt)];
+    return out;
+  });
+  ok('wheel zoom stays under the cursor (drift ≤0.75px)',
+    zr.wheelZoom && zr.wheelDrift <= 0.75, JSON.stringify(zr));
+  ok('zoom buttons anchor at the viewport center', zr.btnDrift <= 0.75, JSON.stringify(zr));
+  ok(`pinch zooms by the finger spread (1.5x) anchored at the midpoint (drift ${zr.pinchDrift.toFixed(2)}px)`,
+    Math.abs(zr.pinchRatio - 1.5) < 0.03 && zr.pinchDrift <= 0.75, JSON.stringify(zr));
+  ok(`a toolbar add lands inside the current view after panning away (at ${zr.addSpot}, view from ${zr.viewAt})`,
+    zr.addInview, JSON.stringify(zr));
+  /* connection nodes: the first input sits exactly where every other module's
+     does; the second sits 32px below; all share the same edge offset */
+  const na = await zp.evaluate(() => {
+    document.getElementById('modZoomR').click();
+    const M = globalThis.__MOD;
+    const probe = (type) => {
+      const n = M.add(type, 300, 300);
+      const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+      const nb = el.getBoundingClientRect();
+      const ins = [...el.querySelectorAll('.mod-port.in')].map((s) => Math.round(s.getBoundingClientRect().top - nb.top));
+      const inL = Math.round(el.querySelector('.mod-port.in').getBoundingClientRect().left - nb.left);
+      const oel = el.querySelector('.mod-port.out');
+      const o = oel ? Math.round(oel.getBoundingClientRect().top - nb.top) : null;
+      M.removeNode(n.id);
+      return { ins, inL, o };
+    };
+    return { io: probe('io'), code: probe('code'), cmp: probe('comparator'), op: probe('operator') };
+  });
+  ok('the Comparator/Operator first input node sits at the exact height of the I/O and Code modules\' input, the second exactly 32px below, the out node in line',
+    na.io.ins[0] === 15 && na.code.ins[0] === 15 && na.cmp.ins.join(',') === '15,47' && na.op.ins.join(',') === '15,47'
+      && na.cmp.o === 15 && na.op.o === 15 && na.io.inL === na.cmp.inL && na.code.inL === na.op.inL,
+    JSON.stringify(na));
+  /* SMate flows land in the current view too */
+  const zs = await zp.evaluate(() => {
+    const cv = document.getElementById('modCanvas');
+    const r = cv.getBoundingClientRect();
+    const o = (id, x, y) => ({ pointerId: id, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true, button: 0, buttons: 1 });
+    const v = globalThis.__MOD.view();
+    const dx = -1800 - v.x, dy = -1200 - v.y;
+    cv.dispatchEvent(new PointerEvent('pointerdown', o(3, r.left + 300, r.top + 200)));
+    for (let i = 1; i <= 10; i++) cv.dispatchEvent(new PointerEvent('pointermove', o(3, r.left + 300 + (dx * i) / 10, r.top + 200 + (dy * i) / 10)));
+    cv.dispatchEvent(new PointerEvent('pointerup', o(3, r.left + 300 + dx, r.top + 200 + dy)));
+    return true;
+  });
+  await zp.click('#smateBtn');
+  await zp.waitForTimeout(400);
+  await zp.fill('#smateIn', 'is 9 greater than 4');
+  await zp.keyboard.press('Enter');
+  await zp.waitForTimeout(2500);
+  const zsm = await zp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const view = M.view();
+    const r = document.getElementById('modCanvas').getBoundingClientRect();
+    const vl = -view.x / view.z, vt = -view.y / view.z, vw = r.width / view.z, vh = r.height / view.z;
+    const ns = M.nodes();
+    const io = ns.find((n) => n.type === 'io');
+    return { allInView: ns.every((n) => n.x >= vl - 1 && n.x <= vl + vw + 1 && n.y >= vt - 1 && n.y <= vt + vh + 1),
+      out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent : '' };
+  });
+  ok('SMate builds its flow inside the current view (panned far from the origin) and answers',
+    zsm.allInView && zsm.out === 'true', JSON.stringify(zsm));
+  await zcx.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */

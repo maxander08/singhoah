@@ -715,8 +715,8 @@ function portPos(id, which) {
     }
   }
   if (which === 'out') return [n.x + TYPES[n.type].w - 1, n.y + 22];
-  if (which === 'in:b') return [n.x + 1, n.y + 81];
-  return [n.x + 1, TYPES[n.type].inPorts ? n.y + 49 : n.y + 22];
+  if (which === 'in:b') return [n.x + 1, n.y + 54];   /* the second input node, 32px below the first */
+  return [n.x + 1, n.y + 22];   /* the first input node: the standard height, like every module */
 }
 /* square connectors only: H-V-H polylines, sharp 90° corners, no curves */
 function wirePath(a, b, toPort) {
@@ -1065,9 +1065,12 @@ function renderNode(n) {
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
-  /* connection squares ("nodes"): one per input on the left edge, A above B */
+  /* connection nodes sit on the module's edge exactly like every other
+     module's: the first input node at the standard height (the same spot as
+     the I/O and Code modules' input, in line with the out node), the second
+     input node just below it on the same 32px rhythm */
   const inPortsHtml = T.inPorts
-    ? T.inPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${40 + i * 32}px"></span>`).join('')
+    ? T.inPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${13 + i * 32}px"></span>`).join('')
     : (T.hasIn ? '<span class="mod-port in" data-port="a"></span>' : '');
   el.innerHTML = head + body + inPortsHtml + (T.hasOut ? '<span class="mod-port out"></span>' : '');
   el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
@@ -1212,9 +1215,20 @@ function addNode(type, x, y) {
   /* adding with no canvas on screen (files home) would silently mutate a
      hidden, unsaved doc — start a fresh one instead so the addition is real */
   if ($('modEditor').hidden) newDoc();
+  /* no explicit spot: land the module in whatever the user is looking at —
+     a set point relative to the CURRENT view (cascading so repeats never
+     stack), clamped inside the world — never a fixed far-off coordinate */
+  if (x == null || y == null) {
+    const vl = -view.x / view.z, vt = -view.y / view.z;   /* the visible world rect */
+    const c = (seq % 5) * 26;
+    x = vl + 60 + c;
+    y = vt + 40 + c;
+  }
+  x = Math.min(Math.max(x, 0), Math.max(0, 4000 - TYPES[type].w - 24));
+  y = Math.min(Math.max(y, 0), 2800);
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
-    type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
+    type, x: snap(x), y: snap(y),
     cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : type === 'comparator' ? { cmp: 'gt' } : {},
   };
   doc.nodes.push(n);
@@ -1224,35 +1238,73 @@ function addNode(type, x, y) {
   return n;
 }
 
-/* pan the canvas + wheel zoom */
-canvas.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.mod-node') || e.target.closest('.mod-zoom')) return;
-  const sx = e.clientX, sy = e.clientY, ox = view.x, oy = view.y;
-  let moved = false;
-  canvas.setPointerCapture(e.pointerId);
-  const move = (ev) => {
-    if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 3) moved = true;
-    view.x = ox + ev.clientX - sx;
-    view.y = oy + ev.clientY - sy;
-    applyView();
-  };
-  const up = () => {
-    canvas.removeEventListener('pointermove', move);
-    canvas.removeEventListener('pointerup', up);
-    if (!moved && selectedWire !== -1) { selectedWire = -1; redrawWires(); }
-  };
-  canvas.addEventListener('pointermove', move);
-  canvas.addEventListener('pointerup', up);
-});
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  setZoom(view.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
-}, { passive: false });
-function setZoom(z) {
+/* pan the canvas; zoom anchors at the cursor (wheel) or between the fingers
+   (pinch) — the world point under the anchor stays under it, like every
+   canvas tool. The zoom buttons anchor at the viewport center. */
+function zoomAt(cx, cy, z) {
+  const r = canvas.getBoundingClientRect();
+  const px = cx - r.left, py = cy - r.top;
+  const wx = (px - view.x) / view.z, wy = (py - view.y) / view.z;   /* world point under the anchor */
   view.z = Math.min(1.8, Math.max(0.4, Math.round(z * 100) / 100));
+  view.x = px - wx * view.z;
+  view.y = py - wy * view.z;
   applyView();
   $('modZoomR').textContent = `${Math.round(view.z * 100)}%`;
 }
+function setZoom(z) {
+  const r = canvas.getBoundingClientRect();
+  zoomAt(r.left + r.width / 2, r.top + r.height / 2, z);
+}
+const cpts = new Map();   /* live canvas pointers: one pans, two pinch */
+let pinch = null, panMoved = false;
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.mod-node') || e.target.closest('.mod-zoom')) return;
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic events carry no real pointer */ }
+  cpts.set(e.pointerId, { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY });
+  panMoved = false;
+  if (cpts.size === 2) {
+    const [a, b] = [...cpts.values()];
+    const r = canvas.getBoundingClientRect();
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: view.z,
+      wx: (mx - r.left - view.x) / view.z, wy: (my - r.top - view.y) / view.z };
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  const prev = cpts.get(e.pointerId);
+  if (!prev) return;
+  cpts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && cpts.size >= 2) {
+    const [a, b] = [...cpts.values()];
+    const r = canvas.getBoundingClientRect();
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    view.z = Math.min(1.8, Math.max(0.4, Math.round(pinch.z * d / pinch.d * 100) / 100));
+    view.x = mx - r.left - pinch.wx * view.z;
+    view.y = my - r.top - pinch.wy * view.z;
+    applyView();
+    $('modZoomR').textContent = `${Math.round(view.z * 100)}%`;
+  } else if (!pinch) {
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    if (dx || dy) {
+      if (Math.abs(e.clientX - prev.sx) + Math.abs(e.clientY - prev.sy) > 3) panMoved = true;
+      view.x += dx;
+      view.y += dy;
+      applyView();
+    }
+  }
+});
+const endPtr = (e) => {
+  cpts.delete(e.pointerId);
+  if (cpts.size < 2) pinch = null;
+  if (cpts.size === 0 && !panMoved && selectedWire !== -1) { selectedWire = -1; redrawWires(); }
+};
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoomAt(e.clientX, e.clientY, view.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+}, { passive: false });
 $('modZoomIn').addEventListener('click', () => setZoom(view.z * 1.2));
 $('modZoomOut').addEventListener('click', () => setZoom(view.z / 1.2));
 $('modZoomR').addEventListener('click', () => { view = { x: 40, y: 20, z: 1 }; setZoom(1); applyView(); });

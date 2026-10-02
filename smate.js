@@ -1129,10 +1129,10 @@
          answer with the verdict in chat — the flow stays on the canvas */
       const buildCmpFlow = (cid, a, b) => {
         const M = globalThis.__MOD;
-        const na = M.add('number', 60, 60);
-        const nb = M.add('number', 60, 320);
-        const cp = M.add('comparator', 360, 190);
-        const io = M.add('io', 650, 190);
+        const na = M.add('number');   /* lands wherever the user is looking */
+        const nb = M.add('number', na.x, na.y + 260);
+        const cp = M.add('comparator', na.x + 320, na.y + 130);
+        const io = M.add('io', na.x + 600, na.y + 130);
         M.cfg(na.id, { numtype: 'dec', value: a });
         M.cfg(nb.id, { numtype: 'dec', value: b });
         M.cfg(cp.id, { cmp: cid });
@@ -1182,7 +1182,7 @@
               /* "compare 5 and 3" runs as a real flow; no relation spoken means equal */
               buildCmpFlow(cid || 'eq', nums[0], nums[1]);
             } else {
-              const n = M.add('comparator', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
+              const n = M.add('comparator');   /* lands in the current view */
               M.cfg(n.id, { cmp: cid || 'gt' });
               note(t(curLang, 'done'));
               abPush({ k: 'done', t: `${t(curLang, 'mComparator')} ${CMP_SYM[cid || 'gt']}` });
@@ -1190,12 +1190,12 @@
           } else if (has(text, KW.operator)) {
             const t2 = latinDigits(text).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').toLowerCase();
             const oid = (MOD_OPS.find(([, re]) => re.test(t2)) || [])[0] || 'add';
-            const n = M.add('operator', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
+            const n = M.add('operator');   /* lands in the current view */
             M.cfg(n.id, { op: oid });
             note(t(curLang, 'done'));
             abPush({ k: 'done', t: `${t(curLang, 'mOperator')} ${OPS_SYM[oid]}` });
           } else {
-            const n = M.add('number', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
+            const n = M.add('number');   /* lands in the current view */
             const v = num(text);
             const bm = /base\s*(\d{1,2})/.exec(text.toLowerCase());
             const hexa = /hex|hexadecimal|十六進|十六进/.test(text);
@@ -1241,10 +1241,10 @@
         }
         if (!document.getElementById('modEditor').hidden) {
           const M = globalThis.__MOD;
-          const na = M.add('number', 60, 60);
-          const nb = M.add('number', 60, 320);
-          const op = M.add('operator', 360, 190);
-          const io = M.add('io', 650, 190);
+          const na = M.add('number');   /* lands wherever the user is looking */
+          const nb = M.add('number', na.x, na.y + 260);
+          const op = M.add('operator', na.x + 320, na.y + 130);
+          const io = M.add('io', na.x + 600, na.y + 130);
           M.cfg(na.id, { numtype: 'dec', value: q.a });
           M.cfg(nb.id, { numtype: 'dec', value: q.b });
           M.cfg(op.id, { op: q.op });
