@@ -3421,20 +3421,75 @@ await prn.close();
   });
   ok('every wire lands on the exact CENTER of its connection squares (≤0.75px, out and in)',
     anchor.worst <= 0.75, JSON.stringify(anchor.rows) + ' worst=' + anchor.worst);
-  /* the status square only exists when there is status: no orphan black square */
+  /* the status row only exists when there is status: no orphan square, no reserved space */
   const dot = await kpg.evaluate(async () => {
     const M = globalThis.__MOD;
     const after = [...document.querySelectorAll('.mod-node .mod-cstat')].map((s) => ({
-      empty: s.textContent === '', dot: getComputedStyle(s, '::before').display }));
+      empty: s.textContent === '', disp: getComputedStyle(s).display }));
+    const hints = [...document.querySelectorAll('.mod-node .mod-numhint')].map((s) => ({
+      empty: s.textContent === '', disp: getComputedStyle(s).display }));
     M.newDoc();
     const cp = M.add('comparator', 60, 60);
-    M.run();   /* nothing wired: the status line speaks (and shows its dot) */
+    M.run();   /* nothing wired: the status line speaks (and its row shows) */
     const need = document.querySelector(`.mod-node[data-id="${cp.id}"] .mod-cstat`);
-    return { after, emptyHide: after.filter((x) => x.empty).every((x) => x.dot === 'none'),
-      textDot: getComputedStyle(need, '::before').display, text: need.textContent };
+    return { after, hints,
+      emptyHide: after.filter((x) => x.empty).every((x) => x.disp === 'none') && hints.filter((x) => x.empty).every((x) => x.disp === 'none'),
+      textRow: getComputedStyle(need).display, text: need.textContent };
   });
-  ok('no orphan status square on silent nodes; the dot returns when the status speaks',
-    dot.emptyHide && dot.textDot === 'block' && dot.text.length > 0, JSON.stringify(dot));
+  ok('no reserved status/hint rows on silent modules; the row returns when the status speaks',
+    dot.emptyHide && dot.textRow === 'flex' && dot.text.length > 0, JSON.stringify(dot));
+  /* no wasted space: a quiet Number node is meaningfully shorter than one that must speak */
+  const space = await kpg.evaluate(async () => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const n = M.add('number', 60, 60);
+    M.cfg(n.id, { numtype: 'dec', value: '6' });   /* base 10: hint and status both quiet */
+    await new Promise((r) => setTimeout(r, 60));
+    const quiet = document.querySelector(`.mod-node[data-id="${n.id}"]`).getBoundingClientRect().height;
+    M.cfg(n.id, { value: 'abc' });                  /* invalid: the status row speaks */
+    await new Promise((r) => setTimeout(r, 60));
+    const speaking = document.querySelector(`.mod-node[data-id="${n.id}"]`).getBoundingClientRect().height;
+    M.cfg(n.id, { value: '6' });
+    return { quiet: Math.round(quiet), speaking: Math.round(speaking) };
+  });
+  ok(`a quiet Number module sheds its empty rows (quiet ${space.quiet}px vs speaking ${space.speaking}px)`,
+    space.speaking - space.quiet >= 18, JSON.stringify(space));
+  /* wires are correct the instant a SAVED flow opens — no dragging needed */
+  const reopen = await kpg.evaluate(async () => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const a = M.add('number', 60, 60); M.cfg(a.id, { numtype: 'dec', value: '6' });
+    const b = M.add('number', 60, 320); M.cfg(b.id, { numtype: 'dec', value: '7' });
+    const cp = M.add('comparator', 380, 190);
+    const io = M.add('io', 660, 190);
+    M.wire(a.id, cp.id, 'a'); M.wire(b.id, cp.id, 'b'); M.wire(cp.id, io.id);
+    const id = M.latest();
+    await new Promise((r) => setTimeout(r, 700));   /* the doc saves */
+    /* leave the canvas in a very different pan/zoom than the doc will open with */
+    document.getElementById('modZoomIn').click();
+    document.getElementById('modZoomIn').click();
+    document.getElementById('modZoomIn').click();
+    M.home();                                        /* files home */
+    await new Promise((r) => setTimeout(r, 150));
+    M.openDoc(id);                                   /* reopen: wires must land true at once */
+    await new Promise((r) => setTimeout(r, 120));
+    const view = M.view();
+    const cr = document.getElementById('modCanvas').getBoundingClientRect();
+    const center = (el) => { const r2 = el.getBoundingClientRect(); return [(r2.x + r2.width / 2 - cr.x - view.x) / view.z, (r2.y + r2.height / 2 - cr.y - view.y) / view.z]; };
+    let worst = 0; const rows = [];
+    for (const path of document.getElementById('modWires').querySelectorAll('.mod-wire')) {
+      const m = /M ([\d.-]+) ([\d.-]+) H ([\d.-]+) V ([\d.-]+) H ([\d.-]+)/.exec(path.getAttribute('d'));
+      const w = M.wires()[+[path.dataset.i]];
+      const c1 = center(document.querySelector(`.mod-node[data-id="${w.from}"] .mod-port.out`));
+      const c2 = center(document.querySelector(`.mod-node[data-id="${w.to}"] .mod-port.in[data-port="${w.toPort || 'a'}"]`));
+      const d = Math.max(Math.abs(m[1] - c1[0]), Math.abs(m[2] - c1[1]), Math.abs(m[5] - c2[0]), Math.abs(m[4] - c2[1]));
+      rows.push(`${w.toPort || 'a'}:${d.toFixed(2)}`);
+      worst = Math.max(worst, d);
+    }
+    return { worst: +worst.toFixed(2), rows, z: view.z };
+  });
+  ok('a saved flow opens with every wire already on its square centers (no drag needed, any prior pan/zoom)',
+    reopen.worst <= 0.75 && reopen.rows.length === 3, JSON.stringify(reopen));
   /* a missing operand is red and plain */
   const kunwired = await kpg.evaluate(async (x) => {
     const M = globalThis.__MOD;

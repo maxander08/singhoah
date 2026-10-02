@@ -1600,7 +1600,7 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .tok-p { color: var(--notification); }
 .mod-cstat { display: flex; align-items: center; gap: 6px; font: 11.5px/1.3 var(--font-sans); color: var(--pigeon); min-height: 13px; }
 .mod-cstat::before { content: ''; width: 6px; height: 6px; background: currentColor; flex: 0 0 auto; }
-.mod-cstat:empty::before { display: none; }   /* no orphan square when there is nothing to say */
+.mod-numhint:empty, .mod-cstat:empty { display: none; }   /* no reserved rows when there is nothing to say — no wasted space below the field */
 .mod-cstat.busy { color: var(--notification); }
 .mod-cstat.busy::before { animation: modPulse 1s ease-in-out infinite; }
 .mod-cstat.bad { color: var(--bad, #c0392b); }

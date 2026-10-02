@@ -401,8 +401,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '96fba0f9';
-const BV = BUILD === '96fba0f9' ? '' : '?v=' + BUILD;
+const BUILD = 'c00774bb';
+const BV = BUILD === 'c00774bb' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -697,19 +697,22 @@ function applyView() {
   canvas.classList.toggle('nogrid', !doc.grid);
 }
 
-/* the exact center of a connection square, in world coordinates — measured
-   from the rendered square so a wire always lands on its true center,
-   whatever the theme, the zoom or the CSS. (The offset math below is only
-   a fallback for squares that are not on screen.) */
+/* the exact center of a connection square, in world coordinates. The
+   square's offset WITHIN its node never moves with pan or zoom, so that
+   offset is measured from the rendered square and added to the node's own
+   world position — the anchor stays true whatever the theme, the zoom or
+   the CSS, and no stale canvas transform can displace it. (The offset math
+   below is only a fallback for squares that are not laid out.) */
 function portPos(id, which) {
   const n = doc.nodes.find((x) => x.id === id);
   if (!n) return [0, 0];
   const el = nodeEl(id);
-  const sel = which === 'out' ? '.mod-port.out' : `.mod-port.in[data-port="${which === 'in:b' ? 'b' : 'a'}"]`;
-  const p = el && el.querySelector(sel);
-  if (p) {
-    const r = p.getBoundingClientRect(), c = canvas.getBoundingClientRect();
-    return [(r.x + r.width / 2 - c.x - view.x) / view.z, (r.y + r.height / 2 - c.y - view.y) / view.z];
+  const p = el && el.querySelector(which === 'out' ? '.mod-port.out' : `.mod-port.in[data-port="${which === 'in:b' ? 'b' : 'a'}"]`);
+  if (p && el && view.z) {
+    const pr = p.getBoundingClientRect(), nr = el.getBoundingClientRect();
+    if (nr.width > 0 || nr.height > 0) {
+      return [n.x + (pr.x + pr.width / 2 - nr.x) / view.z, n.y + (pr.y + pr.height / 2 - nr.y) / view.z];
+    }
   }
   if (which === 'out') return [n.x + TYPES[n.type].w - 1, n.y + 22];
   if (which === 'in:b') return [n.x + 1, n.y + 81];
@@ -1412,9 +1415,13 @@ function openDoc(id) {
   const wdel = world.querySelector('.mod-wdel');
   if (wdel) wdel.remove();
   for (const n of doc.nodes) renderNode(n);
-  redrawWires();
+  /* the world transform must settle BEFORE any wire is drawn — a wire's
+     anchor is measured from the rendered squares, so drawing them under the
+     previous document's pan/zoom would land them off their squares */
   applyView();
   setZoom(1);
+  redrawWires();
+  requestAnimationFrame(redrawWires);   /* and once more when layout is fully in — correct every time */
   if (migrated) touch();   /* save the migrated shape so it never migrates twice */
 }
 function showHome() {
