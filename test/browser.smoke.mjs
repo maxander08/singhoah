@@ -2857,6 +2857,39 @@ await prn.close();
     }
     return true;
   }));
+  /* the files home (flow cards) is reachable via the Files button — deterministic, not a load race */
+  const fhx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const fp = await fhx.newPage();
+  await fp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await fp.evaluate(() => localStorage.setItem('singhoah:night', '0'));
+  await fp.reload();
+  await fp.waitForTimeout(900);
+  await fp.evaluate(() => {
+    const visible = [...document.querySelectorAll('.fl-card')].some((c) => c.getClientRects().length);
+    if (!visible) document.getElementById('modFiles').click();   /* open the files home from the editor */
+  });
+  await fp.waitForTimeout(400);
+  const fhBad = await fp.evaluate(() => {
+    const card = document.querySelector('.fl-card');
+    if (!card || !card.getClientRects().length) return 'files home is not visible';
+    const bg = getComputedStyle(card).backgroundColor;
+    if (!/rgb\(223, ?221, ?213\)/.test(bg)) return 'card bg ' + bg;   /* var(--paper-2), not a dark leftover */
+    const lum = (r, g, b) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const parse = (s) => { const m = /rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?\)/.exec(s || ''); return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null; };
+    const effBg = (el) => { for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0.85) return c; } return [255, 255, 255, 1]; };
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.getClientRects().length === 0) continue;
+      if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+      const fg = parse(getComputedStyle(el).color);
+      if (!fg) continue;
+      const bgc = effBg(el);
+      const la = lum(...fg), lb = lum(...bgc);
+      if ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05) < 3) return 'unreadable: ' + (el.textContent || '').trim().slice(0, 24);
+    }
+    return null;
+  });
+  ok('light mode: files home cards are light and readable (first-visit sweep)', fhBad === null, fhBad || '');
+  await fhx.close();
   await lcx.close();
   /* standardized controls, spot-checked on their pages */
   const scx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
