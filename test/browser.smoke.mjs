@@ -2961,32 +2961,53 @@ await prn.close();
     const inp = getComputedStyle(el.querySelector('.mod-numin'));
     return {
       outOnly: !!el.querySelector('.mod-port.out') && !el.querySelector('.mod-port.in'),
-      dd, radius: std.borderRadius + '/' + inp.borderRadius, w: std.fontWeight,
+      dd, step: {
+        lab: (el.querySelector('.mod-step-lab') || {}).textContent,
+        val: (el.querySelector('.mod-stepin') || {}).value,
+        arrows: el.querySelectorAll('.mod-stepbtn').length,
+      },
+      radius: std.borderRadius + '/' + inp.borderRadius, w: std.fontWeight,
     };
   }, numId);
-  ok('the Number node is a source: one out port, type + base selects, standardized chips',
-    struct.outOnly && struct.dd.join('|') === 'Integer|Base 10' && struct.radius === '0px/0px' && struct.w === '650',
+  ok('the Number node is a source: one out port, a type select and a base stepper, standardized chips',
+    struct.outOnly && struct.dd.join('|') === 'Integer'
+      && struct.step.lab === 'Base' && struct.step.val === '10' && struct.step.arrows === 2
+      && struct.radius === '0px/0px' && struct.w === '650',
     JSON.stringify(struct));
-  /* the type dropdown offers the four number types; Float swaps base for digits */
+  /* the type select offers the four number types; the base is a stepper
+     (field + stacked arrows), never a 36-item dropdown */
   const typeDd = await np.evaluate(async (ids) => {
     const el = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
-    el.querySelectorAll('.mod-dd')[0].querySelector('.mod-dd-btn').click();       /* open type */
+    const dd = el.querySelectorAll('.mod-dd')[0].querySelector('.mod-dd-btn');
+    dd.click();                                                                    /* open type */
     await new Promise((r) => setTimeout(r, 150));
     const list = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt')].map((b) => b.textContent.trim());
     const float = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt')].find((b) => b.textContent.trim() === 'Float');
     float.click();                                                                 /* pick Float */
     await new Promise((r) => setTimeout(r, 150));
-    const dd2 = [...document.querySelectorAll(`.mod-node[data-id="${ids.n}"] .mod-dd-btn .mod-dd-txt`)].map((x) => x.textContent);
+    /* Float swaps the base stepper for a digits stepper */
     const el2 = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
-    el2.querySelectorAll('.mod-dd')[1].querySelector('.mod-dd-btn').click();       /* open digits */
-    await new Promise((r) => setTimeout(r, 150));
-    const digs = document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt').length;
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    return { list, dd2, digs };
+    const lab = el2.querySelector('.mod-step-lab').textContent;
+    const btns = el2.querySelectorAll('.mod-stepbtn');
+    const stacked = getComputedStyle(el2.querySelector('.mod-stepbtns')).flexDirection === 'column';
+    /* step up: 6 digits -> 7 */
+    btns[0].click();
+    await new Promise((r) => setTimeout(r, 120));
+    const afterUp = el2.querySelector('.mod-stepin').value;
+    /* type 100, then up is disabled at the ceiling */
+    const inp = el2.querySelector('.mod-stepin');
+    inp.value = '100'; inp.dispatchEvent(new Event('change', { bubbles: true }));
+    const atMax = { v: inp.value, up: btns[0].disabled };
+    /* out-of-range typing clamps into 1-100 */
+    inp.value = '500'; inp.dispatchEvent(new Event('change', { bubbles: true }));
+    const clamped = inp.value;
+    return { list, lab, stacked, afterUp, atMax, clamped };
   }, numId);
-  ok('the type select reveals Integer, Decimal, Float, Fixed — Float replaces Base with a digit count (1–100)',
-    typeDd.list.join('|') === 'Integer|Decimal|Float|Fixed'
-      && typeDd.dd2.join('|') === 'Float|6 digits' && typeDd.digs === 100,
+  ok('the type select reveals Integer, Decimal, Float, Fixed — Float swaps Base for a digits stepper',
+    typeDd.list.join('|') === 'Integer|Decimal|Float|Fixed' && typeDd.lab === 'digits',
+    JSON.stringify(typeDd));
+  ok('the stepper: stacked arrows step the value (6→7), the field accepts typing, 1–100 clamps at both ends',
+    typeDd.stacked && typeDd.afterUp === '7' && typeDd.atMax.v === '100' && typeDd.atMax.up === true && typeDd.clamped === '100',
     JSON.stringify(typeDd));
   /* integer bases: hex, unary, base 36 — the hint shows the base-10 equivalent */
   const hints = {};
@@ -3106,6 +3127,180 @@ await prn.close();
   ok('mobile: the Number node fits the phone and its type select clamps inside the screen',
     mobNum.fits && mobNum.open && mobNum.clamped && mobNum.opts === 4, JSON.stringify(mobNum));
   await mcx2.close();
+}
+
+/* ---- the Operator module: exact math over two wired operands ---- */
+{
+  const ocx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const opg = await ocx.newPage();
+  await opg.goto(URL + 'module.html', { waitUntil: 'load' });
+  await opg.waitForTimeout(900);
+  ok('the Operator module joins the toolbar', await opg.evaluate(() =>
+    !!document.querySelector('.mod-add[data-add="operator"]')
+    && document.getElementById('modAddO').textContent === 'Operator'));
+  const ids = await opg.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const a = M.add('number', 60, 60);
+    const b = M.add('number', 60, 320);
+    const op = M.add('operator', 380, 190);
+    const io = M.add('io', 660, 190);
+    M.cfg(a.id, { numtype: 'dec', value: '6' });
+    M.cfg(b.id, { numtype: 'dec', value: '7' });
+    return { a: a.id, b: b.id, op: op.id, io: io.id };
+  });
+  const node = await opg.evaluate((x) => {
+    const el = document.querySelector(`.mod-node[data-id="${x.op}"]`);
+    const std = getComputedStyle(el.querySelector('.mod-dd-btn'));
+    return {
+      ports: [...el.querySelectorAll('.mod-port.in')].map((p) => p.dataset.port),
+      labels: [...el.querySelectorAll('.mod-plab')].map((l) => l.textContent),
+      out: !!el.querySelector('.mod-port.out'),
+      dd: el.querySelector('.mod-dd-btn .mod-dd-txt').textContent,
+      radius: std.borderRadius, w: std.fontWeight,
+    };
+  }, ids);
+  ok('the Operator node has TWO in ports (A above, B below) plus its out port, standard chips',
+    node.ports.join('|') === 'a|b' && node.labels.join('|') === 'A|B' && node.out
+      && node.radius === '0px' && node.w === '650',
+    JSON.stringify(node));
+  const wired = await opg.evaluate((x) => {
+    const M = globalThis.__MOD;
+    return {
+      a: M.wire(x.a, x.op, 'a'),
+      b: M.wire(x.b, x.op, 'b'),
+      out: M.wire(x.op, x.io),
+      bad: M.wire(x.a, x.op, 'c'),
+      ports: M.wires().filter((w) => w.to === x.op).map((w) => w.toPort).sort().join(''),
+    };
+  }, ids);
+  ok('wires land on the exact port; a port that does not exist is refused; one wire per port holds',
+    wired.a && wired.b && wired.out && wired.bad === false && wired.ports === 'ab',
+    JSON.stringify(wired));
+  /* every operator, exact */
+  const runOp = async (op, va, vb) => opg.evaluate(async (a) => {
+    const M = globalThis.__MOD;
+    M.cfg(a.ids.a, { value: a.va }); M.cfg(a.ids.b, { value: a.vb }); M.cfg(a.ids.op, { op: a.op });
+    await M.run();
+    const box = document.querySelector(`.mod-node[data-id="${a.ids.io}"] .mod-result`);
+    const el = document.querySelector(`.mod-node[data-id="${a.ids.op}"]`);
+    return {
+      out: box.textContent === 'Result —' ? '' : box.textContent,
+      hint: el.querySelector('.mod-ophint').textContent,
+      stat: el.querySelector('.mod-cstat').textContent,
+      cls: el.querySelector('.mod-cstat').className,
+    };
+  }, { ids, op, va, vb });
+  const add6_7 = await runOp('add', '6', '7');
+  const mulBig = await runOp('mul', '123456789', '987654321');
+  const div13 = await runOp('div', '1', '3');
+  const mod17_5 = await runOp('mod', '17', '5');
+  const pow2_100 = await runOp('pow', '2', '100');
+  const divZero = await runOp('div', '6', '0');
+  const powFrac = await runOp('pow', '2', '0.5');
+  ok('add: 6 + 7 = 13 with the equation in the hint line',
+    add6_7.out === '13' && add6_7.hint === '6 + 7 = 13' && add6_7.cls === 'mod-cstat', JSON.stringify(add6_7));
+  ok('multiply is exact on BigInt: 123456789 × 987654321 = 121932631112635269',
+    mulBig.out === '121932631112635269', JSON.stringify(mulBig));
+  ok('divide: 1 ÷ 3 carries 30 exact digits (no double ever touches it)',
+    div13.out === '0.' + '3'.repeat(30), JSON.stringify(div13.out));
+  ok('modulo and power: 17 % 5 = 2, 2 ^ 100 exact',
+    mod17_5.out === '2' && pow2_100.out === '1267650600228229401496703205376',
+    JSON.stringify({ m: mod17_5.out, p: pow2_100.out }));
+  ok('failures are plain and red: division by zero, fractional exponent',
+    divZero.out === '' && /Division by zero/.test(divZero.stat) && divZero.cls.includes('bad')
+      && powFrac.out === '' && /whole-number exponent/.test(powFrac.stat) && powFrac.cls.includes('bad'),
+    JSON.stringify({ d: divZero.stat, p: powFrac.stat }));
+  /* the LEFT operand's number system wins: hex stays hex */
+  const hex = await opg.evaluate(async (x) => {
+    const M = globalThis.__MOD;
+    M.cfg(x.a, { numtype: 'int', base: 16, value: 'ff' });
+    M.cfg(x.b, { numtype: 'int', base: 16, value: '1' });
+    M.cfg(x.op, { op: 'add' });
+    await M.run();
+    return document.querySelector(`.mod-node[data-id="${x.io}"] .mod-result`).textContent;
+  }, ids);
+  ok('the result keeps the LEFT operand\'s system: hex ff + 1 = 100 (base 16)', hex === '100', hex);
+  /* missing operand */
+  const unwired = await opg.evaluate(async (x) => {
+    const M = globalThis.__MOD;
+    M.wire(x.b, x.io);   /* B's out-port wire moves: the operator loses B */
+    await M.run();
+    const el = document.querySelector(`.mod-node[data-id="${x.op}"]`);
+    return { stat: el.querySelector('.mod-cstat').textContent, cls: el.querySelector('.mod-cstat').className };
+  }, ids);
+  ok('an unwired operand says so, in red, and flows nothing',
+    /A and B/.test(unwired.stat) && unwired.cls.includes('bad'), JSON.stringify(unwired));
+  /* the operator dropdown offers all six, translated */
+  await opg.evaluate((x) => {
+    document.querySelector(`.mod-node[data-id="${x.op}"]`).querySelector('.mod-dd-btn').click();
+  }, ids);
+  await opg.waitForTimeout(200);
+  const ops = await opg.evaluate(() =>
+    [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-lab')].map((b) => b.textContent.trim()));
+  ok('the operation select offers + − × ÷ % ^', 
+    ops.length === 6 && /^\+/.test(ops[0]) && ops.some((o) => o.startsWith('−')) && ops.some((o) => o.startsWith('×')) && ops.some((o) => o.startsWith('÷')) && ops.some((o) => o.startsWith('%')) && ops.some((o) => o.startsWith('^')),
+    JSON.stringify(ops));
+  await opg.keyboard.press('Escape');
+  /* serialization keeps the port a wire lands on (re-wire B first: the
+     unwired check above moved its wire away) */
+  await opg.evaluate((x) => { globalThis.__MOD.wire(x.b, x.op, 'b'); }, ids);
+  await opg.waitForTimeout(700);
+  const ser = await opg.evaluate((x) => JSON.parse(globalThis.__MOD.serialize()).data.wires
+    .filter((w) => w.to === x.op).map((w) => w.toPort || 'a').sort().join(''), ids);
+  ok('the flow document stores which port each wire lands on', ser === 'ab', ser);
+  await ocx.close();
+
+  /* SMate builds the flow itself: "multiply X by Y" lands on the canvas */
+  const scx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const sp2 = await scx2.newPage();
+  const strayNavs = [];
+  sp2.on('framenavigated', (f) => { if (f === sp2.mainFrame() && !/module\.html/.test(f.url())) strayNavs.push(f.url()); });
+  await sp2.goto(URL + 'module.html', { waitUntil: 'load' });
+  await sp2.waitForTimeout(900);
+  await sp2.click('#smateBtn');
+  await sp2.waitForTimeout(400);
+  await sp2.fill('#smateIn', 'multiply 123456789 by 987654321');
+  await sp2.keyboard.press('Enter');
+  await sp2.waitForTimeout(2500);
+  const sm = await sp2.evaluate(() => {
+    const M = globalThis.__MOD;
+    const ns = M.nodes();
+    const op = ns.find((x) => x.type === 'operator');
+    const io = ns.find((x) => x.type === 'io');
+    return {
+      flow: !!op && ns.filter((x) => x.type === 'number').length === 2 && !!io,
+      op: op && op.cfg.op,
+      ports: op ? M.wires().filter((w) => w.to === op.id).map((w) => w.toPort).sort().join('') : '',
+      out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent : '',
+      block: [...document.querySelectorAll('.smate-block')].some((b) => b.textContent.includes('121932631112635269')),
+    };
+  });
+  ok('SMate builds and runs the flow: two Numbers wired into the Operator\'s A and B, exact result in chat',
+    sm.flow && sm.op === 'mul' && sm.ports === 'ab' && sm.out === '121932631112635269' && sm.block && strayNavs.length === 0,
+    JSON.stringify(sm) + ' navs:' + JSON.stringify(strayNavs));
+  await sp2.fill('#smateIn', 'add a number 255 base 16');
+  await sp2.keyboard.press('Enter');
+  await sp2.waitForTimeout(1500);
+  const smn = await sp2.evaluate(() => {
+    const M = globalThis.__MOD;
+    const ns = M.nodes().filter((x) => x.type === 'number');
+    const last = ns[ns.length - 1];
+    return { cfg: last && last.cfg, hint: last ? document.querySelector(`.mod-node[data-id="${last.id}"] .mod-numhint`).textContent : '' };
+  });
+  ok('SMate adds Number nodes: "add a number 255 base 16" lands as ff with the = 255 hint',
+    smn.cfg && smn.cfg.base === 16 && smn.cfg.value === 'ff' && smn.hint === '= 255', JSON.stringify(smn));
+  await sp2.fill('#smateIn', 'add an operator *');
+  await sp2.keyboard.press('Enter');
+  await sp2.waitForTimeout(1500);
+  const smo = await sp2.evaluate(() => {
+    const M = globalThis.__MOD;
+    const os = M.nodes().filter((x) => x.type === 'operator');
+    const last = os[os.length - 1];
+    return last ? document.querySelector(`.mod-node[data-id="${last.id}"] .mod-dd-btn .mod-dd-txt`).textContent : '';
+  });
+  ok('SMate adds Operator nodes: "add an operator *" lands as × Multiply', /^×/.test(smo), smo);
+  await scx2.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */

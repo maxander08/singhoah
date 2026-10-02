@@ -558,6 +558,30 @@
     }
     return [...set];
   };
+  /* Number + Operator flows: pull "<a> <op> <b>" out of a request, in any of
+     the common phrasings and languages. Symbols work too: "calculate 2 ^ 10". */
+  const MOD_OPS = [
+    ['pow', /to the power(?: of)?|power of|\^|pow|べき乗|거듭제곱|в степени|степень|puissance/],
+    ['mul', /multiplied by|multiply|times|product|\*|×|乗じて|かけて|곱하기|乘以|乘算|乘|умножить на|умножить|multiplicado por|multiplié par/],
+    ['div', /divided by|divide by|divide[sd]?|over|\/|÷|除以|除|割って|割る|나누기|разделить на|разделить|dividido por|divisé par|gedeeld door|durch/],
+    ['mod', /modulo|remainder|mod\b|%|余り|剰余|나머지|остаток|resto/],
+    ['add', /plus|\badd(?:ed)?(?: to)?\b|sum of|\bsum\b|\+|たす|足す|足し算|더하기|加上|加|плюс|más|più/],
+    ['sub', /-|minus|subtract|less|引く|引き算|빼기|减去|减|moins|menos|weniger/],
+  ];
+  const OPS_SYM = { add: '+', sub: '−', mul: '×', div: '÷', mod: '%', pow: '^' };
+  function modMathOf(raw) {
+    const text = latinDigits(raw).replace(/×/g, '*').replace(/÷/g, '/').replace(/−|–/g, '-').toLowerCase();
+    const nums = (text.match(/-?\d+(?:\.\d+)?/g) || []).filter((x) => x !== '-');
+    if (nums.length < 2) return null;
+    for (const [id, re] of MOD_OPS) {
+      if (!re.test(text)) continue;
+      /* "subtract 5 from 12" flips the operands; everything else keeps order */
+      const flip = id === 'sub' && /\bfrom\b/.test(text) && text.indexOf('from') > text.indexOf(String(nums[0]));
+      const a = nums[0], b = nums[1];
+      return flip ? { op: id, a: b, b: a } : { op: id, a, b };
+    }
+    return null;
+  }
   const KW = {
     timer: [...words(['timer']), 'timer', 'temporizador'],
     stopwatch: words(['stopwatch']),
@@ -613,6 +637,8 @@
     days: words(['walDays']),
     reports: words(['walReports']),
     module: [...words(['lpModule']), 'singhomodule', 'automation', 'module', 'workflow', '自動化', '自动化', 'モジュール'],
+    number: [...words(['mNumber']), 'number module', 'number node', '數字模組', '数字模块', '数値モジュール', '숫자 모듈'],
+    operator: [...words(['mOperator']), 'operator module', 'operator node', '運算子', '运算符', '演算子モジュール', '연산자 모듈'],
     files: [...words(['flFiles']), 'documents', 'my docs', '檔案管理', '文件管理'],
     run: ['run', 'execute', '執行', '执行', '実行', '실행', 'ejecutar', 'exécuter', 'ausführen', 'تشغيل', 'चलाओ', 'запустить', 'rodar', 'esegui', 'jalankan', 'chạy'],
     newdoc: [...words(['flNew']), 'new flow', 'new note', '新流程', '新筆記'],
@@ -896,6 +922,7 @@
 
   const BYW = [' by ', ' × ', '乘', ' por ', ' par ', ' на ', ' في ', ' গুণ ', ' ضرب ', ' गुणा ', ' per '];
   const layoutIntent = (text) => {
+    if (modMathOf(text)) return null;   /* "multiply 6 by 7" is math, not a 6×7 window */
     if (has(text, KW.grid16)) return 16;
     let s2 = ` ${latinDigits(text)} `;
     for (const w of BYW) s2 = s2.split(w).join(' x ');
@@ -1089,6 +1116,76 @@
             const snippet = (r && r.length) ? r.join(' · ').slice(0, 140) : t(curLang, 'mResult');
             sayBlock({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
           }).catch(() => { /* the canvas already shows the error */ });
+        }
+      }
+      /* "add a number module 255 base 16" / "add an operator *" — an explicit
+         module mention always means the node, never a calculation */
+      if (has(text, KW.number) || has(text, KW.operator)) {
+        if (document.getElementById('modEditor').hidden) {
+          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
+          if (id) globalThis.__MOD.openDoc(id); else globalThis.__MOD.newDoc();
+        }
+        if (!document.getElementById('modEditor').hidden) {
+          const M = globalThis.__MOD;
+          if (has(text, KW.operator)) {
+            const t2 = latinDigits(text).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').toLowerCase();
+            const oid = (MOD_OPS.find(([, re]) => re.test(t2)) || [])[0] || 'add';
+            const n = M.add('operator', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
+            M.cfg(n.id, { op: oid });
+            note(t(curLang, 'done'));
+            abPush({ k: 'done', t: `${t(curLang, 'mOperator')} ${OPS_SYM[oid]}` });
+          } else {
+            const n = M.add('number', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
+            const v = num(text);
+            const bm = /base\s*(\d{1,2})/.exec(text.toLowerCase());
+            const hexa = /hex|hexadecimal|十六進|十六进/.test(text);
+            const base = bm ? Math.min(36, Math.max(1, parseInt(bm[1], 10))) : hexa ? 16 : 10;
+            let val = v == null ? '0' : latinDigits(String(v));
+            const frac = /\d\.\d/.test(text);
+            let useBase = base;
+            if (base !== 10 && !frac && /^-?\d+$/.test(val)) {
+              /* "number 255 base 16" means the VALUE 255 shown in base 16 (ff) */
+              let x = BigInt(val), neg = x < 0n;
+              if (neg) x = -x;
+              const D = '0123456789abcdefghijklmnopqrstuvwxyz';
+              const B = BigInt(base);
+              let hx = '';
+              do { hx = D[Number(x % B)] + hx; x /= B; } while (x > 0n);
+              if (neg) hx = '-' + hx;
+              val = hx;
+            } else if (base !== 10) useBase = 10;
+            M.cfg(n.id, { numtype: frac ? 'dec' : 'int', base: useBase, value: val });
+            note(t(curLang, 'done'));
+            abPush({ k: 'done', t: `${t(curLang, 'mNumber')} · ${val}${useBase !== 10 ? ' (base ' + useBase + ')' : ''}` });
+          }
+        }
+      }
+      /* number + operator flows: "multiply 6 by 7", "calculate 2 ^ 10" —
+         SMate builds the real flow (Number → Operator ← Number → I/O), runs
+         it, and answers with the exact result; the flow stays on the canvas */
+      else if (modMathOf(text)) {
+        const q = modMathOf(text);
+        if (document.getElementById('modEditor').hidden) {
+          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
+          if (id) globalThis.__MOD.openDoc(id);
+        }
+        if (!document.getElementById('modEditor').hidden) {
+          const M = globalThis.__MOD;
+          const na = M.add('number', 60, 60);
+          const nb = M.add('number', 60, 320);
+          const op = M.add('operator', 360, 190);
+          const io = M.add('io', 650, 190);
+          M.cfg(na.id, { numtype: 'dec', value: q.a });
+          M.cfg(nb.id, { numtype: 'dec', value: q.b });
+          M.cfg(op.id, { op: q.op });
+          M.wire(na.id, op.id, 'a');
+          M.wire(nb.id, op.id, 'b');
+          M.wire(op.id, io.id);
+          note(t(curLang, 'mRun'));
+          Promise.resolve(M.run()).then((r) => {
+            const out = (r && r.length) ? r.join(' · ') : '';
+            sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mOperator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
+          }).catch(() => { /* the node's status line shows the error */ });
         }
       }
     }
@@ -1421,7 +1518,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | calculate <a> +|-|*|/|%|^ <b> | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
     'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');

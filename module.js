@@ -25,6 +25,9 @@ const TYPES = {
   /* Number: a typed numeric source — Integer/Decimal in any base 1–36,
      Decimal arbitrary-precision, Float/Fixed configurable to 100 digits */
   number: { w: 210, color: '#5f9e63', name: () => t(lang, 'mNumber'), hasIn: false, hasOut: true },
+  /* Operator: exact math on its two wired operands — +, −, ×, ÷, %, ^.
+     Two in ports (A above, B below); each port still holds exactly one wire. */
+  operator: { w: 210, color: '#b8764a', name: () => t(lang, 'mOperator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
   /* I/O: one node, one wire — the text typed in it is the Code module's
      stdin, and the Code module's stdout (and red errors) render back into
      its result pane. Fed from a Text module, it previews the Markdown. */
@@ -165,7 +168,9 @@ function fixedFormat(D, k, neg, s) {
     : ms.slice(0, ms.length - s) + '.' + ms.slice(ms.length - s);
   return (neg ? '-' : '') + out;
 }
-/* the Number module's single source of truth: cfg → { ok, out, hint } */
+/* the Number module's single source of truth: cfg → { ok, out, hint, rat }
+   rat is the exact value as a fraction {n: BigInt, d: BigInt>0} so the
+   Operator module can compute on it without ever touching a double */
 function computeNumber(cfg) {
   const type = cfg.numtype || 'int';
   const raw = String(cfg.value ?? '').trim();
@@ -175,21 +180,129 @@ function computeNumber(cfg) {
     if (type === 'int') {
       const v = parseIntB(raw, base);
       if (v === null) return { ok: false };
-      return { ok: true, out: formatIntB(v, base), hint: base === 10 ? '' : '= ' + formatIntB(v, 10) };
+      return { ok: true, out: formatIntB(v, base), hint: base === 10 ? '' : '= ' + formatIntB(v, 10), rat: { n: v, d: 1n } };
     }
     const d = parseDecB(raw, base);
     if (!d) return { ok: false };
-    return { ok: true, out: formatIntB(d.ip, base) + (d.fp ? '.' + d.fp : ''), hint: base === 10 ? '' : decHint(d, base) };
+    let num = d.ip, den = 1n;
+    if (d.fp) {
+      const b = BigInt(base);
+      for (const ch of d.fp) { num = num * b + BigInt(digitVal(ch, base)); den *= b; }
+    }
+    return {
+      ok: true,
+      out: formatIntB(d.ip, base) + (d.fp ? '.' + d.fp : ''),
+      hint: base === 10 ? '' : decHint(d, base),
+      rat: { n: num, d: den },   /* d.ip carries the sign; num inherits it */
+    };
   }
   const p = parseDec10(raw);
   if (!p) return { ok: false };
   const neg = p.neg && p.D !== 0n;
   const digits = Math.min(100, Math.max(1, cfg.digits | 0 || 6));
+  const rat = p.k >= 0
+    ? { n: (neg ? -p.D : p.D) * 10n ** BigInt(p.k), d: 1n }
+    : { n: neg ? -p.D : p.D, d: 10n ** BigInt(-p.k) };
   if (type === 'float') {
     const r = roundSig(p.D, p.k, digits);
-    return { ok: true, out: renderPlain(r.D, r.k, neg), hint: '' };
+    return { ok: true, out: renderPlain(r.D, r.k, neg), hint: '', rat };
   }
-  return { ok: true, out: fixedFormat(p.D, p.k, neg, digits), hint: '' };
+  return { ok: true, out: fixedFormat(p.D, p.k, neg, digits), hint: '', rat };
+}
+
+/* ---------- the Operator module: exact math on BigInt fractions ----------
+   +, −, ×, ÷, %, ^ — computed on exact rationals, then rendered in the LEFT
+   operand's number system (its base/type/digits), so hex stays hex. */
+const OPS = {
+  add: { sym: '+', name: () => t(lang, 'opAdd') },
+  sub: { sym: '−', name: () => t(lang, 'opSub') },
+  mul: { sym: '×', name: () => t(lang, 'opMul') },
+  div: { sym: '÷', name: () => t(lang, 'opDiv') },
+  mod: { sym: '%', name: () => t(lang, 'opMod') },
+  pow: { sym: '^', name: () => t(lang, 'opPow') },
+};
+function ratGcd(a, b) { while (b) { const t = a % b; a = b; b = t; } return a; }
+function ratNorm(n, d) {
+  if (d < 0n) { n = -n; d = -d; }
+  let g = ratGcd(n < 0n ? -n : n, d);
+  if (!g) g = 1n;
+  return { n: n / g, d: d / g };
+}
+/* any incoming flow value → an exact fraction, or null when it is not a number */
+function ratOf(v) {
+  if (v && v.num && typeof v.num.n === 'bigint') return ratNorm(v.num.n, v.num.d || 1n);
+  const p = parseDec10(String((v && v.text) ?? ''));
+  if (!p) return null;
+  const neg = p.neg && p.D !== 0n;
+  if (p.k >= 0) return { n: (neg ? -p.D : p.D) * 10n ** BigInt(p.k), d: 1n };
+  return { n: neg ? -p.D : p.D, d: 10n ** BigInt(-p.k) };
+}
+/* does the fraction end in base 10? if so, how many decimals it needs */
+function decScale(d) {
+  let a = 0n, b = 0n, x = d;
+  while (x % 2n === 0n) { x /= 2n; a += 1n; }
+  while (x % 5n === 0n) { x /= 5n; b += 1n; }
+  return x === 1n ? Number(a > b ? a : b) : -1;
+}
+/* fraction → mantissa D × 10^k (unsigned), exact when it terminates, else
+   truncated at `guard` fraction digits (the caller rounds from there) */
+function ratMantissa(r, guard) {
+  const neg = r.n < 0n;
+  const n = neg ? -r.n : r.n;
+  const s = decScale(r.d);
+  if (s >= 0) {
+    const D = n * 10n ** BigInt(s) / r.d;
+    return { D, k: -s, neg, exact: true };
+  }
+  const ip = n / r.d;
+  let rem = n % r.d, fr = 0n;
+  for (let i = 0; i < guard; i++) { rem *= 10n; fr = fr * 10n + rem / r.d; rem %= r.d; }
+  const gl = BigInt(guard);
+  return { D: ip * 10n ** gl + fr, k: -guard, neg, exact: false };
+}
+function computeOperator(cfg, va, vb) {
+  if (!va || !vb) return { ok: false, why: 'needAB' };
+  const opId = cfg.op || 'add';
+  const a = ratOf(va), b = ratOf(vb);
+  if (!a || !b) return { ok: false, why: 'bad' };
+  let r;
+  if (opId === 'add') r = ratNorm(a.n * b.d + b.n * a.d, a.d * b.d);
+  else if (opId === 'sub') r = ratNorm(a.n * b.d - b.n * a.d, a.d * b.d);
+  else if (opId === 'mul') r = ratNorm(a.n * b.n, a.d * b.d);
+  else if (opId === 'div') {
+    if (b.n === 0n) return { ok: false, why: 'divzero' };
+    r = ratNorm(a.n * b.d, a.d * b.n);
+  } else if (opId === 'mod') {
+    if (b.n === 0n) return { ok: false, why: 'divzero' };
+    const q = (a.n * b.d) / (a.d * b.n);          /* BigInt / truncates toward zero */
+    r = ratNorm(a.n * b.d - q * a.d * b.n, a.d * b.d);
+  } else if (opId === 'pow') {
+    if (b.d !== 1n) return { ok: false, why: 'powint' };
+    const e = b.n;
+    if (e > 100000n || e < -100000n) return { ok: false, why: 'powint' };
+    if (e >= 0n) r = ratNorm(a.n ** e, a.d ** e);
+    else {
+      if (a.n === 0n) return { ok: false, why: 'divzero' };
+      r = ratNorm(a.d ** -e, a.n ** -e);
+    }
+  } else return { ok: false, why: 'bad' };
+  /* render in the LEFT operand's number system when it has one (B's otherwise,
+     plain arbitrary-precision decimals when neither came from a Number) */
+  const sys = (va.num && va.num.numtype) ? va.num : (vb.num && vb.num.numtype) ? vb.num : { numtype: 'dec' };
+  let out;
+  if (sys.numtype === 'int') {
+    out = formatIntB(r.n / r.d, Math.min(36, Math.max(1, sys.base | 0 || 10)));
+  } else if (sys.numtype === 'float' || sys.numtype === 'fixed') {
+    const m = ratMantissa(r, 45);
+    const dg = Math.min(100, Math.max(1, sys.digits | 0 || 6));
+    if (sys.numtype === 'float') { const rr = roundSig(m.D, m.k, dg); out = renderPlain(rr.D, rr.k, m.neg); }
+    else out = fixedFormat(m.D, m.k, m.neg, dg);
+  } else {
+    const m = ratMantissa(r, 45);
+    if (m.exact) out = renderPlain(m.D, m.k, m.neg);
+    else { const rr = roundSig(m.D, m.k, 30); out = renderPlain(rr.D, rr.k, m.neg); }
+  }
+  return { ok: true, out, rat: r, sys };
 }
 
 /* ---------- text encoders ---------- */
@@ -260,8 +373,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '28a71d01';
-const BV = BUILD === '28a71d01' ? '' : '?v=' + BUILD;
+const BUILD = 'db7a9e12';
+const BV = BUILD === 'db7a9e12' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -409,6 +522,27 @@ function phaseText(ph, name) {
   return t(lang, 'mBusy');
 }
 
+/* the Operator node: computes on its two wired operands, reports the
+   equation in the hint line and any failure in the red status line */
+function runOperatorNode(n, va, vb) {
+  const el = nodeEl(n.id);
+  const stat = el && el.querySelector('.mod-cstat');
+  const hint = el && el.querySelector('.mod-ophint');
+  const setStat = (txt, cls) => { if (stat) { stat.textContent = txt; stat.className = 'mod-cstat' + (cls ? ' ' + cls : ''); } };
+  const r = computeOperator(n.cfg, va, vb);
+  const op = OPS[n.cfg.op || 'add'];
+  const whyText = { needAB: t(lang, 'mNeedAB'), bad: t(lang, 'mBadOperand'), divzero: t(lang, 'mDivZero'), powint: t(lang, 'mPowInt') };
+  if (!r.ok) {
+    if (hint) hint.textContent = '';
+    setStat(whyText[r.why] || t(lang, 'mBadOperand'), 'bad');
+    return { text: '', err: '' };
+  }
+  if (hint) hint.textContent = `${(va && va.text) ?? '?'} ${op.sym} ${(vb && vb.text) ?? '?'} = ${r.out}`;
+  setStat('', '');
+  /* the result keeps the operand's number system, so chained operators stay in it */
+  return { text: r.out, num: { numtype: r.sys.numtype, base: r.sys.base | 0 || 10, digits: r.sys.digits | 0 || 6, n: r.rat.n, d: r.rat.d } };
+}
+
 async function runCodeNode(n, ins) {
   const el = nodeEl(n.id);
   const stat = el && el.querySelector('.mod-cstat');
@@ -517,12 +651,14 @@ function applyView() {
 function portPos(id, which) {
   const n = doc.nodes.find((x) => x.id === id);
   if (!n) return [0, 0];
-  return which === 'out' ? [n.x + TYPES[n.type].w, n.y + 18] : [n.x, n.y + 18];
+  if (which === 'out') return [n.x + TYPES[n.type].w, n.y + 18];
+  if (which === 'in:b') return [n.x, n.y + 72];   /* the Operator's B port, below A */
+  return [n.x, n.y + 18];
 }
 /* square connectors only: H-V-H polylines, sharp 90° corners, no curves */
-function wirePath(a, b) {
+function wirePath(a, b, toPort) {
   const [x1, y1] = portPos(a, 'out');
-  const [x2, y2] = portPos(b, 'in');
+  const [x2, y2] = portPos(b, toPort === 'b' ? 'in:b' : 'in');
   const mid = Math.round((x1 + x2) / 2);
   return `M ${x1} ${y1} H ${mid} V ${y2} H ${x2}`;
 }
@@ -530,7 +666,7 @@ function wirePath(a, b) {
 function redrawWires() {
   const sel = selectedWire;
   wiresSvg.innerHTML = doc.wires.map((w, i) =>
-    `<path d="${wirePath(w.from, w.to)}" class="mod-wire${i === sel ? ' sel' : ''}" data-i="${i}"/>`).join('');
+    `<path d="${wirePath(w.from, w.to, w.toPort)}" class="mod-wire${i === sel ? ' sel' : ''}" data-i="${i}"/>`).join('');
   [...wiresSvg.querySelectorAll('.mod-wire')].forEach((p) => {
     p.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -750,6 +886,79 @@ function modDropdown(n, key, label, options, onPick) {
   return wrap;
 }
 
+/* A Singhoah number stepper: a mono field with a stacked up/down control —
+   type any value, tap or hold the arrows, or use the arrow keys. The buttons
+   repeat while held, so base 1–36 and 1–100 digits never need a long scroll. */
+function modStepper(n, key, label, min, max, onChange) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mod-step';
+  const lab = document.createElement('span');
+  lab.className = 'mod-step-lab';
+  lab.textContent = label;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'mod-stepin';
+  inp.inputMode = 'numeric';
+  inp.setAttribute('aria-label', label);
+  const clamp = (v) => Math.min(max, Math.max(min, v));
+  const cur = () => clamp(n.cfg[key] | 0 || min);
+  const up = document.createElement('button');
+  const dn = document.createElement('button');
+  const apply = (v) => {
+    const c = clamp(v);
+    n.cfg[key] = c;
+    inp.value = String(c);
+    up.disabled = c >= max;
+    dn.disabled = c <= min;
+    onChange(c);
+    touch();
+  };
+  up.type = 'button';
+  up.className = 'mod-stepbtn';
+  up.setAttribute('aria-label', t(lang, 'zoomIn'));
+  up.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 15 7-7 7 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  dn.type = 'button';
+  dn.className = 'mod-stepbtn';
+  dn.setAttribute('aria-label', t(lang, 'zoomOut'));
+  dn.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 9 7 7 7-7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  /* hold to repeat: a long press sweeps the range, no scrolling through lists */
+  const hold = (btn, dir) => {
+    let iv = 0;
+    let lastPtr = 0;
+    const stop = () => { clearInterval(iv); iv = 0; };
+    btn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); e.preventDefault();
+      lastPtr = Date.now();
+      apply(cur() + dir);
+      iv = setInterval(() => apply(cur() + dir), 90);
+      const done = () => { stop(); document.removeEventListener('pointerup', done, true); document.removeEventListener('pointercancel', done, true); };
+      document.addEventListener('pointerup', done, true);
+      document.addEventListener('pointercancel', done, true);
+    });
+    btn.addEventListener('pointerleave', stop);
+    /* keyboard or synthetic activation still steps once; a real tap already
+       stepped on pointerdown, so the click that follows is ignored */
+    btn.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - lastPtr < 700) return; apply(cur() + dir); });
+  };
+  hold(up, 1);
+  hold(dn, -1);
+  const commit = () => { const m = /^-?\d{1,4}$/.exec(inp.value.trim()); apply(m ? parseInt(inp.value, 10) : cur()); };
+  inp.addEventListener('change', commit);
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (e.key === 'ArrowUp') { e.preventDefault(); apply(cur() + 1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); apply(cur() - 1); }
+    else if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  });
+  const btns = document.createElement('span');
+  btns.className = 'mod-stepbtns';
+  btns.append(up, dn);
+  wrap.append(lab, inp, btns);
+  requestAnimationFrame(() => { inp.value = String(cur()); up.disabled = cur() >= max; dn.disabled = cur() <= min; });
+  return wrap;
+}
+
 function renderNode(n) {
   const T = TYPES[n.type];
   if (!T) return;   /* retired module types are migrated on open; be safe anyway */
@@ -774,6 +983,10 @@ function renderNode(n) {
     /* no inline output field: results and errors render in the connected
        Output module, stdin comes from Text modules and Input modules */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div></div>`;
+  } else if (n.type === 'operator') {
+    /* the Operator: an operation select over its two wired operands; the hint
+       line shows the equation, the status line turns red on bad input */
+    body = `<div class="mod-body"><div class="mod-ddrow"><div class="mod-dd-slot"></div></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'number') {
     /* the Number module: type select + base select (Integer/Decimal) or digit
        count (Float/Fixed), a mono value field, and a base-10 hint. The value
@@ -786,7 +999,10 @@ function renderNode(n) {
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
-  el.innerHTML = head + body + (T.hasIn ? '<span class="mod-port in"></span>' : '') + (T.hasOut ? '<span class="mod-port out"></span>' : '');
+  const inPortsHtml = T.inPorts
+    ? T.inPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${40 + i * 32}px"></span><span class="mod-plab" style="top:${45 + i * 32}px">${pt.toUpperCase()}</span>`).join('')
+    : (T.hasIn ? '<span class="mod-port in" data-port="a"></span>' : '');
+  el.innerHTML = head + body + inPortsHtml + (T.hasOut ? '<span class="mod-port out"></span>' : '');
   el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
 
   const ta = el.querySelector('.mod-ta');
@@ -830,13 +1046,9 @@ function renderNode(n) {
     slot.appendChild(modDropdown(n, 'numtype', t(lang, 'mType'), NUM_TYPES,
       (v) => { n.cfg.numtype = v; renderNode(n); }));   /* rebuild: the second dropdown depends on the type */
     if (nt === 'int' || nt === 'dec') {
-      const bases = Array.from({ length: 36 }, (_, i) => [i + 1, `${t(lang, 'mBase')} ${i + 1}`]);
-      slot.appendChild(modDropdown(n, 'base', t(lang, 'mBase'), bases,
-        (v) => { n.cfg.base = v; revalidate(); touch(); }));
+      slot.appendChild(modStepper(n, 'base', t(lang, 'mBase'), 1, 36, () => revalidate()));
     } else {
-      const digs = Array.from({ length: 100 }, (_, i) => [i + 1, `${i + 1} ${t(lang, 'mDigits')}`]);
-      slot.appendChild(modDropdown(n, 'digits', t(lang, 'mDigits'), digs,
-        (v) => { n.cfg.digits = v; revalidate(); touch(); }));
+      slot.appendChild(modStepper(n, 'digits', t(lang, 'mDigits'), 1, 100, () => revalidate()));
     }
     const nin = el.querySelector('.mod-numin');
     if (nin) {
@@ -844,6 +1056,12 @@ function renderNode(n) {
       nin.addEventListener('input', () => { n.cfg.value = nin.value; revalidate(); touch(); });
     }
     revalidate();
+  } else if (slot && n.type === 'operator') {
+    slot.appendChild(modDropdown(n, 'op', t(lang, 'mOperator'),
+      Object.entries(OPS).map(([id, o]) => [id, `${o.sym}  ${o.name()}`]),
+      (v) => { n.cfg.op = v; touch(); }));
+    const stat = el.querySelector('.mod-cstat');
+    if (stat) stat.textContent = t(lang, 'mNeedAB');
   }
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
 
@@ -894,10 +1112,13 @@ function renderNode(n) {
         const target = drop && drop.closest ? drop.closest('.mod-port.in') : null;
         if (target) {
           const tNode = target.closest('.mod-node').dataset.id;
-          if (tNode !== n.id) {
+          const tPort = target.dataset.port || 'a';
+          const tn = nodeOf(tNode);
+          const okPort = !TYPES[tn.type].inPorts || TYPES[tn.type].inPorts.includes(tPort);
+          if (tNode !== n.id && okPort) {
             /* one wire per port, both ends: this port's previous wire moves with the new drop */
-            doc.wires = doc.wires.filter((w) => w.to !== tNode && w.from !== n.id);
-            doc.wires.push({ from: n.id, to: tNode });
+            doc.wires = doc.wires.filter((w) => !(w.to === tNode && (w.toPort || 'a') === tPort) && w.from !== n.id);
+            doc.wires.push({ from: n.id, to: tNode, toPort: tPort });
             touch();
           }
         }
@@ -925,7 +1146,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -992,9 +1213,17 @@ async function run() {
         if ((n.cfg.enc || 'plain') === 'plain') v.html = mdToHtml(n.cfg.text || '');
       }
       else if (n.type === 'number') {
-        /* the number flows on exactly as shown in its own representation */
+        /* the number flows on exactly as shown in its own representation —
+           and carries its exact rational + number system for the Operator */
         const r = computeNumber(n.cfg);
         v = { text: r.ok ? r.out : '' };
+        if (r.ok) v.num = { numtype: n.cfg.numtype || 'int', base: n.cfg.base | 0 || 10, digits: n.cfg.digits | 0 || 6, n: r.rat.n, d: r.rat.d };
+      }
+      else if (n.type === 'operator') {
+        /* each in port feeds one operand: A (top) and B (bottom) */
+        const wa = doc.wires.find((w) => w.to === n.id && (w.toPort || 'a') === 'a');
+        const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
+        v = runOperatorNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
       }
       else if (n.type === 'code') {
         /* stdin: the text typed into attached I/O nodes first, then whatever
@@ -1082,7 +1311,7 @@ function migrateDoc() {
   for (const w of wires) {
     const iOut = kept.findIndex((x) => x.from === w.from);
     if (iOut >= 0) { kept.splice(iOut, 1); changed = true; }
-    const iIn = kept.findIndex((x) => x.to === w.to);
+    const iIn = kept.findIndex((x) => x.to === w.to && (x.toPort || 'a') === (w.toPort || 'a'));
     if (iIn >= 0) { kept.splice(iIn, 1); changed = true; }
     kept.push(w);
   }
@@ -1177,6 +1406,7 @@ function applyLang(id, persist = true) {
   $('modAddIO').textContent = t(lang, 'mIO');
   $('modAddC').textContent = t(lang, 'mCode');
   $('modAddN').textContent = t(lang, 'mNumber');
+  $('modAddO').textContent = t(lang, 'mOperator');
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
   $('modTitle').placeholder = t(lang, 'flUntitledFlow');
@@ -1247,19 +1477,20 @@ globalThis.__MOD = {
   serialize: () => (docId ? FS.docToJSON(docId) : null),
   nodes: () => JSON.parse(JSON.stringify(doc.nodes)),
   wires: () => JSON.parse(JSON.stringify(doc.wires)),
-  wire: (a, b) => {
+  wire: (a, b, port = 'a') => {
     /* standardized with the canvas: the source needs an out port, the target an in port */
     const A = nodeOf(a), B = nodeOf(b);
     if (!A || !B || !TYPES[A.type].hasOut || !TYPES[B.type].hasIn) return false;
+    if (TYPES[B.type].inPorts && !TYPES[B.type].inPorts.includes(port)) return false;
     /* one wire per port, both ends: rewiring moves the connection */
-    doc.wires = doc.wires.filter((w) => w.to !== b && w.from !== a);
-    doc.wires.push({ from: a, to: b });
+    doc.wires = doc.wires.filter((w) => !(w.to === b && (w.toPort || 'a') === port) && w.from !== a);
+    doc.wires.push({ from: a, to: b, toPort: port });
     redrawWires(); touch();
     return true;
   },
   removeNode,
   cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && patch.value !== undefined) { const ni = el.querySelector('.mod-numin'); if (ni) { ni.value = patch.value; ni.dispatchEvent(new Event('input', { bubbles: true })); } }
-  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
+  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined || patch.op !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),
