@@ -2936,6 +2936,178 @@ await prn.close();
   await scx.close();
 }
 
+/* ---- the Number module: typed numbers as a source ---- */
+{
+  const ncx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const np = await ncx.newPage();
+  await np.goto(URL + 'module.html', { waitUntil: 'load' });
+  await np.waitForTimeout(900);
+  ok('the Number module joins the toolbar', await np.evaluate(() =>
+    !!document.querySelector('.mod-add[data-add="number"]')
+    && document.getElementById('modAddN').textContent === 'Number'));
+  /* structure: a source node with an out port only, type select + base select */
+  const numId = await np.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const io = M.add('io', 320, 60);
+    const n = M.add('number', 60, 60);
+    M.wire(n.id, io.id);
+    return { n: n.id, io: io.id };
+  });
+  const struct = await np.evaluate((ids) => {
+    const el = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
+    const dd = [...el.querySelectorAll('.mod-dd-btn .mod-dd-txt')].map((x) => x.textContent);
+    const std = getComputedStyle(el.querySelector('.mod-dd-btn'));
+    const inp = getComputedStyle(el.querySelector('.mod-numin'));
+    return {
+      outOnly: !!el.querySelector('.mod-port.out') && !el.querySelector('.mod-port.in'),
+      dd, radius: std.borderRadius + '/' + inp.borderRadius, w: std.fontWeight,
+    };
+  }, numId);
+  ok('the Number node is a source: one out port, type + base selects, standardized chips',
+    struct.outOnly && struct.dd.join('|') === 'Integer|Base 10' && struct.radius === '0px/0px' && struct.w === '650',
+    JSON.stringify(struct));
+  /* the type dropdown offers the four number types; Float swaps base for digits */
+  const typeDd = await np.evaluate(async (ids) => {
+    const el = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
+    el.querySelectorAll('.mod-dd')[0].querySelector('.mod-dd-btn').click();       /* open type */
+    await new Promise((r) => setTimeout(r, 150));
+    const list = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt')].map((b) => b.textContent.trim());
+    const float = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt')].find((b) => b.textContent.trim() === 'Float');
+    float.click();                                                                 /* pick Float */
+    await new Promise((r) => setTimeout(r, 150));
+    const dd2 = [...document.querySelectorAll(`.mod-node[data-id="${ids.n}"] .mod-dd-btn .mod-dd-txt`)].map((x) => x.textContent);
+    const el2 = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
+    el2.querySelectorAll('.mod-dd')[1].querySelector('.mod-dd-btn').click();       /* open digits */
+    await new Promise((r) => setTimeout(r, 150));
+    const digs = document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt').length;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    return { list, dd2, digs };
+  }, numId);
+  ok('the type select reveals Integer, Decimal, Float, Fixed — Float replaces Base with a digit count (1–100)',
+    typeDd.list.join('|') === 'Integer|Decimal|Float|Fixed'
+      && typeDd.dd2.join('|') === 'Float|6 digits' && typeDd.digs === 100,
+    JSON.stringify(typeDd));
+  /* integer bases: hex, unary, base 36 — the hint shows the base-10 equivalent */
+  const hints = {};
+  for (const [name, patch] of [
+    ['hex', { numtype: 'int', base: 16, value: 'ff' }],
+    ['unary', { numtype: 'int', base: 1, value: '111' }],
+    ['b36', { numtype: 'int', base: 36, value: 'zz' }],
+    ['dec16', { numtype: 'dec', base: 16, value: '1f.4a' }],
+    ['dec3', { numtype: 'dec', base: 3, value: '0.1' }],
+  ]) {
+    await np.evaluate(({ ids, p }) => globalThis.__MOD.cfg(ids.n, p), { ids: numId, p: patch });
+    await np.waitForTimeout(120);
+    hints[name] = await np.evaluate((ids) =>
+      document.querySelector(`.mod-node[data-id="${ids.n}"] .mod-numhint`).textContent, numId);
+  }
+  ok('bases convert with an exact base-10 hint (hex ff=255, unary 111=3, base-36 zz=1295)',
+    hints.hex === '= 255' && hints.unary === '= 3' && hints.b36 === '= 1295', JSON.stringify(hints));
+  ok('arbitrary-precision decimals: exact when the expansion terminates, ≈… when it never does',
+    hints.dec16 === '= 31.2890625' && hints.dec3.startsWith('≈ 0.333333333333'), JSON.stringify(hints));
+  /* what flows out is exactly what the node shows, for every type */
+  const flow = [];
+  for (const [name, patch, want] of [
+    ['pi30', { numtype: 'dec', base: 10, value: '3.141592653589793238462643383279' }, '3.141592653589793238462643383279'],
+    ['f5', { numtype: 'float', digits: 5, value: '3.14159265358979' }, '3.1416'],
+    ['fCarry', { numtype: 'float', digits: 2, value: '99995' }, '100000'],
+    ['f100', { numtype: 'float', digits: 100, value: '1e3' }, '1000'],
+    ['x4', { numtype: 'fixed', digits: 4, value: '3.5' }, '3.5000'],
+    ['x1', { numtype: 'fixed', digits: 1, value: '0.15' }, '0.2'],
+    ['invalid', { numtype: 'int', base: 16, value: 'g' }, ''],
+  ]) {
+    const got = await np.evaluate(async ({ ids, p }) => {
+      const M = globalThis.__MOD;
+      M.cfg(ids.n, p);
+      await M.run();
+      const box = document.querySelector(`.mod-node[data-id="${ids.io}"] .mod-result`);
+      return box.textContent === 'Result —' ? '' : box.textContent;   /* invalid flows nothing */
+    }, { ids: numId, p: patch });
+    flow.push([name, got === want, got]);
+  }
+  ok('every type flows its exact representation (dec keeps 30 digits, float rounds to its digits, fixed pads)',
+    flow.every((f) => f[1]), JSON.stringify(flow.filter((f) => !f[1])));
+  /* invalid input: red status on the node, nothing flows */
+  const bad = await np.evaluate((ids) => {
+    const el = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
+    const stat = el.querySelector('.mod-cstat');
+    return { cls: stat.className, msg: stat.textContent, shown: getComputedStyle(stat).color };
+  }, numId);
+  ok('a value that does not parse turns the status line red with a plain message',
+    bad.cls.includes('bad') && bad.msg === 'Not a valid number' && /192, ?57, ?43/.test(bad.shown), JSON.stringify(bad));
+  /* the number feeds the Code module's stdin like any source */
+  const stdin = await np.evaluate(async (ids) => {
+    const M = globalThis.__MOD;
+    const c = M.add('code', 60, 420);
+    M.cfg(c.id, { code: "console.log('got ' + input)" });
+    const io2 = M.add('io', 420, 420);
+    M.wire(c.id, io2.id);
+    M.cfg(ids.n, { numtype: 'int', base: 16, value: 'ff' });
+    M.wire(ids.n, c.id);          /* the number's out-port wire moves to the Code node */
+    await M.run();
+    await new Promise((r) => setTimeout(r, 2500));
+    return document.querySelector(`.mod-node[data-id="${io2.id}"] .mod-result`).textContent;
+  }, numId);
+  ok('a Number wired into Code becomes its stdin (base-16 ff reads as ff)', /got ff/.test(stdin), stdin);
+  /* serialization round-trips the number configuration */
+  const ser = await np.evaluate((ids) => {
+    const M = globalThis.__MOD;
+    return JSON.parse(M.serialize()).data.nodes.find((x) => x.id === ids.n).cfg;
+  }, numId);
+  ok('the number configuration round-trips through the flow document',
+    ser.numtype === 'int' && ser.base === 16 && ser.value === 'ff', JSON.stringify(ser));
+  await ncx.close();
+
+  /* light mode: the number node's hint, status and field all pass 3:1 */
+  const lcx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const lp2 = await lcx2.newPage();
+  await lp2.goto(URL + 'module.html', { waitUntil: 'load' });
+  await lp2.evaluate(() => localStorage.setItem('singhoah:night', '0'));
+  await lp2.reload();
+  await lp2.waitForTimeout(900);
+  const lightNum = await lp2.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const n = M.add('number', 60, 60);
+    M.cfg(n.id, { numtype: 'int', base: 16, value: 'g' });   /* red status + hint visible */
+    const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+    const lum = (r, g, b) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const parse = (s) => { const m = /rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?\)/.exec(s || ''); return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null; };
+    const effBg = (el2) => { for (let n2 = el2; n2 && n2.nodeType === 1; n2 = n2.parentElement) { const c = parse(getComputedStyle(n2).backgroundColor); if (c && c[3] > 0.85) return c; } return [255, 255, 255, 1]; };
+    for (const el2 of el.querySelectorAll('.mod-numhint, .mod-cstat, .mod-numin')) {
+      if (!el2.getClientRects().length || !el2.textContent.trim()) continue;
+      const fg = parse(getComputedStyle(el2).color);
+      const bg = effBg(el2);
+      const la = lum(...fg.slice(0, 3)), lb = lum(...bg.slice(0, 3));
+      if ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05) < 3) return 'unreadable: ' + el2.className;
+    }
+    return '';
+  });
+  ok('light mode: the Number node reads cleanly (hint, red status, value field)', lightNum === '', lightNum);
+  await lcx2.close();
+
+  /* mobile: the number node fits a phone and its dropdowns clamp to the screen */
+  const mcx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const mp2 = await mcx2.newPage();
+  await mp2.goto(URL + 'module.html', { waitUntil: 'load' });
+  await mp2.waitForTimeout(900);
+  const mobNum = await mp2.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    M.add('number', 40, 40);
+    const fits = document.documentElement.scrollWidth <= window.innerWidth + 1;
+    document.querySelector('.mod-node .mod-dd-btn').click();   /* open the type select */
+    await new Promise((r) => setTimeout(r, 250));
+    const list = document.querySelector('.mod-dd-list:not([hidden])');
+    const r = list.getBoundingClientRect();
+    return { fits, open: !!list, clamped: r.left >= 0 && r.right <= innerWidth, opts: list.children.length };
+  });
+  ok('mobile: the Number node fits the phone and its type select clamps inside the screen',
+    mobNum.fits && mobNum.open && mobNum.clamped && mobNum.opts === 4, JSON.stringify(mobNum));
+  await mcx2.close();
+}
+
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */
 {
   /* the code editor is a wide text area: long lines must scroll sideways with

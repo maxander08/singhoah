@@ -22,6 +22,9 @@ const GRID = 24;
 const TYPES = {
   text: { w: 230, color: '#4a76b8', name: () => t(lang, 'mText'), hasIn: false, hasOut: true },
   code: { w: 310, color: '#8b5fbf', name: () => t(lang, 'mCode'), hasIn: true, hasOut: true },
+  /* Number: a typed numeric source — Integer/Decimal in any base 1–36,
+     Decimal arbitrary-precision, Float/Fixed configurable to 100 digits */
+  number: { w: 210, color: '#5f9e63', name: () => t(lang, 'mNumber'), hasIn: false, hasOut: true },
   /* I/O: one node, one wire — the text typed in it is the Code module's
      stdin, and the Code module's stdout (and red errors) render back into
      its result pane. Fed from a Text module, it previews the Markdown. */
@@ -29,6 +32,165 @@ const TYPES = {
 };
 const nodeOf = (id) => doc.nodes.find((x) => x.id === id);
 const ENCS = ['plain', 'b64', 'url', 'hex', 'uni', 'ent', 'rot'];
+
+/* ---------- number module: exact math on BigInt, never floating point ----------
+   Numbers are represented with Western digits and a–z only (base 36 max);
+   translations apply to the UI labels, never to the numerals themselves. */
+const DIGITS36 = '0123456789abcdefghijklmnopqrstuvwxyz';
+const digitVal = (ch, base) => {
+  const c = ch.charCodeAt(0);
+  const v = c <= 57 ? c - 48 : (c >= 97 && c <= 122 ? c - 87 : -1);
+  return v >= 0 && v < base ? v : -1;
+};
+/* integer in base 1–36 (base 1 = unary tally: 111 is three) → BigInt, or null */
+function parseIntB(str, base) {
+  if (typeof str !== 'string' || !str.trim().length) return null;
+  let s = str.trim().toLowerCase();
+  let neg = false;
+  if (s[0] === '+' || s[0] === '-') { neg = s[0] === '-'; s = s.slice(1); if (!s.length) return null; }
+  if (base === 1) {
+    if (s === '0') return 0n;
+    if (!/^1+$/.test(s)) return null;
+    return (neg ? -1n : 1n) * BigInt(s.length);
+  }
+  if (!/^[0-9a-z]+$/.test(s)) return null;
+  let v = 0n;
+  const b = BigInt(base);
+  for (const ch of s) { const d = digitVal(ch, base); if (d < 0) return null; v = v * b + BigInt(d); }
+  return neg ? -v : v;
+}
+function formatIntB(v, base) {
+  if (v === 0n) return '0';
+  const neg = v < 0n;
+  if (neg) v = -v;
+  if (base === 1) return (neg ? '-' : '') + '1'.repeat(Number(v));
+  const b = BigInt(base);
+  let out = '';
+  while (v > 0n) { out = DIGITS36[Number(v % b)] + out; v /= b; }
+  return (neg ? '-' : '') + out;
+}
+/* arbitrary-precision decimal in base 2–36 (base 1: whole tallies only),
+   kept EXACTLY as {ip: BigInt, fp: fraction digit string} — never rounded */
+function parseDecB(str, base) {
+  if (typeof str !== 'string') return null;
+  let s = str.trim().toLowerCase();
+  let neg = false;
+  if (s[0] === '+' || s[0] === '-') { neg = s[0] === '-'; s = s.slice(1); }
+  const parts = s.split('.');
+  if (parts.length > 2 || !s.length) return null;
+  const ip = parts[0] || '', fp = parts[1] || '';
+  if (!ip.length && !fp.length) return null;
+  if (base === 1) {
+    if (fp.length) return null;                      /* unary has no fractions */
+    if (ip === '0') return { ip: 0n, fp: '' };
+    if (!/^1+$/.test(ip)) return null;
+    return { ip: (neg ? -1n : 1n) * BigInt(ip.length), fp: '' };
+  }
+  for (const ch of ip + fp) if (digitVal(ch, base) < 0) return null;
+  const b = BigInt(base);
+  let ipN = 0n;
+  for (const ch of ip) ipN = ipN * b + BigInt(digitVal(ch, base));
+  return { ip: neg ? -ipN : ipN, fp: fp.replace(/0+$/, '') };
+}
+/* the base-10 equivalent shown as a hint: exact when it terminates, ≈… when not */
+function decHint(d, base) {
+  const ipStr = formatIntB(d.ip, 10);
+  if (!d.fp) return '= ' + ipStr;
+  let num = 0n, den = 1n;
+  const b = BigInt(base);
+  for (const ch of d.fp) { num = num * b + BigInt(digitVal(ch, base)); den *= b; }
+  let out = '', n = num;
+  for (let i = 0; i < 13 && n > 0n; i++) { n *= 10n; out += DIGITS36[Number(n / den)]; n %= den; }
+  return n === 0n ? '= ' + ipStr + '.' + out : '≈ ' + ipStr + '.' + out.slice(0, 12) + '…';
+}
+/* base-10 mantissa/exponent: value = D × 10^k, D ≥ 0 (accepts 3, 3.5, .5, 1e3) */
+function parseDec10(str) {
+  if (typeof str !== 'string') return null;
+  let s = str.trim().toLowerCase();
+  let neg = false;
+  if (s[0] === '+' || s[0] === '-') { neg = s[0] === '-'; s = s.slice(1); }
+  const m = /^(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/.exec(s);
+  if (!m) return null;
+  const ip = m[1] || '', fp = m[2] || '';
+  if (!ip.length && !fp.length) return null;
+  const ex = m[3] ? parseInt(m[3], 10) : 0;
+  const all = ip + fp;
+  if (/^0*$/.test(all)) return { neg: false, D: 0n, k: 0 };
+  let digits = all.replace(/^0+/, '');
+  let k = ex - fp.length;
+  const tz = digits.length - digits.replace(/0+$/, '').length;
+  if (tz) { digits = digits.slice(0, digits.length - tz); k += tz; }
+  return { neg, D: BigInt(digits), k };
+}
+/* round to p significant digits, half-up (99995 @ 2 → 100000) */
+function roundSig(D, k, p) {
+  const ds = D.toString();
+  if (ds.length <= p) return { D, k };
+  const shift = ds.length - p;
+  let R = BigInt(ds.slice(0, p));
+  if (ds[p] >= '5') R += 1n;
+  let kk = k + shift;
+  let rs = R.toString();
+  if (rs.length > p) { kk += rs.length - 1; rs = rs[0]; }   /* the carry crossed a power of ten */
+  const tz = rs.length - rs.replace(/0+$/, '').length;
+  if (tz) { rs = rs.slice(0, rs.length - tz); kk += tz; }
+  return { D: BigInt(rs), k: kk };
+}
+function renderPlain(D, k, neg) {
+  if (D === 0n) return '0';
+  const ds = D.toString();
+  let out;
+  if (k >= 0) out = ds + '0'.repeat(k);
+  else {
+    const fl = -k;
+    out = ds.length > fl ? ds.slice(0, ds.length - fl) + '.' + ds.slice(ds.length - fl)
+      : '0.' + '0'.repeat(fl - ds.length) + ds;
+  }
+  return (neg ? '-' : '') + out;
+}
+/* fixed point: exactly s decimals, rounded half-up (3.5 @ 4 → 3.5000, 0.15 @ 1 → 0.2) */
+function fixedFormat(D, k, neg, s) {
+  if (D === 0n) neg = false;
+  const e = k + s;
+  let M;
+  if (e >= 0) M = D * 10n ** BigInt(e);
+  else {
+    const den = 10n ** BigInt(-e);
+    M = (D * 2n + den) / (2n * den);   /* floor((D + den/2) / den): half rounds away from zero */
+  }
+  if (M === 0n) neg = false;
+  const ms = M.toString();
+  const out = s === 0 ? ms
+    : ms.length <= s ? '0.' + '0'.repeat(s - ms.length) + ms
+    : ms.slice(0, ms.length - s) + '.' + ms.slice(ms.length - s);
+  return (neg ? '-' : '') + out;
+}
+/* the Number module's single source of truth: cfg → { ok, out, hint } */
+function computeNumber(cfg) {
+  const type = cfg.numtype || 'int';
+  const raw = String(cfg.value ?? '').trim();
+  if (!raw) return { ok: false };
+  if (type === 'int' || type === 'dec') {
+    const base = Math.min(36, Math.max(1, cfg.base | 0 || 10));
+    if (type === 'int') {
+      const v = parseIntB(raw, base);
+      if (v === null) return { ok: false };
+      return { ok: true, out: formatIntB(v, base), hint: base === 10 ? '' : '= ' + formatIntB(v, 10) };
+    }
+    const d = parseDecB(raw, base);
+    if (!d) return { ok: false };
+    return { ok: true, out: formatIntB(d.ip, base) + (d.fp ? '.' + d.fp : ''), hint: base === 10 ? '' : decHint(d, base) };
+  }
+  const p = parseDec10(raw);
+  if (!p) return { ok: false };
+  const neg = p.neg && p.D !== 0n;
+  const digits = Math.min(100, Math.max(1, cfg.digits | 0 || 6));
+  if (type === 'float') {
+    const r = roundSig(p.D, p.k, digits);
+    return { ok: true, out: renderPlain(r.D, r.k, neg), hint: '' };
+  }
+  return { ok: true, out: fixedFormat(p.D, p.k, neg, digits), hint: '' };
+}
 
 /* ---------- text encoders ---------- */
 const b64enc = (s) => {
@@ -98,8 +260,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '82b8249c';
-const BV = BUILD === '82b8249c' ? '' : '?v=' + BUILD;
+const BUILD = '28a71d01';
+const BV = BUILD === '28a71d01' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -612,6 +774,11 @@ function renderNode(n) {
     /* no inline output field: results and errors render in the connected
        Output module, stdin comes from Text modules and Input modules */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div></div>`;
+  } else if (n.type === 'number') {
+    /* the Number module: type select + base select (Integer/Decimal) or digit
+       count (Float/Fixed), a mono value field, and a base-10 hint. The value
+       itself is always plain digits a–z — never localized numerals. */
+    body = `<div class="mod-body"><div class="mod-ddrow mod-dd-slot"></div><input class="mod-numin" spellcheck="false" autocomplete="off" placeholder="${t(lang, 'mValue')}" aria-label="${t(lang, 'mValue')}"><p class="mod-numhint"></p><div class="mod-cstat"></div></div>`;
   } else if (n.type === 'io') {
     /* a terminal, recognizable at a glance: traffic-light dots, always-dark
        screen, monospace type, a > prompt marking the input line */
@@ -645,6 +812,38 @@ function renderNode(n) {
       if (cta) { cta.value = n.cfg.code || ''; cta.dispatchEvent(new Event('input', { bubbles: true })); }
       touch();
     }));
+  } else if (slot && n.type === 'number') {
+    /* live validation: the hint shows the base-10 equivalent, the status line
+       turns red when the value does not parse in the chosen type and base */
+    const revalidate = () => {
+      const r = computeNumber(n.cfg);
+      const hint = el.querySelector('.mod-numhint');
+      const stat = el.querySelector('.mod-cstat');
+      if (hint) hint.textContent = r.ok ? (r.hint || '') : '';
+      if (stat) {
+        stat.textContent = r.ok ? '' : t(lang, 'mInvalid');
+        stat.className = 'mod-cstat' + (r.ok ? '' : ' bad');
+      }
+    };
+    const NUM_TYPES = [['int', t(lang, 'mInt')], ['dec', t(lang, 'mDec')], ['float', t(lang, 'mFloat')], ['fixed', t(lang, 'mFixed')]];
+    const nt = n.cfg.numtype || 'int';
+    slot.appendChild(modDropdown(n, 'numtype', t(lang, 'mType'), NUM_TYPES,
+      (v) => { n.cfg.numtype = v; renderNode(n); }));   /* rebuild: the second dropdown depends on the type */
+    if (nt === 'int' || nt === 'dec') {
+      const bases = Array.from({ length: 36 }, (_, i) => [i + 1, `${t(lang, 'mBase')} ${i + 1}`]);
+      slot.appendChild(modDropdown(n, 'base', t(lang, 'mBase'), bases,
+        (v) => { n.cfg.base = v; revalidate(); touch(); }));
+    } else {
+      const digs = Array.from({ length: 100 }, (_, i) => [i + 1, `${i + 1} ${t(lang, 'mDigits')}`]);
+      slot.appendChild(modDropdown(n, 'digits', t(lang, 'mDigits'), digs,
+        (v) => { n.cfg.digits = v; revalidate(); touch(); }));
+    }
+    const nin = el.querySelector('.mod-numin');
+    if (nin) {
+      nin.value = n.cfg.value ?? '0';
+      nin.addEventListener('input', () => { n.cfg.value = nin.value; revalidate(); touch(); });
+    }
+    revalidate();
   }
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
 
@@ -726,7 +925,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -791,6 +990,11 @@ async function run() {
         /* Markdown is native: plain text renders as Markdown downstream */
         v = { text: encode(n.cfg.enc || 'plain', n.cfg.text || '') };
         if ((n.cfg.enc || 'plain') === 'plain') v.html = mdToHtml(n.cfg.text || '');
+      }
+      else if (n.type === 'number') {
+        /* the number flows on exactly as shown in its own representation */
+        const r = computeNumber(n.cfg);
+        v = { text: r.ok ? r.out : '' };
       }
       else if (n.type === 'code') {
         /* stdin: the text typed into attached I/O nodes first, then whatever
@@ -972,6 +1176,7 @@ function applyLang(id, persist = true) {
   $('modAddT').textContent = t(lang, 'mText');
   $('modAddIO').textContent = t(lang, 'mIO');
   $('modAddC').textContent = t(lang, 'mCode');
+  $('modAddN').textContent = t(lang, 'mNumber');
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
   $('modTitle').placeholder = t(lang, 'flUntitledFlow');
@@ -1053,7 +1258,8 @@ globalThis.__MOD = {
     return true;
   },
   removeNode,
-  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && (patch.enc !== undefined || patch.lang !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
+  cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && patch.value !== undefined) { const ni = el.querySelector('.mod-numin'); if (ni) { ni.value = patch.value; ni.dispatchEvent(new Event('input', { bubbles: true })); } }
+  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),
