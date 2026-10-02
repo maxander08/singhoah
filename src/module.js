@@ -1048,9 +1048,11 @@ function renderNode(n) {
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'operator' || n.type === 'comparator') {
     /* the Operator and Comparator share one body: an operation select over
-       the two wired operands; the hint line shows the equation or verdict,
-       the status line turns red on bad input */
-    body = `<div class="mod-body"><div class="mod-ddrow"><div class="mod-dd-slot"></div></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
+       the two wired operands. A lone control spans its row exactly, like
+       the Code module's language select (12px insets, symmetric); the hint
+       line shows the equation or verdict, the status line turns red on bad
+       input — and stays silent while the module is simply waiting */
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'number') {
     /* the Number module: type select + base select (Integer/Decimal) or digit
        count (Float/Fixed), a mono value field, and a base-10 hint. The value
@@ -1125,14 +1127,10 @@ function renderNode(n) {
     slot.appendChild(modDropdown(n, 'op', t(lang, 'mOperator'),
       Object.entries(OPS).map(([id, o]) => [id, `${o.sym}  ${o.name()}`]),
       (v) => { n.cfg.op = v; touch(); }));
-    const stat = el.querySelector('.mod-cstat');
-    if (stat) stat.textContent = t(lang, 'mNeedAB');
   } else if (slot && n.type === 'comparator') {
     slot.appendChild(modDropdown(n, 'cmp', t(lang, 'mComparator'),
       Object.entries(CMPS).map(([id, c]) => [id, `${c.sym}  ${c.name()}`]),
       (v) => { n.cfg.cmp = v; touch(); }));
-    const stat = el.querySelector('.mod-cstat');
-    if (stat) stat.textContent = t(lang, 'mNeedAB');
   }
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
 

@@ -3312,6 +3312,29 @@ await prn.close();
   ok('the Comparator module joins the toolbar right after the Operator', await kpg.evaluate(() =>
     !!document.querySelector('.mod-add[data-add="comparator"]')
       && document.getElementById('modAddCmp').textContent === 'Comparator'));
+  /* placement geometry: a lone control spans its row exactly (symmetric 12px
+     insets, the Code module's rule), and a fresh module waits in silence */
+  const geo = await kpg.evaluate(() => {
+    const M = globalThis.__MOD;
+    const probe = (type) => {
+      const n = M.add(type, 60, 60);
+      const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+      const nb = el.getBoundingClientRect();
+      const db = el.querySelector('.mod-dd-btn').getBoundingClientRect();
+      const stat = el.querySelector('.mod-cstat');
+      const r = { l: +(db.left - nb.left).toFixed(1), r: +(nb.right - db.right).toFixed(1),
+        w: Math.round(db.width), nw: Math.round(nb.width), idle: stat.textContent };
+      M.removeNode(n.id);
+      return r;
+    };
+    return { cmp: probe('comparator'), op: probe('operator'), code: probe('code') };
+  });
+  ok('the Comparator and Operator selects span their row exactly like the Code module (12px insets, symmetric) and wait in silence',
+    geo.cmp.l === 12 && geo.cmp.r === 12 && geo.cmp.w === geo.cmp.nw - 24
+      && geo.op.l === 12 && geo.op.r === 12 && geo.op.w === geo.op.nw - 24
+      && geo.code.l === 12 && geo.code.r === 12
+      && geo.cmp.idle === '' && geo.op.idle === '',
+    JSON.stringify(geo));
   const kids = await kpg.evaluate(() => {
     const M = globalThis.__MOD;
     if (document.getElementById('modEditor').hidden) M.newDoc();
