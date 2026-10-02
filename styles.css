@@ -1695,7 +1695,7 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .fl-new { display: inline-flex; gap: 6px; align-items: center; }
 .fl-search { background: transparent; border: 1px solid rgba(127, 127, 127, .4); color: inherit; padding: 11px 10px; font: 13px/1 var(--font-sans); min-width: 130px; border-radius: 0; min-height: var(--h-field); }
 .fl-grid { width: min(760px, 100%); display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
-.fl-card { display: flex; flex-direction: column; gap: 6px; background: var(--panel, #1a2027); border: 1px solid rgba(127, 127, 127, .3); padding: 14px 14px 10px; cursor: pointer; border-radius: 0; position: relative; }
+.fl-card { display: flex; flex-direction: column; gap: 6px; background: var(--paper-2); border: 1px solid rgba(127, 127, 127, .3); padding: 14px 14px 10px; cursor: pointer; border-radius: 0; position: relative; }
 .fl-card:hover { border-color: var(--notification, #000dff); }
 .fl-title { font: 600 14.5px/1.25 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fl-date { font-size: 11.5px; opacity: .6; }
