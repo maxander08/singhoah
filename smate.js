@@ -582,6 +582,29 @@
     }
     return null;
   }
+  /* Comparator flows: "is 5 greater than 3", "compare 5 and 3", "5 >= 5".
+     Checked BEFORE the arithmetic table: "less than" is a comparison, while
+     bare "less" still falls through to subtraction. The on-device AI covers
+     the long tail of phrasings through the CMD grammar. */
+  const MOD_CMPS = [
+    ['gte', /greater than or equal|greater or equal|equal or greater|at least|no less than|not less than|>=|≥|mayor o igual|no menor|plus grand ou égal|supérieur ou égal|größer oder gleich|groter of gelijk|не меньше|не менее|以上|크거나 같/],
+    ['lte', /less than or equal|less or equal|equal or less|at most|no more than|not more than|<=|≤|menor o igual|no mayor|plus petit ou égal|inférieur ou égal|kleiner oder gleich|kleiner of gelijk|не больше|не более|以下|작거나 같/],
+    ['neq', /not equal|isn.t equal|doesn.t equal|unequal|differ(?:s|ent) (?:from|to)|distinto|différent|различн|не равно|ungleich|niet gelijk|no es igual|pas égal|nicht gleich|!=|≠|等しくない|不相等|不等於|다르/],
+    ['eq', /equal|same as|identical|igual|égal|gleich|gelijk|равно|同じ|等しい|等於|等于|같|=|==/],
+    ['gt', /greater than|bigger than|larger than|more than|exceeds|higher than|>|大于|大於|より大きい|크다|больше|mayor que|plus grand que|größer als|groter dan|meer dan/],
+    ['lt', /less than|smaller than|fewer than|lower than|<|小于|小於|より小さい|작다|меньше|menor que|plus petit que|kleiner als|minder dan/],
+  ];
+  const CMP_SYM = { gt: '>', lt: '<', gte: '≥', lte: '≤', eq: '=', neq: '≠' };
+  function modCompareOf(raw) {
+    const text = latinDigits(raw).replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/≠/g, '!=').toLowerCase();
+    const nums = (text.match(/-?\d+(?:\.\d+)?/g) || []).filter((x) => x !== '-');
+    if (nums.length < 2) return null;
+    for (const [id, re] of MOD_CMPS) {
+      if (!re.test(text)) continue;
+      return { cmp: id, a: nums[0], b: nums[1] };
+    }
+    return null;
+  }
   const KW = {
     timer: [...words(['timer']), 'timer', 'temporizador'],
     stopwatch: words(['stopwatch']),
@@ -639,6 +662,7 @@
     module: [...words(['lpModule']), 'singhomodule', 'automation', 'module', 'workflow', '自動化', '自动化', 'モジュール'],
     number: [...words(['mNumber']), 'number module', 'number node', '數字模組', '数字模块', '数値モジュール', '숫자 모듈'],
     operator: [...words(['mOperator']), 'operator module', 'operator node', '運算子', '运算符', '演算子モジュール', '연산자 모듈'],
+    comparator: [...words(['mComparator']), 'comparator module', 'comparator node', 'compare', 'compared', 'comparison', '比較', '比较', '比べ', '비교', 'قارن', 'तुलना', 'сравни', 'vergelijk', 'vergleiche', 'porównaj', 'confronta', 'bandingkan', 'karşılaştır', 'jämför', 'sammenlign', 'vertaa'],
     files: [...words(['flFiles']), 'documents', 'my docs', '檔案管理', '文件管理'],
     run: ['run', 'execute', '執行', '执行', '実行', '실행', 'ejecutar', 'exécuter', 'ausführen', 'تشغيل', 'चलाओ', 'запустить', 'rodar', 'esegui', 'jalankan', 'chạy'],
     newdoc: [...words(['flNew']), 'new flow', 'new note', '新流程', '新筆記'],
@@ -922,7 +946,8 @@
 
   const BYW = [' by ', ' × ', '乘', ' por ', ' par ', ' на ', ' في ', ' গুণ ', ' ضرب ', ' गुणा ', ' per '];
   const layoutIntent = (text) => {
-    if (modMathOf(text)) return null;   /* "multiply 6 by 7" is math, not a 6×7 window */
+    if (modMathOf(text) || modCompareOf(text)) return null;   /* "multiply 6 by 7" and "is 5 greater than 3" are math, not window layouts */
+    if (has(text, KW.comparator)) return null;   /* an explicit comparator mention is never a layout either */
     if (has(text, KW.grid16)) return 16;
     let s2 = ` ${latinDigits(text)} `;
     for (const w of BYW) s2 = s2.split(w).join(' x ');
@@ -1099,6 +1124,27 @@
     }
     /* SinghoModule: run the flow, open files, start a new flow, toggle the grid */
     if (page === 'module' && globalThis.__MOD) {
+      /* every comparison request shares one builder: two Numbers wired into
+         the Comparator's A and B ports, verdict to the I/O terminal, run,
+         answer with the verdict in chat — the flow stays on the canvas */
+      const buildCmpFlow = (cid, a, b) => {
+        const M = globalThis.__MOD;
+        const na = M.add('number', 60, 60);
+        const nb = M.add('number', 60, 320);
+        const cp = M.add('comparator', 360, 190);
+        const io = M.add('io', 650, 190);
+        M.cfg(na.id, { numtype: 'dec', value: a });
+        M.cfg(nb.id, { numtype: 'dec', value: b });
+        M.cfg(cp.id, { cmp: cid });
+        M.wire(na.id, cp.id, 'a');
+        M.wire(nb.id, cp.id, 'b');
+        M.wire(cp.id, io.id);
+        note(t(curLang, 'mRun'));
+        Promise.resolve(M.run()).then((r) => {
+          const out = (r && r.length) ? r.join(' · ') : '';
+          sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mComparator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
+        }).catch(() => { /* the node's status line shows the error */ });
+      };
       if (has(text, KW.files)) { globalThis.__MOD.home(); note(t(curLang, 'flFiles')); abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
       else if (has(text, KW.newdoc)) { globalThis.__MOD.newDoc(); note(t(curLang, 'done')); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); }
       else if (has(text, KW.run)) {
@@ -1118,16 +1164,30 @@
           }).catch(() => { /* the canvas already shows the error */ });
         }
       }
-      /* "add a number module 255 base 16" / "add an operator *" — an explicit
-         module mention always means the node, never a calculation */
-      if (has(text, KW.number) || has(text, KW.operator)) {
+      /* "add a number module 255 base 16" / "add an operator *" / "add a
+         comparator >=" — an explicit module mention always means the node
+         (or, with two numbers to compare, the run), never a calculation */
+      if (has(text, KW.number) || has(text, KW.operator) || has(text, KW.comparator)) {
         if (document.getElementById('modEditor').hidden) {
           const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
           if (id) globalThis.__MOD.openDoc(id); else globalThis.__MOD.newDoc();
         }
         if (!document.getElementById('modEditor').hidden) {
           const M = globalThis.__MOD;
-          if (has(text, KW.operator)) {
+          if (has(text, KW.comparator)) {
+            const t2 = latinDigits(text).replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/≠/g, '!=').toLowerCase();
+            const cid = (MOD_CMPS.find(([, re]) => re.test(t2)) || [])[0];
+            const nums = (t2.match(/-?\d+(?:\.\d+)?/g) || []).filter((x) => x !== '-');
+            if (nums.length >= 2) {
+              /* "compare 5 and 3" runs as a real flow; no relation spoken means equal */
+              buildCmpFlow(cid || 'eq', nums[0], nums[1]);
+            } else {
+              const n = M.add('comparator', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
+              M.cfg(n.id, { cmp: cid || 'gt' });
+              note(t(curLang, 'done'));
+              abPush({ k: 'done', t: `${t(curLang, 'mComparator')} ${CMP_SYM[cid || 'gt']}` });
+            }
+          } else if (has(text, KW.operator)) {
             const t2 = latinDigits(text).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').toLowerCase();
             const oid = (MOD_OPS.find(([, re]) => re.test(t2)) || [])[0] || 'add';
             const n = M.add('operator', 60 + Math.round(Math.random() * 200), 60 + Math.round(Math.random() * 200));
@@ -1159,6 +1219,16 @@
             abPush({ k: 'done', t: `${t(curLang, 'mNumber')} · ${val}${useBase !== 10 ? ' (base ' + useBase + ')' : ''}` });
           }
         }
+      }
+      /* comparison flows: "is 5 greater than 3", "5 <= 5" — checked BEFORE
+         arithmetic so "less than" reads as a comparison, never subtraction */
+      else if (modCompareOf(text)) {
+        const q = modCompareOf(text);
+        if (document.getElementById('modEditor').hidden) {
+          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
+          if (id) globalThis.__MOD.openDoc(id);
+        }
+        if (!document.getElementById('modEditor').hidden) buildCmpFlow(q.cmp, q.a, q.b);
       }
       /* number + operator flows: "multiply 6 by 7", "calculate 2 ^ 10" —
          SMate builds the real flow (Number → Operator ← Number → I/O), runs
@@ -1369,12 +1439,14 @@
             out = t(curLang, 'aiNoGpu');
           } else if (aiState === 'err') {
             /* the model failed to load (blocked CDN, download error, …):
-               never tease with "waking up" again — the offline brain answers
+               never tease with "waking up" — the offline brain answers
                and the AI chip shows its error state until the user retries */
             out = null;
           } else {
-            aiInit();            /* first fuzzy message wakes the model */
-            out = t(curLang, 'aiLoad');
+            /* still loading (or about to): no "waking up" tease, ever —
+               the instant offline interpreter answers this one */
+            aiInit();
+            out = null;
           }
         }
       }
@@ -1440,11 +1512,13 @@
      and either translates it into a canonical command or answers outright. */
   const aiBtn = $('smateAI');
   let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
-  /* on-demand: the offline interpreter answers instantly for every command;
-     the model wakes only when the AI chip is tapped. Once enabled it is
-     cached in the browser, so from the second visit on it is ready at once. */
-  let aiPref = 'off';
-  try { if (localStorage.getItem('singhoah:smateAI') === 'on') aiPref = 'on'; } catch { /* ignore */ }
+  /* arrive-and-ready: the model starts loading the moment the site opens,
+     so the first fuzzy message already meets a warm brain. Until it is up,
+     the instant offline interpreter answers — nobody is ever told the AI
+     is "waking up". Turning the chip off goes back to interpreter-only
+     and stays off across visits. */
+  let aiPref = 'on';
+  try { if (localStorage.getItem('singhoah:smateAI') === 'off') aiPref = 'off'; } catch { /* ignore */ }
   const AI_TIMEOUT = Number(globalThis.__SMATE_AI_TIMEOUT || 20000);
   const AI_MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1', 'SmolLM2-360M-Instruct-q4f16_1', 'Qwen2.5-0.5B-Instruct-q4f32_1'];
   const aiUI = () => {
@@ -1453,6 +1527,17 @@
     aiBtn.classList.toggle('err', aiState === 'err');
   };
   aiUI();                        /* default-ON chip reflects the pref immediately */
+  /* the preload: the model starts loading at page arrival — no tap, no
+     "Loading" gate. Without WebGPU (or with the test engine stubbed in)
+     this resolves instantly one way or the other */
+  if (aiPref === 'on') {
+    (async () => {
+      if (globalThis.__SMATE_AI_ENGINE) { aiInit(); return; }
+      if (navigator.gpu) {
+        try { if (await navigator.gpu.requestAdapter()) aiInit(); } catch { /* the offline brain stays */ }
+      }
+    })();
+  }
 
   async function aiInit() {
     if (aiState === 'loading') return;
@@ -1480,6 +1565,7 @@
         }
         if (!aiEngine) throw lastErr || new Error('no model');
       }
+      if (aiPref !== 'on') { aiEngine = null; aiState = 'off'; aiUI(); return; }   /* turned away mid-load: discard */
       aiState = 'on';
     } catch {
       aiState = 'err';
@@ -1491,11 +1577,11 @@
   aiBtn.addEventListener('click', () => {
     if (aiPref === 'on') {
       aiPref = 'off'; aiState = 'off'; aiEngine = null;
-      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
+      try { localStorage.setItem('singhoah:smateAI', 'off'); } catch { /* ignore */ }
       aiUI(); setStatus('smateOnline');
     } else {
-      aiPref = 'on'; /* on demand: start right away, usable as soon as loaded */
-      try { localStorage.setItem('singhoah:smateAI', 'on'); } catch { /* ignore */ }
+      aiPref = 'on';  /* back to arrive-and-ready: the model loads again now */
+      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
       aiUI(); aiInit();
     }
   });
@@ -1518,7 +1604,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | calculate <a> +|-|*|/|%|^ <b> | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | comparator >|<|>=|<=|=|!= | calculate <a> +|-|*|/|%|^ <b> | compare <a> >|<|>=|<=|=|!= <b> | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
     'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');

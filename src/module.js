@@ -28,6 +28,10 @@ const TYPES = {
   /* Operator: exact math on its two wired operands — +, −, ×, ÷, %, ^.
      Two in ports (A above, B below); each port still holds exactly one wire. */
   operator: { w: 210, color: '#b8764a', name: () => t(lang, 'mOperator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
+  /* Comparator: exact yes/no over its two wired operands — >, <, ≥, ≤, =, ≠.
+     The verdict shows as true/false and flows on as 1/0 (base-10 integer), so
+     a comparison can feed the Operator. Same two in ports as the Operator. */
+  comparator: { w: 210, color: '#4a8f9e', name: () => t(lang, 'mComparator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
   /* I/O: one node, one wire — the text typed in it is the Code module's
      stdin, and the Code module's stdout (and red errors) render back into
      its result pane. Fed from a Text module, it previews the Markdown. */
@@ -305,6 +309,30 @@ function computeOperator(cfg, va, vb) {
   return { ok: true, out, rat: r, sys };
 }
 
+/* ---------- the Comparator module: exact yes/no on BigInt fractions ----------
+   >, <, ≥, ≤, =, ≠ — the two wired operands compare as exact rationals
+   (cross-multiplied, never floats), the verdict renders as true/false and
+   flows on as 1/0 so a comparison can chain into arithmetic. true/false are
+   values, like digits: never localized. */
+const CMPS = {
+  gt: { sym: '>', name: () => t(lang, 'cmpGt') },
+  lt: { sym: '<', name: () => t(lang, 'cmpLt') },
+  gte: { sym: '≥', name: () => t(lang, 'cmpGte') },
+  lte: { sym: '≤', name: () => t(lang, 'cmpLte') },
+  eq: { sym: '=', name: () => t(lang, 'cmpEq') },
+  neq: { sym: '≠', name: () => t(lang, 'cmpNeq') },
+};
+function computeComparator(cfg, va, vb) {
+  if (!va || !vb) return { ok: false, why: 'needAB' };
+  const a = ratOf(va), b = ratOf(vb);
+  if (!a || !b) return { ok: false, why: 'bad' };
+  const l = a.n * b.d, r = b.n * a.d;   /* cross-multiply: exact comparison */
+  const id = cfg.cmp || 'gt';
+  const v = id === 'gt' ? l > r : id === 'lt' ? l < r : id === 'gte' ? l >= r
+    : id === 'lte' ? l <= r : id === 'eq' ? l === r : l !== r;
+  return { ok: true, out: v ? 'true' : 'false', val: v };
+}
+
 /* ---------- text encoders ---------- */
 const b64enc = (s) => {
   const b = new TextEncoder().encode(s);
@@ -541,6 +569,27 @@ function runOperatorNode(n, va, vb) {
   setStat('', '');
   /* the result keeps the operand's number system, so chained operators stay in it */
   return { text: r.out, num: { numtype: r.sys.numtype, base: r.sys.base | 0 || 10, digits: r.sys.digits | 0 || 6, n: r.rat.n, d: r.rat.d } };
+}
+
+/* the Comparator node: the verdict shows in the hint line (a sym b = true),
+   any failure in the red status line; true/false flows on as 1/0 so chained
+   operators can compute with the outcome of a comparison */
+function runComparatorNode(n, va, vb) {
+  const el = nodeEl(n.id);
+  const stat = el && el.querySelector('.mod-cstat');
+  const hint = el && el.querySelector('.mod-ophint');
+  const setStat = (txt, cls) => { if (stat) { stat.textContent = txt; stat.className = 'mod-cstat' + (cls ? ' ' + cls : ''); } };
+  const r = computeComparator(n.cfg, va, vb);
+  const cmp = CMPS[n.cfg.cmp || 'gt'];
+  const whyText = { needAB: t(lang, 'mNeedAB'), bad: t(lang, 'mBadOperand') };
+  if (!r.ok) {
+    if (hint) hint.textContent = '';
+    setStat(whyText[r.why] || t(lang, 'mBadOperand'), 'bad');
+    return { text: '', err: '' };
+  }
+  if (hint) hint.textContent = `${(va && va.text) ?? '?'} ${cmp.sym} ${(vb && vb.text) ?? '?'} = ${r.out}`;
+  setStat('', '');
+  return { text: r.out, num: { numtype: 'int', base: 10, digits: 6, n: r.val ? 1n : 0n, d: 1n } };
 }
 
 async function runCodeNode(n, ins) {
@@ -983,9 +1032,10 @@ function renderNode(n) {
     /* no inline output field: results and errors render in the connected
        Output module, stdin comes from Text modules and Input modules */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div></div>`;
-  } else if (n.type === 'operator') {
-    /* the Operator: an operation select over its two wired operands; the hint
-       line shows the equation, the status line turns red on bad input */
+  } else if (n.type === 'operator' || n.type === 'comparator') {
+    /* the Operator and Comparator share one body: an operation select over
+       the two wired operands; the hint line shows the equation or verdict,
+       the status line turns red on bad input */
     body = `<div class="mod-body"><div class="mod-ddrow"><div class="mod-dd-slot"></div></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'number') {
     /* the Number module: type select + base select (Integer/Decimal) or digit
@@ -1060,6 +1110,12 @@ function renderNode(n) {
     slot.appendChild(modDropdown(n, 'op', t(lang, 'mOperator'),
       Object.entries(OPS).map(([id, o]) => [id, `${o.sym}  ${o.name()}`]),
       (v) => { n.cfg.op = v; touch(); }));
+    const stat = el.querySelector('.mod-cstat');
+    if (stat) stat.textContent = t(lang, 'mNeedAB');
+  } else if (slot && n.type === 'comparator') {
+    slot.appendChild(modDropdown(n, 'cmp', t(lang, 'mComparator'),
+      Object.entries(CMPS).map(([id, c]) => [id, `${c.sym}  ${c.name()}`]),
+      (v) => { n.cfg.cmp = v; touch(); }));
     const stat = el.querySelector('.mod-cstat');
     if (stat) stat.textContent = t(lang, 'mNeedAB');
   }
@@ -1146,7 +1202,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x ?? (60 + (seq % 5) * 30)), y: snap(y ?? (40 + (seq % 5) * 30)),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : type === 'comparator' ? { cmp: 'gt' } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -1224,6 +1280,12 @@ async function run() {
         const wa = doc.wires.find((w) => w.to === n.id && (w.toPort || 'a') === 'a');
         const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
         v = runOperatorNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
+      }
+      else if (n.type === 'comparator') {
+        /* same two-port shape as the Operator: A above, B below */
+        const wa = doc.wires.find((w) => w.to === n.id && (w.toPort || 'a') === 'a');
+        const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
+        v = runComparatorNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
       }
       else if (n.type === 'code') {
         /* stdin: the text typed into attached I/O nodes first, then whatever
@@ -1407,6 +1469,7 @@ function applyLang(id, persist = true) {
   $('modAddC').textContent = t(lang, 'mCode');
   $('modAddN').textContent = t(lang, 'mNumber');
   $('modAddO').textContent = t(lang, 'mOperator');
+  $('modAddCmp').textContent = t(lang, 'mComparator');
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
   $('modTitle').placeholder = t(lang, 'flUntitledFlow');
@@ -1490,7 +1553,7 @@ globalThis.__MOD = {
   },
   removeNode,
   cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && patch.value !== undefined) { const ni = el.querySelector('.mod-numin'); if (ni) { ni.value = patch.value; ni.dispatchEvent(new Event('input', { bubbles: true })); } }
-  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined || patch.op !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
+  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined || patch.op !== undefined || patch.cmp !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),

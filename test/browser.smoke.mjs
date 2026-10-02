@@ -1321,8 +1321,8 @@ ok('SMate lives on every Singho page', smateEverywhere);
 const sq = await sm.newPage();
 await sq.goto(URL + 'index.html', { waitUntil: 'load' });
 await sq.waitForTimeout(300);
-ok('the on-device AI is on-demand (off until asked)', await sq.evaluate(() =>
-  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
+ok('the on-device AI is armed the moment the site arrives (no tap, no waking up)', await sq.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'));
 ok('Launchpad is an icon-only topbar button', await sq.evaluate(() => {
   const b = document.getElementById('btnLaunch');
   return !!b && !b.textContent.trim() && !!b.title && !!b.querySelector('svg');
@@ -1469,8 +1469,6 @@ ok('cross-system fare questions get an honest one-system answer', await sq.evalu
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('different systems');
 }));
-await sq.click('#smateAI'); /* on demand */
-await sq.waitForTimeout(250);
 await smSend('blorp');
 ok('without a usable GPU SMate explains the AI needs WebGPU', await sq.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
@@ -1635,21 +1633,16 @@ await ai.addInitScript(() => {
 });
 const ap = await ai.newPage();
 await ap.goto(URL + 'index.html', { waitUntil: 'load' });
-await ap.waitForTimeout(300);
-await ap.click('#smateBtn');
-ok('SMate AI is on-demand: off until the chip is tapped', await ap.evaluate(() =>
-  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
-await ap.click('#smateAI');
-await ap.waitForTimeout(200);
-ok('tapping the chip arms the on-device AI right away', await ap.evaluate(() =>
-  document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'));
-await ap.fill('#smateIn', 'the room is too bright for my eyes');
-await ap.click('#smateSend');
 await ap.waitForTimeout(400);
+ok('arrive-and-ready: the AI is armed (and warm) before the first word', await ap.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'
+  && !document.getElementById('smateAI').classList.contains('loading')));
+await ap.click('#smateBtn');
+await ap.waitForTimeout(150);
 await ap.fill('#smateIn', 'the room is too bright for my eyes');
 await ap.click('#smateSend');
 await ap.waitForTimeout(1400);
-ok('AI translates fuzzy phrasing into a real command', await ap.evaluate(() =>
+ok('the FIRST fuzzy message already gets the AI — no waking-up tease', await ap.evaluate(() =>
   document.documentElement.classList.contains('dark')));
 await ap.fill('#smateIn', 'why is the sky blue?');
 await ap.click('#smateSend');
@@ -1661,6 +1654,16 @@ await ap.click('#smateSend');
 await ap.waitForTimeout(1400);
 ok('money questions get the live ledger attached for the AI', await ap.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('coffee')));
+await ap.click('#smateAI');   /* off by choice — and it sticks */
+await ap.waitForTimeout(200);
+ok('turning the chip off stops the engine and saves the choice', await ap.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'
+  && localStorage.getItem('singhoah:smateAI') === 'off'));
+await ap.fill('#smateIn', 'why is the sky blue?');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1200);
+ok('with the AI off, the instant offline interpreter answers again', await ap.evaluate(() =>
+  ![...document.querySelectorAll('.smate-it')].pop().textContent.includes('scatters')));
 await ap.close();
 await ai.close();
 
@@ -1674,28 +1677,29 @@ await ai2.route(/esm\.run|mlc/, (r) => r.abort());
 const a2p = await ai2.newPage();
 await a2p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a2p.waitForTimeout(300);
+ok('no WebGPU: arrive-and-ready arms the chip without starting any download', await a2p.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'
+  && !document.getElementById('smateAI').classList.contains('loading')));
 await a2p.click('#smateBtn');
-await a2p.fill('#smateIn', 'blorp');
-await a2p.click('#smateSend');
-await a2p.waitForTimeout(900);
-ok('with AI off, fuzzy input stays on the instant offline interpreter', await a2p.evaluate(() =>
-  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
-await a2p.click('#smateAI'); /* on demand: the user asks for it */
-await a2p.waitForTimeout(300);
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
 await a2p.waitForTimeout(900);
 ok('without WebGPU SMate explains instead of downloading anything', await a2p.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
-await a2p.click('#smateAI');
+await a2p.click('#smateAI'); /* off by choice */
 await a2p.waitForTimeout(200);
 ok('the chip can still turn AI off by choice', await a2p.evaluate(() =>
-  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'
+  && localStorage.getItem('singhoah:smateAI') === 'off'));
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
 await a2p.waitForTimeout(900);
 ok('the offline interpreter still answers when AI is off', await a2p.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+await a2p.reload();   /* the off choice survives the next visit */
+await a2p.waitForTimeout(400);
+ok('a turned-off AI stays off across visits', await a2p.evaluate(() =>
+  document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
 await a2p.close();
 await ai2.close();
 
@@ -1708,10 +1712,10 @@ await ai5.addInitScript(() => {
 await ai5.route(/esm\.run|mlc/, (r) => r.abort());
 const a5p = await ai5.newPage();
 await a5p.goto(URL + 'index.html', { waitUntil: 'load' });
-await a5p.waitForTimeout(300);
+await a5p.waitForTimeout(700); /* the arrival preload fails on its own: CDN blocked */
 await a5p.click('#smateBtn');
-await a5p.click('#smateAI'); /* on demand */
-await a5p.waitForTimeout(400); /* init fails: CDN blocked */
+ok('a failed arrival load shows the error on the chip, never a tease in chat', await a5p.evaluate(() =>
+  document.getElementById('smateAI').classList.contains('err')));
 await a5p.fill('#smateIn', 'blorp');
 await a5p.click('#smateSend');
 await a5p.waitForTimeout(1200);
@@ -1733,8 +1737,7 @@ const a3p = await ai3.newPage();
 await a3p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a3p.waitForTimeout(300);
 await a3p.click('#smateBtn');
-await a3p.click('#smateAI'); /* on demand */
-await a3p.waitForTimeout(200);
+await a3p.waitForTimeout(200); /* the engine is already armed by the arrival preload */
 await a3p.fill('#smateIn', 'blorp');
 await a3p.click('#smateSend');
 await a3p.waitForTimeout(300);
@@ -1756,8 +1759,7 @@ const a4p = await ai4.newPage();
 await a4p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a4p.waitForTimeout(300);
 await a4p.click('#smateBtn');
-await a4p.click('#smateAI'); /* on demand */
-await a4p.waitForTimeout(200);
+await a4p.waitForTimeout(200); /* already armed by the arrival preload */
 await a4p.fill('#smateIn', 'blorp');
 await a4p.click('#smateSend');
 await a4p.waitForTimeout(300);
@@ -2792,8 +2794,8 @@ await prn.close();
   ok('SMate runs the flow and answers with the output', await mp.evaluate(() =>
     globalThis.__MOD.outputText().includes('smate smoke') &&
     [...document.querySelectorAll('.smate-it, .smate-block')].some((n) => /smate smoke/.test(n.textContent))));
-  ok('the on-device AI stays on demand in SinghoModule', await mp.evaluate(() =>
-    document.getElementById('smateAI').getAttribute('aria-pressed') === 'false'));
+  ok('the on-device AI arrives ready in SinghoModule too', await mp.evaluate(() =>
+    document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'));
   /* mobile fit */
   const mm = await mc.newPage();
   await mm.setViewportSize({ width: 390, height: 844 });
@@ -3301,6 +3303,285 @@ await prn.close();
   });
   ok('SMate adds Operator nodes: "add an operator *" lands as × Multiply', /^×/.test(smo), smo);
   await scx2.close();
+
+  /* ---- the Comparator module: exact yes/no over two wired operands ---- */
+  const kcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const kpg = await kcx.newPage();
+  await kpg.goto(URL + 'module.html', { waitUntil: 'load' });
+  await kpg.waitForTimeout(900);
+  ok('the Comparator module joins the toolbar right after the Operator', await kpg.evaluate(() =>
+    !!document.querySelector('.mod-add[data-add="comparator"]')
+      && document.getElementById('modAddCmp').textContent === 'Comparator'));
+  const kids = await kpg.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const a = M.add('number', 60, 60);
+    const b = M.add('number', 60, 320);
+    const cp = M.add('comparator', 380, 190);
+    const io = M.add('io', 660, 190);
+    M.cfg(a.id, { numtype: 'dec', value: '6' });
+    M.cfg(b.id, { numtype: 'dec', value: '7' });
+    M.wire(a.id, cp.id, 'a'); M.wire(b.id, cp.id, 'b'); M.wire(cp.id, io.id);
+    const el = document.querySelector(`.mod-node[data-id="${cp.id}"]`);
+    return {
+      a: a.id, b: b.id, cp: cp.id, io: io.id,
+      name: el.querySelector('.mod-nname').textContent,
+      ports: [...el.querySelectorAll('.mod-port.in')].map((p) => p.dataset.port).join('|'),
+      labels: [...el.querySelectorAll('.mod-plab')].map((l) => l.textContent).join(''),
+      out: !!el.querySelector('.mod-port.out'),
+      refused: M.wire(a.id, cp.id, 'c'),
+      portsWired: M.wires().filter((w) => w.to === cp.id).map((w) => w.toPort).sort().join(''),
+    };
+  });
+  ok('the Comparator node: A|B ports labeled like the Operator, out port, unknown ports refused',
+    kids.name === 'Comparator' && kids.ports === 'a|b' && kids.labels === 'AB' && kids.out
+      && kids.refused === false && kids.portsWired === 'ab',
+    JSON.stringify(kids));
+  const runCmp = (cmp, va, vb) => kpg.evaluate(async (q) => {
+    const M = globalThis.__MOD;
+    M.cfg(q.k.a, { value: q.va }); M.cfg(q.k.b, { value: q.vb }); M.cfg(q.k.cp, { cmp: q.cmp });
+    await M.run();
+    const el = document.querySelector(`.mod-node[data-id="${q.k.cp}"]`);
+    return {
+      out: document.querySelector(`.mod-node[data-id="${q.k.io}"] .mod-result`).textContent,
+      hint: el.querySelector('.mod-ophint').textContent,
+      cls: el.querySelector('.mod-cstat').className,
+    };
+  }, { k: kids, cmp, va, vb });
+  const g6_7 = await runCmp('gt', '6', '7');
+  const l6_7 = await runCmp('lt', '6', '7');
+  const gte7 = await runCmp('gte', '7', '7');
+  const lte7 = await runCmp('lte', '7', '7');
+  const eq6_7 = await runCmp('eq', '6', '7');
+  const neq6_7 = await runCmp('neq', '6', '7');
+  ok('all six comparisons: > false, < true, ≥ true, ≤ true, = false, ≠ true',
+    g6_7.out === 'false' && l6_7.out === 'true' && gte7.out === 'true' && lte7.out === 'true'
+      && eq6_7.out === 'false' && neq6_7.out === 'true',
+    JSON.stringify([g6_7.out, l6_7.out, gte7.out, lte7.out, eq6_7.out, neq6_7.out]));
+  ok('the verdict reads in the hint line, plain and never red: 6 > 7 = false',
+    g6_7.hint === '6 > 7 = false' && g6_7.cls === 'mod-cstat', JSON.stringify(g6_7));
+  /* comparisons are exact fractions: 1÷3 = 1÷3 true, but 1÷3 = 0.333…(30) false */
+  const kexact = await kpg.evaluate(async () => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const N = (x, y, v) => { const n = M.add('number', x, y); M.cfg(n.id, { numtype: 'dec', value: v }); return n.id; };
+    const o1 = N(40, 40, '1'), t1 = N(40, 180, '3'), o2 = N(40, 320, '1'), t2 = N(40, 460, '3');
+    const third = N(40, 620, '0.333333333333333333333333333333');
+    const d1 = M.add('operator', 300, 100); M.cfg(d1.id, { op: 'div' });
+    const d2 = M.add('operator', 300, 380); M.cfg(d2.id, { op: 'div' });
+    const cp = M.add('comparator', 560, 240); M.cfg(cp.id, { cmp: 'eq' });
+    const io = M.add('io', 800, 240);
+    M.wire(o1, d1.id, 'a'); M.wire(t1, d1.id, 'b');
+    M.wire(o2, d2.id, 'a'); M.wire(t2, d2.id, 'b');
+    M.wire(d1.id, cp.id, 'a'); M.wire(d2.id, cp.id, 'b'); M.wire(cp.id, io.id);
+    await M.run();
+    const same = document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent;
+    M.wire(third, cp.id, 'b');
+    await M.run();
+    return { same, vsDec: document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent };
+  });
+  ok('exact fractions: 1÷3 = 1÷3 is true, 1÷3 = 0.333…(30 digits) is false',
+    kexact.same === 'true' && kexact.vsDec === 'false', JSON.stringify(kexact));
+  /* the verdict chains into arithmetic: (6 = 6) + 5 = 6 */
+  const kchain = await kpg.evaluate(async () => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const N = (x, y, v) => { const n = M.add('number', x, y); M.cfg(n.id, { numtype: 'dec', value: v }); return n.id; };
+    const a = N(40, 40, '6'), b = N(40, 240, '6'), five = N(40, 440, '5');
+    const cp = M.add('comparator', 300, 120); M.cfg(cp.id, { cmp: 'eq' });
+    const op = M.add('operator', 560, 260); M.cfg(op.id, { op: 'add' });
+    const io = M.add('io', 800, 260);
+    M.wire(a, cp.id, 'a'); M.wire(b, cp.id, 'b');
+    M.wire(cp.id, op.id, 'a'); M.wire(five, op.id, 'b');
+    M.wire(op.id, io.id);
+    await M.run();
+    return {
+      out: document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent,
+      hint: document.querySelector(`.mod-node[data-id="${op.id}"] .mod-ophint`).textContent,
+    };
+  });
+  ok('true flows on as 1: (6 = 6) + 5 = 6', kchain.out === '6' && kchain.hint === 'true + 5 = 6', JSON.stringify(kchain));
+  /* a missing operand is red and plain */
+  const kunwired = await kpg.evaluate(async (x) => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const a = M.add('number', 60, 60); M.cfg(a.id, { numtype: 'dec', value: '6' });
+    const cp = M.add('comparator', 380, 190);
+    M.wire(a.id, cp.id, 'a');
+    await M.run();
+    const el = document.querySelector(`.mod-node[data-id="${cp.id}"]`);
+    return { stat: el.querySelector('.mod-cstat').textContent, cls: el.querySelector('.mod-cstat').className };
+  }, kids);
+  ok('an unwired operand says so, in red, and flows nothing',
+    /A and B/.test(kunwired.stat) && kunwired.cls.includes('bad'), JSON.stringify(kunwired));
+  /* the comparison select offers all six */
+  await kpg.evaluate(() => {
+    const cp = globalThis.__MOD.nodes().find((n) => n.type === 'comparator');
+    document.querySelector(`.mod-node[data-id="${cp.id}"]`).querySelector('.mod-dd-btn').click();
+  });
+  await kpg.waitForTimeout(200);
+  const cmps = await kpg.evaluate(() =>
+    [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-lab')].map((b) => b.textContent.trim()));
+  ok('the comparison select offers > < ≥ ≤ = ≠',
+    cmps.length === 6 && cmps[0].startsWith('>') && cmps[1].startsWith('<') && cmps[2].startsWith('≥')
+      && cmps[3].startsWith('≤') && cmps[4].startsWith('=') && cmps[5].startsWith('≠'),
+    JSON.stringify(cmps));
+  await kpg.keyboard.press('Escape');
+  /* serialization keeps the port each wire lands on */
+  await kpg.evaluate((x) => {
+    const M = globalThis.__MOD;
+    M.newDoc();
+    const a = M.add('number', 60, 60); const b = M.add('number', 60, 320);
+    const cp = M.add('comparator', 380, 190);
+    M.wire(a.id, cp.id, 'a'); M.wire(b.id, cp.id, 'b');
+  }, kids);
+  await kpg.waitForTimeout(700);
+  const kser = await kpg.evaluate(() => {
+    const cp = globalThis.__MOD.nodes().find((n) => n.type === 'comparator');
+    return JSON.parse(globalThis.__MOD.serialize()).data.wires
+      .filter((w) => w.to === cp.id).map((w) => w.toPort || 'a').sort().join('');
+  });
+  ok('the flow document stores which port each comparison wire lands on', kser === 'ab', kser);
+  /* light mode: the comparator's hint, status and labels pass 3:1 */
+  await kpg.evaluate(() => localStorage.setItem('singhoah:night', '0'));
+  await kpg.reload();
+  await kpg.waitForTimeout(900);
+  const klight = await kpg.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const a = M.add('number', 60, 60); M.cfg(a.id, { numtype: 'dec', value: '6' });
+    const b = M.add('number', 60, 320); M.cfg(b.id, { numtype: 'dec', value: '7' });
+    const cp = M.add('comparator', 380, 190);
+    const io = M.add('io', 660, 190);
+    M.wire(a.id, cp.id, 'a'); M.wire(b.id, cp.id, 'b'); M.wire(cp.id, io.id);
+    await M.run();
+    const lum = (r, g, b2) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b2); };
+    const parse = (s) => { const mm = /rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?\)/.exec(s || ''); return mm ? [+mm[1], +mm[2], +mm[3], mm[4] === undefined ? 1 : +mm[4]] : null; };
+    const effBg = (e) => { for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0.85) return c; } return [255, 255, 255, 1]; };
+    const bad = [];
+    for (const e of document.querySelectorAll('.mod-node')) {
+      for (const e2 of e.querySelectorAll('.mod-plab, .mod-cstat, .mod-numhint, .mod-dd-txt')) {
+        if (!e2.getClientRects().length || !e2.textContent.trim()) continue;
+        const fg = parse(getComputedStyle(e2).color), bg = effBg(e2);
+        const la = lum(...fg.slice(0, 3)), lb = lum(...bg.slice(0, 3));
+        if ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05) < 3) bad.push(e2.className + ':' + e2.textContent.slice(0, 10));
+      }
+    }
+    return bad;
+  });
+  ok('light mode: comparator hint, status, port labels all pass 3:1', klight.length === 0, JSON.stringify(klight));
+  await kcx.close();
+
+  /* Japanese: the whole comparator speaks the UI language, numerals stay Western */
+  const kjx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const kjp = await kjx.newPage();
+  await kjp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await kjp.evaluate(() => localStorage.setItem('singhoah:lang', 'ja'));
+  await kjp.reload();
+  await kjp.waitForTimeout(900);
+  const kja = await kjp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const cp = M.add('comparator', 60, 60);
+    const el = document.querySelector(`.mod-node[data-id="${cp.id}"]`);
+    el.querySelector('.mod-dd-btn').click();
+    const list = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-lab')].map((b) => b.textContent.trim());
+    const a = M.add('number', 60, 300); M.cfg(a.id, { numtype: 'dec', value: '6' });
+    const b = M.add('number', 60, 500); M.cfg(b.id, { numtype: 'dec', value: '7' });
+    M.wire(a.id, cp.id, 'a'); M.wire(b.id, cp.id, 'b');
+    M.cfg(cp.id, { cmp: 'gt' });
+    await M.run();
+    return {
+      btn: document.getElementById('modAddCmp').textContent,
+      name: el.querySelector('.mod-nname').textContent,
+      first: list[0],
+      kanji: list.every((x) => /[一-龯]/.test(x)),
+      hint: el.querySelector('.mod-ophint').textContent,
+    };
+  });
+  ok('Japanese: 比較器 with translated options; the verdict stays true/false (never localized)',
+    kja.btn === '比較器' && kja.name === '比較器' && kja.first.startsWith('>') && kja.kanji && kja.hint === '6 > 7 = false',
+    JSON.stringify(kja));
+  await kjx.close();
+
+  /* mobile: the comparator fits a phone */
+  const kmcx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const kmp = await kmcx.newPage();
+  await kmp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await kmp.waitForTimeout(900);
+  const kmob = await kmp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    M.add('number', 20, 20);
+    M.add('comparator', 20, 240);
+    M.add('io', 20, 460);
+    return document.documentElement.scrollWidth <= window.innerWidth + 1;
+  });
+  ok('mobile: the Comparator node fits a 390px phone', kmob);
+  await kmcx.close();
+
+  /* SMate drives the comparator end to end */
+  const kscx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const ksp = await kscx.newPage();
+  const kstray = [];
+  ksp.on('framenavigated', (f) => { if (f === ksp.mainFrame() && !/module\.html/.test(f.url())) kstray.push(f.url()); });
+  await ksp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await ksp.waitForTimeout(900);
+  await ksp.click('#smateBtn');
+  await ksp.waitForTimeout(400);
+  const ksend = async (txt) => { await ksp.fill('#smateIn', txt); await ksp.keyboard.press('Enter'); await ksp.waitForTimeout(2300); };
+  await ksend('is 5 greater than 3');
+  let ksm = await ksp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const ns = M.nodes();
+    const cp = ns.find((n) => n.type === 'comparator');
+    const io = ns.find((n) => n.type === 'io');
+    return {
+      flow: !!cp && ns.filter((n) => n.type === 'number').length === 2 && !!io,
+      cmp: cp && cp.cfg.cmp,
+      ports: cp ? M.wires().filter((w) => w.to === cp.id).map((w) => w.toPort).sort().join('') : '',
+      out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent : '',
+      block: [...document.querySelectorAll('.smate-block')].some((b) => b.textContent.includes('true')),
+    };
+  });
+  ok('SMate: "is 5 greater than 3" builds and runs the real flow, answers true in chat',
+    ksm.flow && ksm.cmp === 'gt' && ksm.ports === 'ab' && ksm.out === 'true' && ksm.block,
+    JSON.stringify(ksm));
+  await ksend('is 5 less than 3');
+  ksm = await ksp.evaluate(() => {
+    const io = globalThis.__MOD.nodes().filter((n) => n.type === 'io').pop();
+    return {
+      out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent : '',
+      operators: globalThis.__MOD.nodes().filter((n) => n.type === 'operator').length,
+    };
+  });
+  ok('"is 5 less than 3" compares (false) — never misread as subtraction 5 − 3',
+    ksm.out === 'false' && ksm.operators === 0, JSON.stringify(ksm));
+  await ksend('compare 5 and 3');
+  ksm = await ksp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const cp = M.nodes().filter((n) => n.type === 'comparator').pop();
+    const io = M.nodes().filter((n) => n.type === 'io').pop();
+    return { cmp: cp && cp.cfg.cmp, out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent : '' };
+  });
+  ok('"compare 5 and 3" runs as equality → false', ksm.cmp === 'eq' && ksm.out === 'false', JSON.stringify(ksm));
+  await ksend('compare 12 and 5, which is greater or equal?');
+  ksm = await ksp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const cp = M.nodes().filter((n) => n.type === 'comparator').pop();
+    const io = M.nodes().filter((n) => n.type === 'io').pop();
+    return { cmp: cp && cp.cfg.cmp, out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent : '' };
+  });
+  ok('"which is greater or equal?" picks ≥ → 12 ≥ 5 is true', ksm.cmp === 'gte' && ksm.out === 'true', JSON.stringify(ksm));
+  await ksend('add a comparator >=');
+  ksm = await ksp.evaluate(() => {
+    const cps = globalThis.__MOD.nodes().filter((n) => n.type === 'comparator');
+    const last = cps[cps.length - 1];
+    return { n: cps.length, cmp: last && last.cfg.cmp, dd: last ? document.querySelector(`.mod-node[data-id="${last.id}"] .mod-dd-btn .mod-dd-txt`).textContent : '' };
+  });
+  ok('"add a comparator >=" lands a ≥ node (no flow built)', ksm.n === 5 && ksm.cmp === 'gte' && ksm.dd.includes('≥'), JSON.stringify(ksm));
+  ok('no stray navigations through any of it', kstray.length === 0, JSON.stringify(kstray));
+  await kscx.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */
