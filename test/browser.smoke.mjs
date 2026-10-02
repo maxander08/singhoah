@@ -2651,7 +2651,7 @@ await prn.close();
     };
   });
   ok('a second JS run keeps its console output (live request id)', errRun.second, JSON.stringify(errRun).slice(0, 80));
-  ok(`errors render in red ("${errRun.red}") with the red status dot`, /red boom/.test(errRun.err) && /192|217/.test(errRun.red) && /bad/.test(errRun.bad), JSON.stringify(errRun).slice(0, 120));
+  ok(`errors render in red ("${errRun.red}") with the red status dot`, /red boom/.test(errRun.err) && /192|217|229/.test(errRun.red) && /bad/.test(errRun.bad), JSON.stringify(errRun).slice(0, 120));
   /* the merged I/O node: one node, one wire — the typed text feeds the Code
      module's stdin, and its stdout renders back in the same node */
   const ioMod = await mp.evaluate(async () => {
@@ -2695,16 +2695,30 @@ await prn.close();
       && fromTxt.length === 1 && fromTxt[0].to === code.id && intoCode.length === 1;
   }));
   await mp.waitForTimeout(700);   /* let the debounced save land before serializing */
-  ok('the I/O node keeps the standard pane UI and its text persists in the flow', await mp.evaluate(async () => {
+  ok('the I/O node renders as a terminal: dots bar, dark screen, monospace, > prompt', await mp.evaluate(async () => {
     const M = globalThis.__MOD;
     const io = M.nodes().find((n) => n.type === 'io' && n.cfg.text === 'from the io node');
     const el = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === io.id);
     const ta = el && el.querySelector('.mod-inta.mod-ta');
     const res = el && el.querySelector('.mod-result');
-    const has = !!ta && ta.value === 'from the io node' && !!res;
+    const dots = el && el.querySelectorAll('.mod-tbar span');
+    const screen = el && el.querySelector('.mod-tscreen');
+    const pfx = el && el.querySelector('.mod-tp');
+    const term = !!el && !!screen && dots && dots.length === 3 && !!pfx && pfx.textContent === '>'
+      && !!ta && ta.value === 'from the io node' && !!res
+      && /rgb\(15, ?20, ?26\)|#0f141a/i.test(getComputedStyle(screen).backgroundColor)
+      && /MONO"?\s*100/i.test(getComputedStyle(ta).fontVariationSettings);
     const ser = JSON.parse(M.serialize());
     const saved = ser.data.nodes.find((n) => n.type === 'io' && n.cfg.text === 'from the io node');
-    return has && !!saved;
+    return term && !!saved;
+  }));
+  ok('the terminal screen stays dark in the light theme too', await mp.evaluate(async () => {
+    localStorage.setItem('singhoah:night', '0');
+    await new Promise((r) => setTimeout(r, 250));
+    const screen = document.querySelector('.mod-node .mod-tscreen');
+    const dark = /rgb\(15, ?20, ?26\)/.test(getComputedStyle(screen).backgroundColor);
+    localStorage.setItem('singhoah:night', '1');
+    return dark;
   }));
   /* files home: create, rename, delete */
   await mp.evaluate(() => globalThis.__MOD.home());
@@ -2760,15 +2774,18 @@ await prn.close();
   await mm.waitForTimeout(600);
   ok('SinghoModule fits the phone without horizontal scroll', await mm.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 1));
-  ok('the I/O node renders on the phone; the Code module has a single right port', await mm.evaluate(() => {
+  ok('the I/O terminal renders on the phone; the Code module has a single right port', await mm.evaluate(() => {
     const M = globalThis.__MOD;
     const i = M.add('io', 48, 200);
     const c = M.add('code', 60, 340);
     const el = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === i.id);
     const ta = el && el.querySelector('.mod-inta');
     const res = el && el.querySelector('.mod-result');
+    const dots = el && el.querySelectorAll('.mod-tbar span');
     const cn = [...document.querySelectorAll('.mod-node')].find((n) => n.dataset.id === c.id);
-    return !!ta && ta.clientWidth > 100 && !!res && !!cn && cn.querySelectorAll('.mod-port.out').length === 1;
+    return !!ta && ta.clientWidth > 100 && !!res && !!dots && dots.length === 3
+      && !!cn && cn.querySelectorAll('.mod-port.out').length === 1
+      && document.documentElement.scrollWidth <= window.innerWidth + 1;
   }));
   await mm.close();
   await mc.close();

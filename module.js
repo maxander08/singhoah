@@ -98,8 +98,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '3b3c328d';
-const BV = BUILD === '3b3c328d' ? '' : '?v=' + BUILD;
+const BUILD = 'e155a47b';
+const BV = BUILD === 'e155a47b' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -618,7 +618,9 @@ function renderNode(n) {
        Output module, stdin comes from Text modules and Input modules */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ed"><div class="mod-gut" aria-hidden="true"><div class="mod-gut-in"></div></div><div class="mod-edstack"><pre class="mod-hl" aria-hidden="true"><code></code></pre><textarea class="mod-ta mod-codeta" rows="7" wrap="off" spellcheck="false" placeholder="${t(lang, 'mCodePh')}" aria-label="${t(lang, 'mCode')}"></textarea></div></div><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'io') {
-    body = `<div class="mod-body"><textarea class="mod-ta mod-inta" rows="4" placeholder="${t(lang, 'mIOPh')}" aria-label="${t(lang, 'mIO')}"></textarea><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
+    /* a terminal, recognizable at a glance: traffic-light dots, always-dark
+       screen, monospace type, a > prompt marking the input line */
+    body = `<div class="mod-body mod-term"><div class="mod-tbar" aria-hidden="true"><span></span><span></span><span></span></div><div class="mod-tscreen"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div><div class="mod-tin"><span class="mod-tp">&gt;</span><textarea class="mod-ta mod-inta" rows="3" placeholder="${t(lang, 'mIOPh')}" aria-label="${t(lang, 'mIO')}"></textarea></div></div></div>`;
   } else {
     body = `<div class="mod-body"><div class="mod-result"><span class="mod-empty">${t(lang, 'mResult')} —</span></div></div>`;
   }
