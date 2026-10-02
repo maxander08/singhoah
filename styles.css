@@ -9,7 +9,7 @@
 :root {
   --paper: #ebe9e3;
   --black: #1d1d1b;
-  --pigeon: #8a8880;
+  --pigeon: #77756d;   /* >= 3:1 on paper in light mode */
   --notification: #4a89c7;
   --on-notification: #ffffff;
   --paper-2: #dfddd5;
@@ -512,6 +512,7 @@ button { font: inherit; color: inherit; }
   background: transparent;
   color: inherit;
   font: inherit;
+  font-weight: 650; font-variation-settings: "wght" 650;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   padding: 6px 10px;
@@ -733,14 +734,15 @@ button { font: inherit; color: inherit; }
 .lp-welcome-list { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .lp-welcome-list a { display: block; padding: 9px 12px; background: var(--paper); color: inherit; text-decoration: none; font-size: 13.5px; font-weight: 600; }
 .lp-welcome-list a:hover { background: var(--notification); color: var(--on-notification); }
-.lp-start { background: var(--notification); color: var(--on-notification); padding: 10px 22px; font-weight: 700; }
+.lp-start { background: var(--notification); color: var(--on-notification); min-height: var(--h-ctl); padding: 8px 22px; font-weight: 650; font-variation-settings: "wght" 650; }
 .lp-zone-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  margin-top: 8px; padding: 4px 10px;
-  border: 0; border-radius: 6px; background: transparent;
-  color: var(--pigeon); cursor: pointer; font: inherit;
+  margin-top: 8px; min-height: var(--h-ctl); padding: 4px 12px;
+  border: 0; border-radius: var(--radius); background: transparent;
+  color: var(--pigeon); cursor: pointer;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 650; font-variation-settings: "wght" 650;
 }
-.lp-zone-btn:hover { color: var(--black); }
+.lp-zone-btn:hover { background: var(--notification); color: var(--on-notification); }
 .lp-zone-btn .lp-clock-zone { margin: 0; }
 @media (max-width: 560px) {
   .wal-form { grid-template-columns: 1fr; }
@@ -1454,7 +1456,7 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .metro-app { flex: 1; min-height: 0; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
 .metro-app svg text { user-select: none; -webkit-user-select: none; pointer-events: none; }
 .metro-sys { display: flex; gap: var(--gap); padding: 10px var(--pad-side) 0; }
-.metro-sysbtn { padding: 6px 14px; font-weight: 700; }
+.metro-sysbtn { padding: 6px 14px; font-weight: 650; font-variation-settings: "wght" 650; }
 .metro-sysbtn[aria-selected="true"] { background: var(--notification); color: var(--on-notification); }
 .metro-mapwrap { position: relative; flex: 1; min-height: 0; }
 .metro-mapwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
@@ -1524,8 +1526,9 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .mod-add { display: inline-flex; align-items: center; gap: 6px; }
 .mod-dot { width: 9px; height: 9px; display: inline-block; }
 .mod-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; cursor: grab;
-  background-color: var(--bg, #101418);
+  background-color: #101418;   /* dark workspace */
   background-image: linear-gradient(rgba(127, 127, 127, .09) 1px, transparent 1px), linear-gradient(90deg, rgba(127, 127, 127, .09) 1px, transparent 1px); }
+:root:not(.dark) .mod-canvas { background-color: #e6e4dd; }   /* light workspace, like every light canvas tool */
 .mod-canvas.nogrid { background-image: none; }
 .mod-canvas:active { cursor: grabbing; }
 .mod-world { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; transform-origin: 0 0; }
@@ -1677,11 +1680,11 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-md pre { background: rgba(127, 127, 127, .18); padding: 6px; overflow: auto; } .mod-md blockquote { border-left: 3px solid var(--notification, #000dff); margin: 4px 0; padding-left: 8px; opacity: .9; }
 .mod-md a { color: var(--notification, #000dff); }
 .mod-empty { opacity: .55; }
-.mod-port { position: absolute; top: 13px; width: 14px; height: 14px; background: var(--panel, #1a2027); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
+.mod-port { position: absolute; top: 13px; width: 14px; height: 14px; background: var(--paper); border: 2.5px solid var(--wire, #7f9bb8); cursor: crosshair; }
 .mod-port.in { left: -8px; } .mod-port.out { right: -8px; }
 .mod-port:hover { border-color: var(--notification, #000dff); background: var(--notification, #000dff); }
 .mod-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
-.mod-zoom .btn { min-width: 34px; text-align: center; }
+.mod-zoom .btn { min-width: 34px; text-align: center; background: var(--paper); justify-content: center; }   /* solid chips: readable over any canvas */
 @media (prefers-reduced-motion: reduce) { .mod-node.ran .mod-head { animation: none; } }
 
 /* ---- files home (SinghoScribe notes + SinghoModule flows) ---- */
@@ -1690,7 +1693,7 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .fl-brand { font: 700 17px/1.2 var(--font-sans); margin: 0 auto 0 0; }
 .fl-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .fl-new { display: inline-flex; gap: 6px; align-items: center; }
-.fl-search { background: transparent; border: 1px solid rgba(127, 127, 127, .4); color: inherit; padding: 7px 10px; font: 13px/1 var(--font-sans); min-width: 130px; border-radius: 0; }
+.fl-search { background: transparent; border: 1px solid rgba(127, 127, 127, .4); color: inherit; padding: 11px 10px; font: 13px/1 var(--font-sans); min-width: 130px; border-radius: 0; min-height: var(--h-field); }
 .fl-grid { width: min(760px, 100%); display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
 .fl-card { display: flex; flex-direction: column; gap: 6px; background: var(--panel, #1a2027); border: 1px solid rgba(127, 127, 127, .3); padding: 14px 14px 10px; cursor: pointer; border-radius: 0; position: relative; }
 .fl-card:hover { border-color: var(--notification, #000dff); }

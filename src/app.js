@@ -219,31 +219,35 @@ export function flagSrc(tz) {
 /* Twenty-five languages; the Chinese entry is Traditional Chinese, as
    flown by TW. Arabic and Urdu run RTL; Serbian ships in Latin script. */
 export const LANGS = [
-  { id: 'en', locale: 'en-GB', flag: 'GB', name: 'English', dir: 'ltr' },
-  { id: 'zh-Hant', locale: 'zh-Hant-TW', flag: 'TW', name: '中文（繁體）', dir: 'ltr' },
-  { id: 'hi', locale: 'hi-IN', flag: 'IN', name: 'हिन्दी', dir: 'ltr' },
-  { id: 'es', locale: 'es-ES', flag: 'ES', name: 'Español', dir: 'ltr' },
-  { id: 'fr', locale: 'fr-FR', flag: 'FR', name: 'Français', dir: 'ltr' },
-  { id: 'ar', locale: 'ar', flag: 'SA', name: 'العربية', dir: 'rtl' },
-  { id: 'bn', locale: 'bn', flag: 'BD', name: 'বাংলা', dir: 'ltr' },
-  { id: 'ru', locale: 'ru-RU', flag: 'RU', name: 'Русский', dir: 'ltr' },
-  { id: 'pt', locale: 'pt-BR', flag: 'BR', name: 'Português', dir: 'ltr' },
-  { id: 'ur', locale: 'ur', flag: 'PK', name: 'اردو', dir: 'rtl' },
-  { id: 'it', locale: 'it-IT', flag: 'IT', name: 'Italiano', dir: 'ltr' },
-  { id: 'id', locale: 'id-ID', flag: 'ID', name: 'Bahasa Indonesia', dir: 'ltr' },
-  { id: 'ko', locale: 'ko-KR', flag: 'KR', name: '한국어', dir: 'ltr' },
-  { id: 'ja', locale: 'ja-JP', flag: 'JP', name: '日本語', dir: 'ltr' },
-  { id: 'ms', locale: 'ms-MY', flag: 'MY', name: 'Bahasa Melayu', dir: 'ltr' },
-  { id: 'de', locale: 'de-DE', flag: 'DE', name: 'Deutsch', dir: 'ltr' },
-  { id: 'pl', locale: 'pl-PL', flag: 'PL', name: 'Polski', dir: 'ltr' },
+  /* conventional order: Latin-script languages first, alphabetical by
+     English name; every other script follows, also alphabetical. The
+     fallback language stays English regardless of position. */
   { id: 'da', locale: 'da-DK', flag: 'DK', name: 'Dansk', dir: 'ltr' },
-  { id: 'nb', locale: 'nb-NO', flag: 'NO', name: 'Norsk', dir: 'ltr' },
-  { id: 'sv', locale: 'sv-SE', flag: 'SE', name: 'Svenska', dir: 'ltr' },
-  { id: 'fi', locale: 'fi-FI', flag: 'FI', name: 'Suomi', dir: 'ltr' },
-  { id: 'sr', locale: 'sr-Latn-RS', flag: 'RS', name: 'Srpski', dir: 'ltr' },
   { id: 'nl', locale: 'nl-NL', flag: 'NL', name: 'Nederlands', dir: 'ltr' },
   { id: 'nl-BE', locale: 'nl-BE', flag: 'BE', name: 'Nederlands (België)', dir: 'ltr' },
+  { id: 'en', locale: 'en-GB', flag: 'GB', name: 'English', dir: 'ltr' },
+  { id: 'fi', locale: 'fi-FI', flag: 'FI', name: 'Suomi', dir: 'ltr' },
+  { id: 'fr', locale: 'fr-FR', flag: 'FR', name: 'Français', dir: 'ltr' },
+  { id: 'de', locale: 'de-DE', flag: 'DE', name: 'Deutsch', dir: 'ltr' },
+  { id: 'id', locale: 'id-ID', flag: 'ID', name: 'Bahasa Indonesia', dir: 'ltr' },
+  { id: 'it', locale: 'it-IT', flag: 'IT', name: 'Italiano', dir: 'ltr' },
+  { id: 'ms', locale: 'ms-MY', flag: 'MY', name: 'Bahasa Melayu', dir: 'ltr' },
+  { id: 'nb', locale: 'nb-NO', flag: 'NO', name: 'Norsk', dir: 'ltr' },
+  { id: 'pl', locale: 'pl-PL', flag: 'PL', name: 'Polski', dir: 'ltr' },
+  { id: 'pt', locale: 'pt-BR', flag: 'BR', name: 'Português', dir: 'ltr' },
+  { id: 'sr', locale: 'sr-Latn-RS', flag: 'RS', name: 'Srpski', dir: 'ltr' },
+  { id: 'es', locale: 'es-ES', flag: 'ES', name: 'Español', dir: 'ltr' },
+  { id: 'sv', locale: 'sv-SE', flag: 'SE', name: 'Svenska', dir: 'ltr' },
+  /* other scripts, alphabetical by English name */
+  { id: 'ar', locale: 'ar', flag: 'SA', name: 'العربية', dir: 'rtl' },
+  { id: 'bn', locale: 'bn', flag: 'BD', name: 'বাংলা', dir: 'ltr' },
+  { id: 'zh-Hant', locale: 'zh-Hant-TW', flag: 'TW', name: '中文（繁體）', dir: 'ltr' },
   { id: 'el', locale: 'el-GR', flag: 'GR', name: 'Ελληνικά', dir: 'ltr' },
+  { id: 'hi', locale: 'hi-IN', flag: 'IN', name: 'हिन्दी', dir: 'ltr' },
+  { id: 'ja', locale: 'ja-JP', flag: 'JP', name: '日本語', dir: 'ltr' },
+  { id: 'ko', locale: 'ko-KR', flag: 'KR', name: '한국어', dir: 'ltr' },
+  { id: 'ru', locale: 'ru-RU', flag: 'RU', name: 'Русский', dir: 'ltr' },
+  { id: 'ur', locale: 'ur', flag: 'PK', name: 'اردو', dir: 'rtl' },
 ];
 
 export const STRINGS = {
@@ -971,7 +975,7 @@ export function t(lang, key, vars = {}) {
   return raw.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? vars[k] : `{${k}}`));
 }
 
-export const langOf = (id) => LANGS.find((l) => l.id === id) || LANGS[0];
+export const langOf = (id) => LANGS.find((l) => l.id === id) || LANGS.find((l) => l.id === 'en');
 
 /** Bilingual tooltip for the language button, e.g. 'Language · 語言'. */
 export const langTitleOf = (lang) =>

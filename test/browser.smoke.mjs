@@ -2802,6 +2802,88 @@ await prn.close();
   await mc.close();
 }
 
+/* ---- light mode everywhere: clean pages, standardized controls, language order ---- */
+{
+  const lcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const lp = await lcx.newPage();
+  await lp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await lp.evaluate(() => localStorage.setItem('singhoah:night', '0'));
+  await lp.reload();
+  await lp.waitForTimeout(900);
+  ok('languages list in conventional order: Latin-script first, other scripts after', await lp.evaluate(async () => {
+    const { LANGS } = await import('/app.js');
+    const LATIN = new Set(['da', 'nl', 'nl-BE', 'en', 'fi', 'fr', 'de', 'id', 'it', 'ms', 'nb', 'pl', 'pt', 'sr', 'es', 'sv']);
+    const ids = LANGS.map((l) => l.id);
+    const firstNon = ids.findIndex((id) => !LATIN.has(id));
+    return ids.length === 25 && firstNon === 16 && ids.slice(16).every((id) => !LATIN.has(id));
+  }));
+  ok('light mode: the module canvas is a light workspace with solid, readable zoom chips', await lp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    M.add('text', 60, 60);
+    const cs = getComputedStyle(document.getElementById('modCanvas'));
+    const z = getComputedStyle(document.getElementById('modZoomIn'));
+    const node = getComputedStyle([...document.querySelectorAll('.mod-node')].pop());
+    return /rgb\(230, ?228, ?221\)/.test(cs.backgroundColor)
+      && z.borderRadius === '0px' && z.backgroundColor !== 'rgba(0, 0, 0, 0)' && z.color !== z.backgroundColor
+      && /rgb\(29, ?29, ?27\)/.test(node.borderColor);   /* cards stay distinct */
+  }));
+  ok('light mode: secondary ink passes 3:1 on paper (no washed-out labels)', await lp.evaluate(() => {
+    const lum = (r, g, b) => {
+      const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const pigeon = hex(getComputedStyle(document.documentElement).getPropertyValue('--pigeon').trim());
+    const paper = hex(getComputedStyle(document.documentElement).getPropertyValue('--paper').trim());
+    const la = lum(...pigeon), lb = lum(...paper);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05) >= 3;
+  }));
+  ok('light mode: no unreadable text on the module page (3:1 sweep)', await lp.evaluate(() => {
+    const lum = (r, g, b) => {
+      const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const parse = (s) => { const m = /rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?\)/.exec(s || ''); return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null; };
+    const effBg = (el) => { for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c && c[3] > 0.85) return c; } return [255, 255, 255, 1]; };
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.getClientRects().length === 0) continue;
+      if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+      const fg = parse(getComputedStyle(el).color);
+      const bg = effBg(el);
+      if (!fg) continue;
+      const la = lum(...fg), lb = lum(...bg);
+      if ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05) < 3) return false;
+    }
+    return true;
+  }));
+  await lcx.close();
+  /* standardized controls, spot-checked on their pages */
+  const scx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const sp = await scx.newPage();
+  for (const [pg, fn] of [
+    ['launch.html', () => {
+      const z = getComputedStyle(document.getElementById('lpZoneBtn'));
+      const s = getComputedStyle(document.querySelector('.lp-start'));
+      return z.borderRadius === '0px' && z.fontWeight === '650' && s.fontWeight === '650';
+    }],
+    ['metro.html', () => document.querySelector('.metro-sysbtn') && getComputedStyle(document.querySelector('.metro-sysbtn')).fontWeight === '650'],
+    ['wallet.html', () => {
+      const d = getComputedStyle(document.getElementById('walDateBtn'));
+      const c = getComputedStyle(document.getElementById('walCurBtn'));
+      return d.fontWeight === '650' && c.fontWeight === '650' && d.height === c.height;
+    }],
+  ]) {
+    await sp.goto(URL + pg, { waitUntil: 'load' });
+    await sp.evaluate(() => localStorage.setItem('singhoah:night', '0'));
+    await sp.reload();
+    await sp.waitForTimeout(pg === 'metro.html' ? 1800 : 700);
+    ok(`light mode: ${pg.replace('.html', '')} controls follow the standard (sharp chips, 650 weight)`, await sp.evaluate(fn));
+  }
+  await scx.close();
+}
+
+
 /* --- Scribe becomes a multi-document app with a files home --- */
 {
   const sc = await browser.newContext({ viewport: { width: 1280, height: 860 } });
