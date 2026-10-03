@@ -3895,6 +3895,50 @@ await prn.close();
     clBefore.n === 4 && clBefore.w === 3 && clAfter.n === 0 && clAfter.w === 0 && clAfter.block && clStray.length === 0,
     JSON.stringify({ clBefore, clAfter, clStray }));
   await clcx.close();
+
+  /* ---- the Number module's stepper row: arrows flush with the value field,
+     never squeezed against the module border ---- */
+  const stcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const stp = await stcx.newPage();
+  await stp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await stp.waitForTimeout(900);
+  const stg = await stp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const out = {};
+    const probe = (type, x) => {
+      const n = M.add('number', x, 100);
+      if (type !== 'int') M.cfg(n.id, { numtype: type });
+      const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+      const nb = el.getBoundingClientRect();
+      const num = el.querySelector('.mod-numin').getBoundingClientRect();
+      const btns = el.querySelector('.mod-stepbtns').getBoundingClientRect();
+      const ddTxt = el.querySelector('.mod-dd-txt');
+      const r = { modW: +nb.width.toFixed(1), numinW: +num.width.toFixed(1),
+        flush: +Math.abs(btns.right - num.right).toFixed(1),
+        toBorder: +(nb.right - btns.right).toFixed(1),
+        ddClip: ddTxt.scrollWidth > ddTxt.clientWidth };
+      M.removeNode(n.id);
+      return r;
+    };
+    out.int = probe('int', 100);
+    out.float = probe('float', 500);
+    for (const t of ['text', 'code', 'operator', 'comparator', 'io']) {
+      const n = M.add(t, 100, 400);
+      out[t] = +document.querySelector(`.mod-node[data-id="${n.id}"]`).getBoundingClientRect().width.toFixed(0);
+      M.removeNode(n.id);
+    }
+    return out;
+  });
+  ok('Number module: the stepper arrows end flush with the value field, clear of the border (int)',
+    stg.int.modW === 220 && stg.int.numinW === 196 && stg.int.flush <= 1 && stg.int.toBorder === 12 && !stg.int.ddClip,
+    JSON.stringify(stg.int));
+  ok('Number module: same alignment with the Float variant\'s longer label',
+    stg.float.flush <= 1 && stg.float.toBorder === 12 && !stg.float.ddClip, JSON.stringify(stg.float));
+  ok('every other module keeps its width (the tweak touches only the Number module)',
+    stg.text === 230 && stg.code === 310 && stg.operator === 210 && stg.comparator === 210 && stg.io === 250,
+    JSON.stringify({ text: stg.text, code: stg.code, operator: stg.operator, comparator: stg.comparator, io: stg.io }));
+  await stcx.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */

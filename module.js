@@ -24,7 +24,7 @@ const TYPES = {
   code: { w: 310, color: '#8b5fbf', name: () => t(lang, 'mCode'), hasIn: true, hasOut: true },
   /* Number: a typed numeric source — Integer/Decimal in any base 1–36,
      Decimal arbitrary-precision, Float/Fixed configurable to 100 digits */
-  number: { w: 210, color: '#5f9e63', name: () => t(lang, 'mNumber'), hasIn: false, hasOut: true },
+  number: { w: 220, color: '#5f9e63', name: () => t(lang, 'mNumber'), hasIn: false, hasOut: true },
   /* Operator: exact math on its two wired operands — +, −, ×, ÷, %, ^.
      Two input nodes (A above, B below); each holds exactly one wire. */
   operator: { w: 210, color: '#b8764a', name: () => t(lang, 'mOperator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
@@ -401,8 +401,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = 'a6c2ce7c';
-const BV = BUILD === 'a6c2ce7c' ? '' : '?v=' + BUILD;
+const BUILD = '23978c8a';
+const BV = BUILD === '23978c8a' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
