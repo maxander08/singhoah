@@ -1705,6 +1705,11 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-empty { opacity: .55; }
 .mod-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
 .mod-zoom .btn { min-width: 34px; text-align: center; background: var(--paper); justify-content: center; }   /* solid chips: readable over any canvas */
+/* the module picker lives on the canvas itself — a toolbar of solid chips
+   down the left edge, out of the ribbon. The ribbon keeps the flow-level
+   actions (files, title, grid, run, export, import, clear) */
+.mod-palette { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; align-items: stretch; gap: 4px; z-index: 6; }
+.mod-palette .btn { background: var(--paper); justify-content: flex-start; }   /* solid chips: readable over any canvas, same as the zoom corner */
 @media (prefers-reduced-motion: reduce) { .mod-node.ran .mod-head { animation: none; } }
 
 /* ---- files home (SinghoScribe notes + SinghoModule flows) ---- */
@@ -1734,4 +1739,7 @@ body.mod-fileshome .mod-app { display: none; }
   .mod-bar { padding: 6px 8px; flex-wrap: nowrap; overflow-x: auto; }
   .mod-bar .btn { flex: 0 0 auto; }
   .mod-title { flex: 0 0 100px; }
+  .mod-palette { left: 6px; top: 6px; gap: 4px; }
+  .mod-palette .mod-add { min-width: 30px; padding: 8px 9px; justify-content: center; }
+  .mod-palette .mod-add-t { display: none; }   /* dots only: the names live on in title + aria-label */
 }

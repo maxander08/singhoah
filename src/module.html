@@ -57,12 +57,6 @@
     <input id="modTitle" class="mod-title" placeholder="Untitled flow" aria-label="Flow title">
     <span class="mod-saved" id="modSaved" aria-live="polite"></span>
     <span class="mod-grow"></span>
-    <button type="button" class="btn mod-add" data-add="text"><span class="mod-dot" style="background:#4a76b8"></span><span id="modAddT">Text</span></button>
-    <button type="button" class="btn mod-add" data-add="number"><span class="mod-dot" style="background:#5f9e63"></span><span id="modAddN">Number</span></button>
-    <button type="button" class="btn mod-add" data-add="operator"><span class="mod-dot" style="background:#b8764a"></span><span id="modAddO">Operator</span></button>
-    <button type="button" class="btn mod-add" data-add="comparator"><span class="mod-dot" style="background:#4a8f9e"></span><span id="modAddCmp">Comparator</span></button>
-    <button type="button" class="btn mod-add" data-add="code"><span class="mod-dot" style="background:#8b5fbf"></span><span id="modAddC">Code</span></button>
-    <button type="button" class="btn mod-add" data-add="io"><span class="mod-dot" style="background:#c9a24a"></span><span id="modAddIO">I/O</span></button>
     <button type="button" class="btn" id="modGrid" aria-pressed="true"><span id="modGridT">Grid</span></button>
     <button type="button" class="btn" id="modRun"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4.5v15l13-7.5-13-7.5Z" fill="currentColor"/></svg><span id="modRunT">Run</span></button>
     <button type="button" class="btn scr-ic" id="modExport" title="Export" aria-label="Export"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4M4 20h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -73,6 +67,16 @@
   <div class="mod-canvas" id="modCanvas">
     <div class="mod-world" id="modWorld">
       <svg class="mod-wires" id="modWires" width="4000" height="3000" aria-hidden="true"></svg>
+    </div>
+    <div class="mod-palette" id="modPalette" role="toolbar" aria-label="Modules">
+      <button type="button" class="btn mod-add" data-add="text" title="Text" aria-label="Text"><span class="mod-dot" style="background:#4a76b8"></span><span class="mod-add-t" id="modAddT">Text</span></button>
+      <button type="button" class="btn mod-add" data-add="number" title="Number" aria-label="Number"><span class="mod-dot" style="background:#5f9e63"></span><span class="mod-add-t" id="modAddN">Number</span></button>
+      <button type="button" class="btn mod-add" data-add="operator" title="Operator" aria-label="Operator"><span class="mod-dot" style="background:#b8764a"></span><span class="mod-add-t" id="modAddO">Operator</span></button>
+      <button type="button" class="btn mod-add" data-add="comparator" title="Comparator" aria-label="Comparator"><span class="mod-dot" style="background:#4a8f9e"></span><span class="mod-add-t" id="modAddCmp">Comparator</span></button>
+      <button type="button" class="btn mod-add" data-add="logic" title="Logic" aria-label="Logic"><span class="mod-dot" style="background:#b84a8f"></span><span class="mod-add-t" id="modAddL">Logic</span></button>
+      <button type="button" class="btn mod-add" data-add="boolean" title="Boolean" aria-label="Boolean"><span class="mod-dot" style="background:#c94a4a"></span><span class="mod-add-t" id="modAddB">Boolean</span></button>
+      <button type="button" class="btn mod-add" data-add="code" title="Code" aria-label="Code"><span class="mod-dot" style="background:#8b5fbf"></span><span class="mod-add-t" id="modAddC">Code</span></button>
+      <button type="button" class="btn mod-add" data-add="io" title="I/O" aria-label="I/O"><span class="mod-dot" style="background:#c9a24a"></span><span class="mod-add-t" id="modAddIO">I/O</span></button>
     </div>
     <div class="mod-zoom">
       <button type="button" class="btn" id="modZoomOut" aria-label="Zoom out">−</button>

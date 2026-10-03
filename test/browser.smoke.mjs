@@ -3939,6 +3939,211 @@ await prn.close();
     stg.text === 230 && stg.code === 310 && stg.operator === 210 && stg.comparator === 210 && stg.io === 250,
     JSON.stringify({ text: stg.text, code: stg.code, operator: stg.operator, comparator: stg.comparator, io: stg.io }));
   await stcx.close();
+
+  /* ---- Logic + Boolean modules and the palette toolbar ---- */
+  const lgcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const lgp = await lgcx.newPage();
+  await lgp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await lgp.waitForTimeout(900);
+  const pal = await lgp.evaluate(() => {
+    const bar = document.querySelector('.mod-bar');
+    const chips = [...document.querySelectorAll('#modPalette .mod-add')];
+    const zoomChip = getComputedStyle(document.querySelector('.mod-zoom .btn'));
+    return {
+      ribbonAdds: bar.querySelectorAll('.mod-add').length,
+      n: chips.length,
+      order: chips.map((c) => c.dataset.add).join(','),
+      titles: chips.map((c) => c.title).join(','),
+      solid: getComputedStyle(chips[0]).backgroundColor === zoomChip.backgroundColor,
+    };
+  });
+  ok('the module picker is a toolbar on the canvas now: 8 solid chips (text…io), ribbon decluttered',
+    pal.ribbonAdds === 0 && pal.n === 8 && pal.order === 'text,number,operator,comparator,logic,boolean,code,io'
+      && pal.solid && pal.titles === 'Text,Number,Operator,Comparator,Logic,Boolean,Code,I/O', JSON.stringify(pal));
+  const lgn = await lgp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const probe = (type) => {
+      const n = M.add(type, 100, 100);
+      const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+      el.querySelector('.mod-dd-btn').click();
+      const items = [...el.querySelectorAll('.mod-dd-opt')].map((i) => i.textContent.trim());
+      document.body.click();
+      const nb = el.getBoundingClientRect();
+      const inPorts = [...el.querySelectorAll('.mod-port.in')];
+      const r = {
+        items,
+        tops: inPorts.map((s) => Math.round(s.getBoundingClientRect().top - nb.top)),
+        inL: inPorts.length ? +(inPorts[0].getBoundingClientRect().left - nb.left).toFixed(1) : null,
+        outTop: el.querySelector('.mod-port.out') ? Math.round(el.querySelector('.mod-port.out').getBoundingClientRect().top - nb.top) : null,
+        w: Math.round(nb.width),
+        stat: el.querySelector('.mod-cstat').textContent,
+      };
+      M.removeNode(n.id);
+      return r;
+    };
+    return { logic: probe('logic'), op: probe('operator'), bool: probe('boolean') };
+  });
+  ok('Logic dropdown lists every gate with its symbol: ~ Not, + Or, * And, ↓ Nor, ↑ Nand, ⊕ Xor, ≡ Xnor',
+    lgn.logic.items.length === 7 && /~\s+Not/.test(lgn.logic.items[0]) && /\+\s+Or/.test(lgn.logic.items[1])
+      && /\*\s+And/.test(lgn.logic.items[2]) && /↓\s+Nor/.test(lgn.logic.items[3]) && /↑\s+Nand/.test(lgn.logic.items[4])
+      && /⊕\s+Xor/.test(lgn.logic.items[5]) && /≡\s+Xnor/.test(lgn.logic.items[6]), JSON.stringify(lgn.logic.items));
+  ok('Logic module follows the standard: input nodes 15/47, out node 15, the Operator\'s exact left offset, and silence while waiting',
+    lgn.logic.w === 210 && lgn.logic.tops.join(',') === '15,47' && lgn.logic.outTop === 15
+      && lgn.logic.inL === lgn.op.inL && lgn.logic.stat === '', JSON.stringify(lgn.logic));
+  const lgt = await lgp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const run = async (gate, a, b) => {
+      const ba = M.add('boolean', 40, 40); M.cfg(ba.id, { val: a });
+      let bb = null;
+      if (b !== null) { bb = M.add('boolean', 40, 300); M.cfg(bb.id, { val: b }); }
+      const lg = M.add('logic', 360, 170); M.cfg(lg.id, { gate });
+      const io = M.add('io', 640, 170);
+      M.wire(ba.id, lg.id, 'a');
+      if (bb) M.wire(bb.id, lg.id, 'b');
+      M.wire(lg.id, io.id);
+      await M.run();
+      const out = document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim();
+      const hint = document.querySelector(`.mod-node[data-id="${lg.id}"] .mod-ophint`).textContent;
+      M.removeNode(ba.id); if (bb) M.removeNode(bb.id); M.removeNode(lg.id); M.removeNode(io.id);
+      return { out, hint };
+    };
+    return {
+      notTrue: await run('not', 'true', null),
+      andTT: await run('and', 'true', 'true'),
+      andTF: await run('and', 'true', 'false'),
+      orFF: await run('or', 'false', 'false'),
+      norTF: await run('nor', 'true', 'false'),
+      nandTT: await run('nand', 'true', 'true'),
+      xorTF: await run('xor', 'true', 'false'),
+      xnorTT: await run('xnor', 'true', 'true'),
+      numBool: await (async () => {   /* Number modules feeding a gate: 1/0 are booleans on the wire */
+        const n1 = M.add('number', 40, 40); M.cfg(n1.id, { value: '1' });
+        const n0 = M.add('number', 40, 300); M.cfg(n0.id, { value: '0' });
+        const lg = M.add('logic', 360, 170); M.cfg(lg.id, { gate: 'and' });
+        const io = M.add('io', 640, 170);
+        M.wire(n1.id, lg.id, 'a'); M.wire(n0.id, lg.id, 'b'); M.wire(lg.id, io.id);
+        await M.run();
+        const out = document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim();
+        M.removeNode(n1.id); M.removeNode(n0.id); M.removeNode(lg.id); M.removeNode(io.id);
+        return { out };
+      })(),
+    };
+  });
+  ok('every gate computes exactly: ~true=false, T*T=T, T*F=F, F+F=F, T↓F=F, T↑T=F, T⊕F=T, T≡T=T',
+    lgt.notTrue.out === 'false' && lgt.andTT.out === 'true' && lgt.andTF.out === 'false' && lgt.orFF.out === 'false'
+      && lgt.norTF.out === 'false' && lgt.nandTT.out === 'false' && lgt.xorTF.out === 'true' && lgt.xnorTT.out === 'true',
+    JSON.stringify(lgt));
+  ok(`the hint line shows the gate's equation ("${lgt.andTT.hint}", "${lgt.notTrue.hint}") and Numbers read as booleans (1 AND 0 = ${lgt.numBool.out})`,
+    /true \* true = true/.test(lgt.andTT.hint) && /~true = false/.test(lgt.notTrue.hint) && lgt.numBool.out === 'false',
+    JSON.stringify(lgt.numBool));
+  const lgnot = await lgp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const ba = M.add('boolean', 40, 40); M.cfg(ba.id, { val: 'true' });
+    const bb = M.add('boolean', 40, 300); M.cfg(bb.id, { val: 'false' });
+    const lg = M.add('logic', 360, 170);
+    M.wire(ba.id, lg.id, 'a'); M.wire(bb.id, lg.id, 'b');
+    return { ba: ba.id, bb: bb.id, lg: lg.id,
+      before: { ports: document.querySelectorAll(`.mod-node[data-id="${lg.id}"] .mod-port.in`).length, wires: M.wires().length } };
+  });
+  const lgnot2 = await lgp.evaluate(async ({ ba, bb, lg }) => {
+    const M = globalThis.__MOD;
+    const el = document.querySelector(`.mod-node[data-id="${lg}"]`);
+    el.querySelector('.mod-dd-btn').click();
+    [...el.querySelectorAll('.mod-dd-opt')][0].click();   /* ~ NOT */
+    await new Promise((r) => setTimeout(r, 150));
+    const after = { ports: document.querySelectorAll(`.mod-node[data-id="${lg}"] .mod-port.in`).length, wires: M.wires().length,
+      gate: M.nodes().find((n) => n.id === lg).cfg.gate };
+    const refused = !M.wire(ba, lg, 'b');
+    const el2 = document.querySelector(`.mod-node[data-id="${lg}"]`);
+    el2.querySelector('.mod-dd-btn').click();
+    [...el2.querySelectorAll('.mod-dd-opt')][1].click();   /* + Or back */
+    const back = document.querySelectorAll(`.mod-node[data-id="${lg}"] .mod-port.in`).length;
+    M.removeNode(ba); M.removeNode(bb); M.removeNode(lg);
+    return { after, refused, back };
+  }, lgnot);
+  ok('NOT retires the second input node (wire dropped, B unwireable) and a binary gate brings it back',
+    lgnot.before.ports === 2 && lgnot.before.wires === 2 && lgnot2.after.ports === 1 && lgnot2.after.wires === 1
+      && lgnot2.after.gate === 'not' && lgnot2.refused && lgnot2.back === 2, JSON.stringify({ lgnot, lgnot2 }));
+  const lgb = await lgp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    const n = M.add('boolean', 100, 100);
+    const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+    const nb = el.getBoundingClientRect();
+    const dd = el.querySelector('.mod-dd').getBoundingClientRect();
+    const code = M.add('code', 500, 100);
+    const cel = document.querySelector(`.mod-node[data-id="${code.id}"]`);
+    const cdd = cel.querySelector('.mod-dd').getBoundingClientRect();
+    const cnb = cel.getBoundingClientRect();
+    el.querySelector('.mod-dd-btn').click();
+    const items = [...el.querySelectorAll('.mod-dd-opt')].map((i) => i.textContent.trim());
+    document.body.click();
+    const outs = {};
+    for (const v of ['true', 'false']) {
+      M.cfg(n.id, { val: v });
+      const io = M.add('io', 400, 100);
+      M.wire(n.id, io.id);
+      await M.run();
+      outs[v] = document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim();
+      M.removeNode(io.id);
+    }
+    M.removeNode(n.id); M.removeNode(code.id);
+    return { items, insetL: +(dd.left - nb.left).toFixed(1), insetR: +(nb.right - dd.right).toFixed(1),
+      codeInsetL: +(cdd.left - cnb.left).toFixed(1), codeInsetR: +(cnb.right - cdd.right).toFixed(1), outs };
+  });
+  ok('Boolean module: True/False dropdown, lone control spanning its row exactly like the Code select, true/false on the wire',
+    lgb.items.join('/') === 'True/False' && lgb.insetL === lgb.codeInsetL && lgb.insetR === lgb.codeInsetR
+      && lgb.outs.true === 'true' && lgb.outs.false === 'false', JSON.stringify(lgb));
+  /* SMate drives logic by voice */
+  const lgsp = await lgcx.newPage();
+  const lgStray = [];
+  lgsp.on('framenavigated', (f) => { if (f === lgsp.mainFrame() && !/module\.html/.test(f.url())) lgStray.push(f.url()); });
+  await lgsp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await lgsp.waitForTimeout(900);
+  await lgsp.click('#smateBtn');
+  await lgsp.waitForTimeout(400);
+  await lgsp.fill('#smateIn', 'true and false');
+  await lgsp.keyboard.press('Enter');
+  await lgsp.waitForTimeout(2400);
+  const lgsm1 = await lgsp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const lg = M.nodes().filter((n) => n.type === 'logic').pop();
+    const io = M.nodes().filter((n) => n.type === 'io').pop();
+    return { gate: lg.cfg.gate, out: document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim(),
+      n: M.nodes().length, w: M.wires().length };
+  });
+  await lgsp.fill('#smateIn', 'add a logic xor');
+  await lgsp.keyboard.press('Enter');
+  await lgsp.waitForTimeout(2400);
+  const lgsm2 = await lgsp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const lg = M.nodes().filter((n) => n.type === 'logic').pop();
+    return { gate: lg.cfg.gate };
+  });
+  ok('SMate builds the AND flow from "true and false" (answers false) and "add a logic xor" selects XOR',
+    lgsm1.gate === 'and' && lgsm1.out === 'false' && lgsm1.n === 4 && lgsm1.w === 3 && lgsm2.gate === 'xor'
+      && lgStray.length === 0, JSON.stringify({ lgsm1, lgsm2, lgStray }));
+  await lgcx.close();
+
+  /* mobile: the palette shrinks to dots */
+  const mgcx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const mgp = await mgcx.newPage();
+  await mgp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await mgp.waitForTimeout(1000);
+  const mg = await mgp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const chips = [...document.querySelectorAll('#modPalette .mod-add')];
+    const labelHidden = getComputedStyle(document.querySelector('#modPalette .mod-add-t')).display === 'none';
+    document.querySelector('.mod-add[data-add="logic"]').click();
+    const n = M.nodes()[M.nodes().length - 1];
+    return { n: chips.length, labelHidden, chipW: +chips[0].getBoundingClientRect().width.toFixed(0), added: n.type,
+      fits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+      title: chips[4].title };
+  });
+  ok('mobile: the palette is 8 dot-only chips (names kept in titles), tapping adds, the page fits 390px',
+    mg.n === 8 && mg.labelHidden && mg.chipW <= 40 && mg.added === 'logic' && mg.fits && mg.title === 'Logic', JSON.stringify(mg));
+  await mgcx.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */

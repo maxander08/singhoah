@@ -605,6 +605,39 @@
     }
     return null;
   }
+  /* the Logic module's gates, longest names first so xnor never reads as nor */
+  const MOD_GATES = [
+    ['not', /\bnot\b|~|¬|negate|非|否定|아니|\bне\b/],
+    ['nand', /\bnand\b|↑|與非|与非|否定論理積/],
+    ['nor', /\bnor\b|↓|或非|否定論理和/],
+    ['xnor', /\bxnor\b|同或|同値|equivalence/],
+    ['xor', /\bxor\b|exclusive or|異或|异或|排他的?論理和|⊕/],
+    ['and', /\band\b|&&|且|並且|并且|與|与|論理積|그리고|\bund\b|\bet\b/],
+    ['or', /\bor\b|\|\||或|或者|論理和|または|\bou\b|\boder\b/],
+  ];
+  const GATE_SYM = { not: '~', or: '+', and: '*', nor: '↓', nand: '↑', xor: '⊕', xnor: '≡' };
+  /* boolean literals in the user's language, in the order they were spoken —
+     the split captures exact words, so each part classifies cleanly */
+  function modLogicOf(raw) {
+    const text = latinDigits(raw).toLowerCase();
+    const parts = text.split(/(true|false|真|假|참|거짓|vrai|faux|wahr|falsch|verdadero|falso|verdadeiro|صحيح|خطأ|سچا|جھوٹا|सत्य|असत्य|benar|salah|истина|ложь)/);
+    const lits = [];
+    const isFalse = (w) => /false|假|거짓|faux|falsch|falso|خطأ|جھوٹا|असत्य|salah|ложь/.test(w);
+    const isTrue = (w) => /true|真|참|vrai|wahr|verdadero|verdadeiro|صحيح|سچا|सत्य|benar|истина/.test(w);
+    for (const p of parts) {
+      if (!p) continue;
+      if (isFalse(p)) { if (lits.length < 2) lits.push('false'); }
+      else if (isTrue(p)) { if (lits.length < 2) lits.push('true'); }
+    }
+    if (!lits.length) return null;
+    for (const [id, re] of MOD_GATES) {
+      if (!re.test(text)) continue;
+      if (id === 'not') return { gate: 'not', a: lits[0], b: null };
+      if (lits.length < 2) return null;
+      return { gate: id, a: lits[0], b: lits[1] };
+    }
+    return null;
+  }
   const KW = {
     timer: [...words(['timer']), 'timer', 'temporizador'],
     stopwatch: words(['stopwatch']),
@@ -663,6 +696,8 @@
     number: [...words(['mNumber']), 'number module', 'number node', '數字模組', '数字模块', '数値モジュール', '숫자 모듈'],
     operator: [...words(['mOperator']), 'operator module', 'operator node', '運算子', '运算符', '演算子モジュール', '연산자 모듈'],
     comparator: [...words(['mComparator']), 'comparator module', 'comparator node', 'compare', 'compared', 'comparison', '比較', '比较', '比べ', '비교', 'قارن', 'तुलना', 'сравни', 'vergelijk', 'vergleiche', 'porównaj', 'confronta', 'bandingkan', 'karşılaştır', 'jämför', 'sammenlign', 'vertaa'],
+    logic: [...words(['mLogic']), 'logic module', 'logic node', 'logic gate', 'logic gates', '邏輯模組', '逻辑模块', '論理モジュール', '논리 모듈'],
+    boolean: [...words(['mBoolean']), 'boolean module', 'boolean node', 'bool', '布林模組', '布尔模块', 'ブールモジュール', '불 모듈'],
     files: [...words(['flFiles']), 'documents', 'my docs', '檔案管理', '文件管理'],
     run: ['run', 'execute', '執行', '执行', '実行', '실행', 'ejecutar', 'exécuter', 'ausführen', 'تشغيل', 'चलाओ', 'запустить', 'rodar', 'esegui', 'jalankan', 'chạy'],
     newdoc: [...words(['flNew']), 'new flow', 'new note', '新流程', '新筆記'],
@@ -1146,6 +1181,29 @@
           sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mComparator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
         }).catch(() => { /* the node's status line shows the error */ });
       };
+      /* every logic request shares one builder: Booleans wired into the
+         Logic gate's A (and B) inputs, verdict to the I/O terminal, run,
+         answer with the verdict in chat — the flow stays on the canvas */
+      const buildLogicFlow = (gid, a, b) => {
+        const M = globalThis.__MOD;
+        const unary = gid === 'not';
+        const ba = M.add('boolean');   /* lands wherever the user is looking */
+        M.cfg(ba.id, { val: a });
+        let bb = null;
+        if (!unary) { bb = M.add('boolean', ba.x, ba.y + 260); M.cfg(bb.id, { val: b }); }
+        const dy = unary ? 0 : 130;
+        const lg = M.add('logic', ba.x + 320, ba.y + dy);
+        M.cfg(lg.id, { gate: gid });
+        const io = M.add('io', ba.x + 600, ba.y + dy);
+        M.wire(ba.id, lg.id, 'a');
+        if (!unary) M.wire(bb.id, lg.id, 'b');
+        M.wire(lg.id, io.id);
+        note(t(curLang, 'mRun'));
+        Promise.resolve(M.run()).then((r) => {
+          const out = (r && r.length) ? r.join(' · ') : '';
+          sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mLogic')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
+        }).catch(() => { /* the node's status line shows the error */ });
+      };
       if (has(text, KW.files)) { globalThis.__MOD.home(); note(t(curLang, 'flFiles')); abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
       else if (has(text, KW.newdoc)) { globalThis.__MOD.newDoc(); note(t(curLang, 'done')); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); }
       else if (has(text, KW.run)) {
@@ -1183,7 +1241,7 @@
       /* "add a number module 255 base 16" / "add an operator *" / "add a
          comparator >=" — an explicit module mention always means the node
          (or, with two numbers to compare, the run), never a calculation */
-      if (has(text, KW.number) || has(text, KW.operator) || has(text, KW.comparator)) {
+      if (has(text, KW.number) || has(text, KW.operator) || has(text, KW.comparator) || has(text, KW.logic) || has(text, KW.boolean)) {
         if (document.getElementById('modEditor').hidden) {
           const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
           if (id) globalThis.__MOD.openDoc(id); else globalThis.__MOD.newDoc();
@@ -1210,6 +1268,26 @@
             M.cfg(n.id, { op: oid });
             note(t(curLang, 'done'));
             abPush({ k: 'done', t: `${t(curLang, 'mOperator')} ${OPS_SYM[oid]}` });
+          } else if (has(text, KW.logic)) {
+            /* "logic xor true false" runs as a real flow; "add a logic gate
+               nand" adds the node with the gate selected */
+            const q = modLogicOf(text);
+            if (q) buildLogicFlow(q.gate, q.a, q.b);
+            else {
+              const t2 = latinDigits(text).toLowerCase();
+              const gid = (MOD_GATES.find(([, re]) => re.test(t2)) || [])[0] || 'or';
+              const n = M.add('logic');   /* lands in the current view */
+              M.cfg(n.id, { gate: gid });
+              note(t(curLang, 'done'));
+              abPush({ k: 'done', t: `${t(curLang, 'mLogic')} ${GATE_SYM[gid]}` });
+            }
+          } else if (has(text, KW.boolean)) {
+            const t2 = latinDigits(text).toLowerCase();
+            const v = /\bfalse\b|假|거짓/.test(t2) ? 'false' : 'true';
+            const n = M.add('boolean');   /* lands in the current view */
+            M.cfg(n.id, { val: v });
+            note(t(curLang, 'done'));
+            abPush({ k: 'done', t: `${t(curLang, 'mBoolean')} · ${t(curLang, v === 'true' ? 'mTrue' : 'mFalse')}` });
           } else {
             const n = M.add('number');   /* lands in the current view */
             const v = num(text);
@@ -1273,6 +1351,17 @@
             sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mOperator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
           }).catch(() => { /* the node's status line shows the error */ });
         }
+      }
+      /* logic requests: "not true", "true and false", "true xor false" —
+         SMate builds the real flow (Boolean → Logic ← Boolean → I/O), runs
+         it, and answers with the verdict; the flow stays on the canvas */
+      else if (modLogicOf(text)) {
+        const q = modLogicOf(text);
+        if (document.getElementById('modEditor').hidden) {
+          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
+          if (id) globalThis.__MOD.openDoc(id);
+        }
+        if (!document.getElementById('modEditor').hidden) buildLogicFlow(q.gate, q.a, q.b);
       }
     }
     /* the Scribe toolbar, by voice or text */
@@ -1620,7 +1709,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | comparator >|<|>=|<=|=|!= | calculate <a> +|-|*|/|%|^ <b> | compare <a> >|<|>=|<=|=|!= <b> | currency <CODE> | clear all | clear canvas | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | comparator >|<|>=|<=|=|!= | calculate <a> +|-|*|/|%|^ <b> | compare <a> >|<|>=|<=|=|!= <b> | logic ~|+|*|nor|nand|xor|xnor | boolean true|false | not <bool> | <bool> and|or|xor <bool> | currency <CODE> | clear all | clear canvas | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
     'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');

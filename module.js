@@ -32,6 +32,12 @@ const TYPES = {
      The verdict shows as true/false and flows on as 1/0 (base-10 integer), so
      a comparison can feed the Operator. Same two input nodes as the Operator. */
   comparator: { w: 210, color: '#4a8f9e', name: () => t(lang, 'mComparator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
+  /* Logic: every logic gate over its wired boolean inputs — ~ NOT, + OR,
+     * AND, ↓ NOR, ↑ NAND, ⊕ XOR, ≡ XNOR. NOT is unary: it takes the single
+     top input node and the second node retires while it is selected. */
+  logic: { w: 210, color: '#b84a8f', name: () => t(lang, 'mLogic'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
+  /* Boolean: a true/false source for the Logic module's inputs */
+  boolean: { w: 210, color: '#c94a4a', name: () => t(lang, 'mBoolean'), hasIn: false, hasOut: true },
   /* I/O: one node, one wire — the text typed in it is the Code module's
      stdin, and the Code module's stdout (and red errors) render back into
      its result pane. Fed from a Text module, it previews the Markdown. */
@@ -322,6 +328,48 @@ const CMPS = {
   eq: { sym: '=', name: () => t(lang, 'cmpEq') },
   neq: { sym: '≠', name: () => t(lang, 'cmpNeq') },
 };
+/* the Logic module's gates, in Boolean-algebra notation: ~ NOT, + OR, * AND,
+   ↓ NOR, ↑ NAND, ⊕ XOR, ≡ XNOR. NOT takes one input; every other gate two */
+const GATES = {
+  not: { sym: '~', name: () => t(lang, 'gateNot'), unary: true },
+  or: { sym: '+', name: () => t(lang, 'gateOr') },
+  and: { sym: '*', name: () => t(lang, 'gateAnd') },
+  nor: { sym: '↓', name: () => t(lang, 'gateNor') },
+  nand: { sym: '↑', name: () => t(lang, 'gateNand') },
+  xor: { sym: '⊕', name: () => t(lang, 'gateXor') },
+  xnor: { sym: '≡', name: () => t(lang, 'gateXnor') },
+};
+/* the effective input nodes of a module: the Logic module in NOT mode has
+   only the top input — used for rendering, wiring and doc migration */
+const inPortsOf = (n) => {
+  const p = TYPES[n.type] && TYPES[n.type].inPorts;
+  if (!p) return null;
+  if (n.type === 'logic' && (GATES[n.cfg.gate || 'or'] || GATES.or).unary) return ['a'];
+  return p;
+};
+/* any incoming flow value → true/false, or null when it is not a boolean.
+   true/false and 1/0 read as booleans; anything else is a bad operand */
+function boolOf(v) {
+  if (!v) return null;
+  const s = String(v.text ?? v).trim().toLowerCase();
+  if (s === 'true' || s === '1') return true;
+  if (s === 'false' || s === '0') return false;
+  return null;
+}
+function computeLogic(cfg, va, vb) {
+  const g = GATES[cfg.gate || 'or'] || GATES.or;
+  if (g.unary) {
+    if (!va) return { ok: false, why: 'needA' };
+    const a = boolOf(va);
+    if (a === null) return { ok: false, why: 'bad' };
+    return { ok: true, out: !a };
+  }
+  if (!va || !vb) return { ok: false, why: 'needAB' };
+  const a = boolOf(va), b = boolOf(vb);
+  if (a === null || b === null) return { ok: false, why: 'bad' };
+  const gate = cfg.gate || 'or';
+  return { ok: true, out: { or: a || b, and: a && b, nor: !(a || b), nand: !(a && b), xor: a !== b, xnor: a === b }[gate] };
+}
 function computeComparator(cfg, va, vb) {
   if (!va || !vb) return { ok: false, why: 'needAB' };
   const a = ratOf(va), b = ratOf(vb);
@@ -401,8 +449,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '23978c8a';
-const BV = BUILD === '23978c8a' ? '' : '?v=' + BUILD;
+const BUILD = 'd62e5717';
+const BV = BUILD === 'd62e5717' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -590,6 +638,27 @@ function runComparatorNode(n, va, vb) {
   if (hint) hint.textContent = `${(va && va.text) ?? '?'} ${cmp.sym} ${(vb && vb.text) ?? '?'} = ${r.out}`;
   setStat('', '');
   return { text: r.out, num: { numtype: 'int', base: 10, digits: 6, n: r.val ? 1n : 0n, d: 1n } };
+}
+
+/* the Logic node: the gate's verdict shows in the hint line (a sym b = true),
+   any failure in the red status line; true/false flows on as 1/0 so chained
+   operators can compute with the outcome of a logic gate */
+function runLogicNode(n, va, vb) {
+  const el = nodeEl(n.id);
+  const stat = el && el.querySelector('.mod-cstat');
+  const hint = el && el.querySelector('.mod-ophint');
+  const setStat = (txt, cls) => { if (stat) { stat.textContent = txt; stat.className = 'mod-cstat' + (cls ? ' ' + cls : ''); } };
+  const r = computeLogic(n.cfg, va, vb);
+  const g = GATES[n.cfg.gate || 'or'];
+  const whyText = { needA: t(lang, 'mNeedIn'), needAB: t(lang, 'mNeedAB'), bad: t(lang, 'mBadOperand') };
+  if (!r.ok) {
+    if (hint) hint.textContent = '';
+    setStat(whyText[r.why] || t(lang, 'mBadOperand'), 'bad');
+    return { text: '', err: '' };
+  }
+  if (hint) hint.textContent = g.unary ? `${g.sym}${(va && va.text) ?? '?'} = ${r.out}` : `${(va && va.text) ?? '?'} ${g.sym} ${(vb && vb.text) ?? '?'} = ${r.out}`;
+  setStat('', '');
+  return { text: r.out, num: { numtype: 'int', base: 10, digits: 6, n: r.out ? 1n : 0n, d: 1n } };
 }
 
 async function runCodeNode(n, ins) {
@@ -1053,6 +1122,14 @@ function renderNode(n) {
        line shows the equation or verdict, the status line turns red on bad
        input — and stays silent while the module is simply waiting */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
+  } else if (n.type === 'logic') {
+    /* the Logic module shares the Operator's body: gate select, hint line
+       with the gate's verdict, red status line only on bad input */
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
+  } else if (n.type === 'boolean') {
+    /* the Boolean module: one lone control — true or false — spanning its
+       row exactly, and a status line that only speaks when something is wrong */
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'number') {
     /* the Number module: type select + base select (Integer/Decimal) or digit
        count (Float/Fixed), a mono value field, and a base-10 hint. The value
@@ -1068,9 +1145,11 @@ function renderNode(n) {
   /* connection nodes sit on the module's edge exactly like every other
      module's: the first input node at the standard height (the same spot as
      the I/O and Code modules' input, in line with the out node), the second
-     input node just below it on the same 32px rhythm */
-  const inPortsHtml = T.inPorts
-    ? T.inPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${13 + i * 32}px"></span>`).join('')
+     input node just below it on the same 32px rhythm. The Logic module in
+     NOT mode has only the first input node */
+  const effPorts = inPortsOf(n);
+  const inPortsHtml = effPorts
+    ? effPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${13 + i * 32}px"></span>`).join('')
     : (T.hasIn ? '<span class="mod-port in" data-port="a"></span>' : '');
   el.innerHTML = head + body + inPortsHtml + (T.hasOut ? '<span class="mod-port out"></span>' : '');
   el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
@@ -1134,6 +1213,21 @@ function renderNode(n) {
     slot.appendChild(modDropdown(n, 'cmp', t(lang, 'mComparator'),
       Object.entries(CMPS).map(([id, c]) => [id, `${c.sym}  ${c.name()}`]),
       (v) => { n.cfg.cmp = v; touch(); }));
+  } else if (slot && n.type === 'logic') {
+    slot.appendChild(modDropdown(n, 'gate', t(lang, 'mLogic'),
+      Object.entries(GATES).map(([id, g]) => [id, `${g.sym}  ${g.name()}`]),
+      (v) => {
+        n.cfg.gate = v;
+        /* switching to NOT retires the second input node: its wire goes with it */
+        if ((GATES[v] || GATES.or).unary) doc.wires = doc.wires.filter((w) => !(w.to === n.id && w.toPort === 'b'));
+        renderNode(n);
+        redrawWires();
+        touch();
+      }));
+  } else if (slot && n.type === 'boolean') {
+    slot.appendChild(modDropdown(n, 'val', t(lang, 'mBoolean'),
+      [['true', t(lang, 'mTrue')], ['false', t(lang, 'mFalse')]],
+      (v) => { n.cfg.val = v; touch(); }));
   }
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
 
@@ -1244,7 +1338,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x), y: snap(y),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : type === 'comparator' ? { cmp: 'gt' } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : type === 'comparator' ? { cmp: 'gt' } : type === 'logic' ? { gate: 'or' } : type === 'boolean' ? { val: 'true' } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -1273,7 +1367,7 @@ function setZoom(z) {
 const cpts = new Map();   /* live canvas pointers: one pans, two pinch */
 let pinch = null, panMoved = false;
 canvas.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.mod-node') || e.target.closest('.mod-zoom')) return;
+  if (e.target.closest('.mod-node') || e.target.closest('.mod-zoom') || e.target.closest('.mod-palette')) return;
   try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic events carry no real pointer */ }
   cpts.set(e.pointerId, { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY });
   panMoved = false;
@@ -1367,6 +1461,16 @@ async function run() {
         const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
         v = runComparatorNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
       }
+      else if (n.type === 'logic') {
+        /* NOT reads only the top input node; every other gate reads A and B */
+        const wa = doc.wires.find((w) => w.to === n.id && (w.toPort || 'a') === 'a');
+        const wb = doc.wires.find((w) => w.to === n.id && w.toPort === 'b');
+        v = runLogicNode(n, wa ? val[wa.from] : undefined, wb ? val[wb.from] : undefined);
+      }
+      else if (n.type === 'boolean') {
+        v = { text: n.cfg.val === 'false' ? 'false' : 'true' };
+        v.num = { numtype: 'int', base: 10, digits: 6, n: v.text === 'true' ? 1n : 0n, d: 1n };
+      }
       else if (n.type === 'code') {
         /* stdin: the text typed into attached I/O nodes first, then whatever
            Text modules wire into the left port. An empty I/O pane contributes
@@ -1447,6 +1551,16 @@ function migrateDoc() {
     wires = nw.filter((w) => !gone.has(w.from) && !gone.has(w.to));   /* nothing dangling, ever */
     changed = true;
   }
+  /* wires may only enter a connection node that exists: a Logic module in
+     NOT mode has no B input, so a stale B wire (hand-edited JSON, an older
+     gate choice) is dropped instead of dangling */
+  const saneWires = wires.filter((w) => {
+    const tn = doc.nodes.find((n) => n.id === w.to);
+    if (!tn) return false;
+    const ports = inPortsOf(tn);
+    return !ports || ports.includes(w.toPort || 'a');
+  });
+  if (saneWires.length !== wires.length) { wires = saneWires; changed = true; }
   /* one wire per node, on both ends: a connection node holds exactly one wire,
      so keep only the newest wire leaving each out node and entering each in node */
   const kept = [];
@@ -1555,6 +1669,17 @@ function applyLang(id, persist = true) {
   $('modAddN').textContent = t(lang, 'mNumber');
   $('modAddO').textContent = t(lang, 'mOperator');
   $('modAddCmp').textContent = t(lang, 'mComparator');
+  $('modAddL').textContent = t(lang, 'mLogic');
+  $('modAddB').textContent = t(lang, 'mBoolean');
+  /* the palette chips carry their name as title + aria-label: the labels
+     themselves hide on phones, but the names never disappear */
+  const ADD_KEYS = { text: 'mText', number: 'mNumber', operator: 'mOperator', comparator: 'mComparator', logic: 'mLogic', boolean: 'mBoolean', code: 'mCode', io: 'mIO' };
+  document.querySelectorAll('.mod-palette .mod-add').forEach((b) => {
+    const key = ADD_KEYS[b.dataset.add];
+    if (!key) return;
+    b.title = t(lang, key);
+    b.setAttribute('aria-label', t(lang, key));
+  });
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
   $('modTitle').placeholder = t(lang, 'flUntitledFlow');
@@ -1631,7 +1756,8 @@ globalThis.__MOD = {
     /* standardized with the canvas: the source needs an out node, the target an in node */
     const A = nodeOf(a), B = nodeOf(b);
     if (!A || !B || !TYPES[A.type].hasOut || !TYPES[B.type].hasIn) return false;
-    if (TYPES[B.type].inPorts && !TYPES[B.type].inPorts.includes(port)) return false;
+    const bports = inPortsOf(B);
+    if (bports && !bports.includes(port)) return false;
     /* one wire per port, both ends: rewiring moves the connection */
     doc.wires = doc.wires.filter((w) => !(w.to === b && (w.toPort || 'a') === port) && w.from !== a);
     doc.wires.push({ from: a, to: b, toPort: port });
