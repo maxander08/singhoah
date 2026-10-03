@@ -3811,6 +3811,90 @@ await prn.close();
   ok('SMate builds its flow inside the current view (panned far from the origin) and answers',
     zsm.allInView && zsm.out === 'true', JSON.stringify(zsm));
   await zcx.close();
+
+  /* ---- the clear-canvas button: confirm, clear, persist — and SMate ---- */
+  const clcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const clp = await clcx.newPage();
+  await clp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await clp.waitForTimeout(900);
+  ok('a trash button joins the toolbar after Import — standard chip, translated, with an icon',
+    await clp.evaluate(() => {
+      const b = document.getElementById('modClear');
+      return !!b && !!b.querySelector('svg') && b.title === 'Clear canvas'
+        && b.previousElementSibling && b.previousElementSibling.id === 'modImport'
+        && getComputedStyle(b).borderRadius === '0px';
+    }));
+  const clBuilt = await clp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const a = M.add('number'); M.cfg(a.id, { numtype: 'dec', value: '6' });
+    const b = M.add('number'); M.cfg(b.id, { numtype: 'dec', value: '7' });
+    const cp = M.add('comparator');
+    const io = M.add('io');
+    M.wire(a.id, cp.id, 'a'); M.wire(b.id, cp.id, 'b'); M.wire(cp.id, io.id);
+    await M.run();
+    return { n: M.nodes().length, w: M.wires().length };
+  });
+  const clCancel = await clp.evaluate(() => {
+    let asked = 0, question = '';
+    window.confirm = (q) => { asked += 1; question = q; return false; };
+    document.getElementById('modClear').click();
+    window.confirm = window.constructor.prototype.confirm;
+    const M = globalThis.__MOD;
+    return { asked, question, n: M.nodes().length, w: M.wires().length, drawn: document.querySelectorAll('.mod-wire').length };
+  });
+  ok('clearing asks first in plain language, and Cancel keeps every module and wire',
+    clCancel.asked === 1 && /Delete every module/.test(clCancel.question)
+      && clCancel.n === clBuilt.n && clCancel.w === clBuilt.w && clCancel.drawn === clBuilt.w,
+    JSON.stringify(clCancel));
+  const clDone = await clp.evaluate(async () => {
+    window.confirm = () => true;
+    document.getElementById('modClear').click();
+    window.confirm = window.constructor.prototype.confirm;
+    const M = globalThis.__MOD;
+    const now = { n: M.nodes().length, w: M.wires().length, onCanvas: document.querySelectorAll('.mod-node').length, wdel: document.querySelectorAll('.mod-wdel').length };
+    const id = M.latest();
+    await new Promise((r) => setTimeout(r, 800));   /* the doc saves */
+    M.home();
+    await new Promise((r) => setTimeout(r, 200));
+    M.openDoc(id);
+    await new Promise((r) => setTimeout(r, 200));
+    return { now, reopened: { n: M.nodes().length, w: M.wires().length } };
+  });
+  ok('confirm clears the whole canvas — modules, wires, the wire-delete button — and it persists',
+    clDone.now.n === 0 && clDone.now.w === 0 && clDone.now.onCanvas === 0 && clDone.now.wdel === 0
+      && clDone.reopened.n === 0 && clDone.reopened.w === 0, JSON.stringify(clDone));
+  const clEmpty = await clp.evaluate(() => {
+    let asked = 0;
+    window.confirm = () => { asked += 1; return true; };
+    document.getElementById('modClear').click();
+    window.confirm = window.constructor.prototype.confirm;
+    return asked;
+  });
+  ok('clearing an already-empty canvas never even asks', clEmpty === 0, 'asked=' + clEmpty);
+  /* SMate clears by voice */
+  const clsp = await clcx.newPage();
+  const clStray = [];
+  clsp.on('framenavigated', (f) => { if (f === clsp.mainFrame() && !/module\.html/.test(f.url())) clStray.push(f.url()); });
+  await clsp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await clsp.waitForTimeout(900);
+  await clsp.click('#smateBtn');
+  await clsp.waitForTimeout(400);
+  await clsp.fill('#smateIn', 'multiply 6 by 7');
+  await clsp.keyboard.press('Enter');
+  await clsp.waitForTimeout(2300);
+  const clBefore = await clsp.evaluate(() => ({ n: globalThis.__MOD.nodes().length, w: globalThis.__MOD.wires().length }));
+  await clsp.fill('#smateIn', 'clear the canvas');
+  await clsp.keyboard.press('Enter');
+  await clsp.waitForTimeout(2300);
+  const clAfter = await clsp.evaluate(() => ({
+    n: globalThis.__MOD.nodes().length, w: globalThis.__MOD.wires().length,
+    block: [...document.querySelectorAll('.smate-block')].some((b) => b.textContent.toLowerCase().includes('clear canvas')),
+  }));
+  ok('SMate "clear the canvas" empties the flow and reports with an action block',
+    clBefore.n === 4 && clBefore.w === 3 && clAfter.n === 0 && clAfter.w === 0 && clAfter.block && clStray.length === 0,
+    JSON.stringify({ clBefore, clAfter, clStray }));
+  await clcx.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */

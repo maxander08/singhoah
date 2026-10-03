@@ -1211,6 +1211,21 @@ function removeNode(id) {
   redrawWires();
   touch();
 }
+/* clear the whole canvas: every module and every wire goes at once. A
+   destructive action asks first — exactly like the Scribe clear — and a
+   canvas with nothing on it never asks at all */
+function clearCanvas() {
+  if ($('modEditor').hidden) return false;
+  if (!doc.nodes.length && !doc.wires.length) return false;
+  if (!window.confirm(t(lang, 'mClearAsk'))) return false;
+  doc.nodes = [];
+  doc.wires = [];
+  selectedWire = -1;
+  world.querySelectorAll('.mod-node').forEach((el) => el.remove());
+  redrawWires();   /* also retires the wire-delete button */
+  touch();
+  return true;
+}
 function addNode(type, x, y) {
   /* adding with no canvas on screen (files home) would silently mutate a
      hidden, unsaved doc — start a fresh one instead so the addition is real */
@@ -1508,6 +1523,7 @@ document.querySelectorAll('.mod-add').forEach((b) => b.addEventListener('click',
 }));
 $('modExport').addEventListener('click', () => { if (docId) { clearTimeout(saveTimer); touch(); setTimeout(() => FS.docsExport(docId), 550); } });
 $('modImport').addEventListener('click', () => $('modFile').click());
+$('modClear').addEventListener('click', clearCanvas);
 $('modFile').addEventListener('change', async () => {
   const f = $('modFile').files && $('modFile').files[0];
   if (f) {
@@ -1548,6 +1564,8 @@ function applyLang(id, persist = true) {
   $('modExport').setAttribute('aria-label', t(lang, 'flExport'));
   $('modImport').title = t(lang, 'flImport');
   $('modImport').setAttribute('aria-label', t(lang, 'flImport'));
+  $('modClear').title = t(lang, 'mClearCv');
+  $('modClear').setAttribute('aria-label', t(lang, 'mClearCv'));
   $('modTitle').setAttribute('aria-label', t(lang, 'lpModule'));
   $('modZoomIn').setAttribute('aria-label', t(lang, 'zoomIn'));
   $('modZoomOut').setAttribute('aria-label', t(lang, 'zoomOut'));
@@ -1621,6 +1639,7 @@ globalThis.__MOD = {
     return true;
   },
   removeNode,
+  clear: clearCanvas,
   cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && patch.value !== undefined) { const ni = el.querySelector('.mod-numin'); if (ni) { ni.value = patch.value; ni.dispatchEvent(new Event('input', { bubbles: true })); } }
   if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined || patch.op !== undefined || patch.cmp !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },

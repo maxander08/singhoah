@@ -666,6 +666,7 @@
     files: [...words(['flFiles']), 'documents', 'my docs', '檔案管理', '文件管理'],
     run: ['run', 'execute', '執行', '执行', '実行', '실행', 'ejecutar', 'exécuter', 'ausführen', 'تشغيل', 'चलाओ', 'запустить', 'rodar', 'esegui', 'jalankan', 'chạy'],
     newdoc: [...words(['flNew']), 'new flow', 'new note', '新流程', '新筆記'],
+    modClear: [...words(['mClearCv']), 'clear canvas', 'clear the canvas', 'clear all modules', 'delete all modules', 'remove all modules', 'empty the canvas', '刪除所有模組', '删除所有模块', '清空所有模組', '全部削除', '모두 지우기', '전부 삭제', 'очисти холст', 'удали все модули', 'borra todos los módulos'],
     cash: [...words(['walCash']), 'cash', 'banknote', 'banknotes', 'coin', 'coins', '紙鈔', '钞票', '硬幣', '硬币', 'お札', '硬貨', '지폐', '동전'],
     currency: [...words(['currency']), 'currency'],
     add: [...words(['walAdd']), 'add', 'add'],
@@ -1164,6 +1165,21 @@
           }).catch(() => { /* the canvas already shows the error */ });
         }
       }
+      /* "clear the canvas" — every module and wire goes; the request itself
+         is the confirmation, the canvas visibly empties, the block reports */
+      else if (has(text, KW.modClear)) {
+        if (document.getElementById('modEditor').hidden) {
+          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
+          if (id) globalThis.__MOD.openDoc(id); else globalThis.__MOD.newDoc();
+        }
+        if (!document.getElementById('modEditor').hidden) {
+          const oc = window.confirm; window.confirm = () => true;
+          const r = globalThis.__MOD.clear();
+          window.confirm = oc;
+          note(r ? t(curLang, 'done') : null);
+          if (r) abPush({ k: 'done', t: t(curLang, 'mClearCv') });
+        }
+      }
       /* "add a number module 255 base 16" / "add an operator *" / "add a
          comparator >=" — an explicit module mention always means the node
          (or, with two numbers to compare, the run), never a calculation */
@@ -1604,7 +1620,7 @@
     'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
     'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
     're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | comparator >|<|>=|<=|=|!= | calculate <a> +|-|*|/|%|^ <b> | compare <a> >|<|>=|<=|=|!= <b> | currency <CODE> | clear all | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
+    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | comparator >|<|>=|<=|=|!= | calculate <a> +|-|*|/|%|^ <b> | compare <a> >|<|>=|<=|=|!= <b> | currency <CODE> | clear all | clear canvas | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
     'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
     'Otherwise answer the user briefly and kindly, in the language they used.',
   ].join(' ');
