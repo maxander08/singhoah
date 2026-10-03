@@ -1185,6 +1185,7 @@
   async function agent(raw) {
     setStatusText('AI …');
     const hist = [];
+    let lastResult = '';
     let scolded = false;
     let lastRaw = '';
     const seed = aiCpu ? CPU_FEWSHOT : [];   /* the tiny brain needs to see the pattern */
@@ -1221,8 +1222,16 @@
           /* a leading <...> tag is a parroted prompt placeholder ("<text>"),
              never a real answer — strip it; if nothing real remains, treat
              the reply as invalid and let the nudge/fallback paths handle it */
-          const s = String(j.say).trim().replace(/^<[^>]*>\s*/, '').trim();
-          if (s && s.toLowerCase() !== String(raw || '').trim().toLowerCase()) return s;
+          let s = String(j.say).trim().replace(/^<[^>]*>\s*/, '').trim();
+          if (s && s.toLowerCase() !== String(raw || '').trim().toLowerCase()) {
+            /* the tiny model can garble digits when paraphrasing: if the
+               answer carries a clock time that differs from the tool's
+               RESULT time, the RESULT is the truth — swap it in */
+            const rt = (lastResult.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
+            const st = (s.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
+            if (rt && st && rt !== st) s = s.replace(st, rt);
+            return s;
+          }
         }
         const fn = j.tool && TOOLS[j.tool];
         if (fn) {
@@ -1230,7 +1239,8 @@
           let res;
           try { res = await fn(j.args || {}); } catch { res = 'error'; }
           if (res && typeof res === 'object' && res.nav) return res.say;
-          hist.push({ role: 'user', content: 'RESULT: ' + String(res).slice(0, 220) });
+          lastResult = String(res).slice(0, 220);
+          hist.push({ role: 'user', content: 'RESULT: ' + lastResult });
           while (hist.length > 6) hist.splice(0, 2);
           continue;
         }

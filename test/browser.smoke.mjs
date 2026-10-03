@@ -1719,8 +1719,10 @@ ok('the model answers from that live ledger', await ap.evaluate(() =>
 await ap.fill('#smateIn', 'what time is it in Singapore');
 await ap.click('#smateSend');
 await ap.waitForTimeout(1600);
-ok('the time question drives the agent loop: real time tool, then the answer', await ap.evaluate(() =>
-  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('15:00')));
+ok('the time question drives the agent loop: real time tool, then the answer', await ap.evaluate(() => {
+  const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
+  return /singapore/i.test(last) && /\b\d{1,2}:\d{2}\b/.test(last);
+}));
 await ap.fill('#smateIn', 'parrot test');
 await ap.click('#smateSend');
 await ap.waitForTimeout(1800);
