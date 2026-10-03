@@ -1243,6 +1243,20 @@
     return null;
   }
 
+  /* one silent recovery attempt before admitting the engine is down: the
+     failure may have been a blip — a dropped download, a flaky moment. If
+     the network recovered the user simply gets a working assistant; if not,
+     the honest message. No reload, no toggling, no questions */
+  const recover = async (raw) => {
+    aiInit();
+    const t0 = Date.now();
+    while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
+    if (aiPref === 'off') return t(curLang, 'smateAIOff');
+    if (aiState === 'on' && aiEngine) return await agent(raw);
+    if (aiState === 'err') return t(curLang, 'aiNoGpu');
+    return t(curLang, 'smateAIWait');
+  };
+
   /* WhatsApp-style flow: my line -> typing dots + status -> answer */
   function handle(raw) {
     if (!raw) return;
@@ -1266,7 +1280,7 @@
         } else if (aiState === 'on' && aiEngine) {
           out = await agent(LIB.brandFix ? LIB.brandFix(raw) : raw);
         } else if (aiState === 'err') {
-          out = t(curLang, 'aiNoGpu');
+          out = await recover(raw);
         } else {
           /* the arrival preload is already on its way — GPU or CPU, every
              browser gets an engine. Join the wait; answer honestly if it
@@ -1274,8 +1288,9 @@
           aiInit();
           const t0 = Date.now();
           while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
-          if (aiState === 'on' && aiEngine) out = await agent(raw);
-          else if (aiState === 'err') out = t(curLang, 'aiNoGpu');
+          if (aiPref === 'off') out = t(curLang, 'smateAIOff');
+          else if (aiState === 'on' && aiEngine) out = await agent(raw);
+          else if (aiState === 'err') out = await recover(raw);
           else out = t(curLang, 'smateAIWait');
         }
       } catch { out = null; }
@@ -1340,6 +1355,13 @@
      and answers through tools. Turning the chip off pauses the assistant
      until it is turned back on. --------- */  const aiBtn = $('smateAI');
   let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
+  /* the browser's module map caches a FAILED import: a plain retry of the
+     same URL fails instantly without ever touching the network, so a blip
+     at arrival would be unrecoverable until reload. Retry attempts append
+     a fresh query string — the module map sees a new URL and re-fetches.
+     The first load stays un-busted so normal browser caching applies */
+  let aiLoadTry = 0;
+  const esmUrl = (pkg) => 'https://esm.run/' + pkg + (aiLoadTry > 1 ? '?retry=' + aiLoadTry : '');
   let aiCpu = false;   /* the WASM engine: small model, slim prompt */
   /* few-shot dialogue for the tiny CPU brain: it follows what it sees */
   const CPU_FEWSHOT = [
@@ -1386,9 +1408,41 @@
      the CPU engine. Either way the assistant works */
   if (aiPref === 'on') aiInit();
 
+  /* the CPU engine: Transformers.js, WASM backend, int8 quantized. It speaks
+     the same chat.completions protocol as web-llm, so the agent loop never
+     knows the difference. Runs when there is no WebGPU — and as the fallback
+     when a WebGPU machine's own load fails */
+  async function loadCpuEngine() {
+    const tmod = await import(esmUrl('@huggingface/transformers@3'));
+    try { tmod.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1; } catch { /* older builds: default */ }
+    aiCpu = true;
+    const prog = (p) => {
+      const st = $('smateStatus');
+      if (st && aiState === 'loading' && p && p.status === 'progress') st.textContent = `AI ${Math.round((p.progress || 0) * 100)}%`;
+    };
+    let lastErr = null;
+    for (const id of WASM_MODELS) {
+      try {
+        const pipe = await tmod.pipeline('text-generation', id, { dtype: 'q8', device: 'wasm', progress_callback: prog });
+        return { chat: { completions: { async create({ messages, max_tokens }) {
+          const out = await pipe(messages, { max_new_tokens: Math.min(max_tokens ?? 220, 90), do_sample: false, return_full_text: false });
+          const g = out && out[0] && out[0].generated_text;
+          const text = typeof g === 'string' ? g
+            : Array.isArray(g) ? ((g[g.length - 1] || {}).content || '')
+            : (g && g.content) || '';
+          try { (globalThis.__SMATE_CPU_RAW = globalThis.__SMATE_CPU_RAW || []).push(String(text).slice(0, 200)); } catch { /* diagnostics hook */ }
+          return { choices: [{ message: { content: text } }] };
+        } } } };
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr || new Error('no model');
+  }
+
   async function aiInit() {
     if (aiState === 'loading') return;
+    aiLoadTry++;
     aiState = 'loading';
+    aiCpu = false;   /* a retry may take a different branch than the last attempt */
     aiUI();
     try {
       if (globalThis.__SMATE_AI_ENGINE) {
@@ -1397,53 +1451,34 @@
         let gpu = false;
         try { gpu = !!navigator.gpu && !!(await navigator.gpu.requestAdapter()); } catch { gpu = false; }
         if (gpu) {
-          const mod = await import('https://esm.run/@mlc-ai/web-llm');
-          const create = mod.CreateWebLLMEngine || mod.CreateMLCEngine;
-          if (!create) throw new Error('web-llm has no engine factory');
-          let lastErr = null;
-          for (const id of AI_MODELS) {
-            try {
-              aiEngine = await create(id, {
-                initProgressCallback: (r) => {
-                  const st = $('smateStatus');
-                  if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
-                },
-              });
-              lastErr = null;
-              break;
-            } catch (e) { lastErr = e; }
+          try {
+            const mod = await import(esmUrl('@mlc-ai/web-llm'));
+            const create = mod.CreateWebLLMEngine || mod.CreateMLCEngine;
+            if (!create) throw new Error('web-llm has no engine factory');
+            let lastErr = null;
+            for (const id of AI_MODELS) {
+              try {
+                aiEngine = await create(id, {
+                  initProgressCallback: (r) => {
+                    const st = $('smateStatus');
+                    if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
+                  },
+                });
+                lastErr = null;
+                break;
+              } catch (e) { lastErr = e; }
+            }
+            if (!aiEngine) throw lastErr || new Error('no model');
+          } catch {
+            /* the WebGPU load failed — a dropped download, an out-of-memory
+               GPU, a CDN hiccup. The machine can still run the CPU engine:
+               fall back instead of declaring the assistant dead */
+            aiEngine = null;
           }
-          if (!aiEngine) throw lastErr || new Error('no model');
-        } else {
-          /* the CPU engine: Transformers.js, WASM backend, int8 quantized.
-             It speaks the same chat.completions protocol as web-llm, so the
-             agent loop never knows the difference */
-          const tmod = await import('https://esm.run/@huggingface/transformers@3');
-          try { tmod.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1; } catch { /* older builds: default */ }
-          aiCpu = true;
-          const prog = (p) => {
-            const st = $('smateStatus');
-            if (st && aiState === 'loading' && p && p.status === 'progress') st.textContent = `AI ${Math.round((p.progress || 0) * 100)}%`;
-          };
-          let lastErr = null;
-          for (const id of WASM_MODELS) {
-            try {
-              const pipe = await tmod.pipeline('text-generation', id, { dtype: 'q8', device: 'wasm', progress_callback: prog });
-              aiEngine = { chat: { completions: { async create({ messages, max_tokens }) {
-                const out = await pipe(messages, { max_new_tokens: Math.min(max_tokens ?? 220, 90), do_sample: false, return_full_text: false });
-                const g = out && out[0] && out[0].generated_text;
-                const text = typeof g === 'string' ? g
-                  : Array.isArray(g) ? ((g[g.length - 1] || {}).content || '')
-                  : (g && g.content) || '';
-                try { (globalThis.__SMATE_CPU_RAW = globalThis.__SMATE_CPU_RAW || []).push(String(text).slice(0, 200)); } catch { /* diagnostics hook */ }
-                return { choices: [{ message: { content: text } }] };
-              } } } };
-              lastErr = null;
-              break;
-            } catch (e) { lastErr = e; }
-          }
-          if (!aiEngine) throw lastErr || new Error('no model');
         }
+        /* no WebGPU — or the WebGPU load just failed. The CPU engine runs
+           everywhere; only when it fails too is the assistant truly down */
+        if (!aiEngine) aiEngine = await loadCpuEngine();
       }
       if (aiPref !== 'on') { aiEngine = null; aiState = 'off'; aiUI(); return; }   /* turned away mid-load: discard */
       aiState = 'on';

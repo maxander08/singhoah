@@ -1796,13 +1796,16 @@ await ai5.addInitScript(() => {
   localStorage.setItem('singhoah:visited', '1');
   Object.defineProperty(navigator, 'gpu', { value: { requestAdapter: async () => ({}) }, configurable: true });
 });
-await ai5.route(/esm\.run|mlc/, (r) => r.abort());
+const ai5req = [];
+await ai5.route(/esm\.run|mlc/, (r, req) => { ai5req.push(req.url()); r.abort(); });
 const a5p = await ai5.newPage();
 await a5p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a5p.waitForTimeout(700); /* the arrival preload fails on its own: CDN blocked */
 await a5p.click('#smateBtn');
 ok('a failed arrival load shows the error on the chip, never a tease in chat', await a5p.evaluate(() =>
   document.getElementById('smateAI').classList.contains('err')));
+ok('a failed WebGPU load falls back to the CPU engine before giving up',
+  ai5req.some((u) => u.includes('@mlc-ai/web-llm')) && ai5req.some((u) => u.includes('@huggingface/transformers')));
 await a5p.fill('#smateIn', 'blorp');
 await a5p.click('#smateSend');
 await a5p.waitForTimeout(1500);
