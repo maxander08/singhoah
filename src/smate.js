@@ -690,7 +690,7 @@
       if (!target) return null;
       if (target === `${page}.html` || (page === 'clock' && where === 'clock')) return t(curLang, 'done');
       setTimeout(() => { location.href = target; }, 350);
-      return `→ ${where === 'wallet' ? t(curLang, 'wallet') : where === 'settings' ? t(curLang, 'settings') : where === 'scribe' ? t(curLang, 'lpScribe') : where === 'launch' ? t(curLang, 'launchpad') : t(curLang, 'lpClock')}`;
+      return `→ ${where === 'wallet' ? t(curLang, 'wallet') : where === 'settings' ? t(curLang, 'settings') : where === 'scribe' ? t(curLang, 'lpScribe') : where === 'launch' ? t(curLang, 'launchpad') : where === 'metro' ? t(curLang, 'lpMetro') : where === 'module' ? t(curLang, 'lpModule') : t(curLang, 'lpClock')}`;
     },
     walletAdd(type, amt, note) {
       if (amt == null || isNaN(amt)) return null;
@@ -857,6 +857,14 @@
   const CMPID = { 'gt': 'gt', '>': 'gt', 'greater': 'gt', 'lt': 'lt', '<': 'lt', 'less': 'lt', 'gte': 'gte', '>=': 'gte', '≥': 'gte', 'lte': 'lte', '<=': 'lte', '≤': 'lte', 'eq': 'eq', '=': 'eq', '==': 'eq', 'equal': 'eq', 'neq': 'neq', '!=': 'neq', '≠': 'neq' };
   const GATEID = { 'not': 'not', '~': 'not', '¬': 'not', 'or': 'or', '+': 'or', 'and': 'and', '*': 'and', 'nor': 'nor', '↓': 'nor', 'nand': 'nand', '↑': 'nand', 'xor': 'xor', '⊕': 'xor', 'xnor': 'xnor', '≡': 'xnor' };
   const boolArg = (v) => (v === true || v === 1 || String(v).toLowerCase() === 'true' || String(v) === '1') ? 'true' : 'false';
+  /* models pass numbers as words: "5 minutes" -> 5, "3min" -> 3 */
+  const numArg = (v) => {
+    if (v == null || v === '') return NaN;
+    const n = Number(v);
+    if (!isNaN(n)) return n;
+    const m = String(v).match(/-?\d+(\.\d+)?/);
+    return m ? Number(m[0]) : NaN;
+  };
   function modEditorOpen() {
     if (!document.getElementById('modEditor').hidden) return;
     const M = globalThis.__MOD;
@@ -883,7 +891,7 @@
     async goto(a) { const r = act.nav(String(a.app || 'clock')); return (r && String(r).startsWith('→')) ? NAV(r) : (r || 'no such app'); },
 
     async timer(a) {
-      const n = Number(a.minutes);
+      const n = numArg(a.minutes);
       if (!n || n <= 0) return 'minutes required';
       if (page === 'clock') {
         const r = act.timerSet(n);
@@ -940,7 +948,7 @@
       if (z) return t(curLang, 'timeIn').replace('{t}', tf.format(new Date())).replace('{c}', cityOf(z));
       return tf.format(new Date());
     },
-    async remind(a) { const m = Number(a.minutes); if (!m || m <= 0) return 'minutes required'; reminders.push({ at: Date.now() + m * 60000 }); const txt = t(curLang, 'remindSet').replace('{n}', String(m)); abPush({ k: 'remind', at: Date.now() + m * 60000, t: txt }); return txt; },
+    async remind(a) { const m = numArg(a.minutes); if (!m || m <= 0 || isNaN(m)) return 'minutes required'; reminders.push({ at: Date.now() + m * 60000 }); const txt = t(curLang, 'remindSet').replace('{n}', String(m)); abPush({ k: 'remind', at: Date.now() + m * 60000, t: txt }); return txt; },
     async calc(a) { const v = safeMath(String(a.expr || '')); return v == null ? 'cannot compute that' : String(Math.round(v * 10000) / 10000); },
     async clearchat() { clearChatNow(); return doneT(); },
     async clearclock() { if (page === 'clock') { LIB.clearWindow(); abPush({ k: 'done', t: t(curLang, 'clearAll') }); return doneT(); } try { localStorage.setItem('singhoah:pendingClear', '1'); } catch { /* ignore */ } return NAV(act.nav('clock')); },
@@ -948,7 +956,7 @@
 
     async walletadd(a) {
       const type = String(a.type) === 'income' ? 'in' : 'out';
-      const amt = Number(a.amount);
+      const amt = numArg(a.amount);
       if (!amt || isNaN(amt)) return 'amount required';
       const note = String(a.note || '').slice(0, 40);
       const ttl = t(curLang, type === 'in' ? 'walIncome' : 'walExpense');
@@ -1106,10 +1114,29 @@
      #ids), the wallet ledger, the flow on the canvas — enough context to act
      like an assistant who is looking at the screen */
   function agentSys() {
+    if (aiCpu) {
+      /* the CPU model is tiny: a compact, example-first prompt it can follow */
+      const bits = [
+        'You are SMate, the assistant inside the Singhoah web app. You drive the app for the user.',
+        'ALWAYS reply with exactly ONE JSON object, nothing else: {"tool":"<name>","args":{...}} to act (you then see its RESULT), or {"say":"<short text>"} to answer.',
+        'Tools: timer(minutes) calc(expr) goto(app:clock|wallet|scribe|metro|module|settings|launch) theme(night|light) zones(cities,layout) remind(minutes) time(city) walletbalance',
+        '"set a timer for 5 minutes" -> {"tool":"timer","args":{"minutes":5}}',
+        '"what is 25 * 4" -> {"tool":"calc","args":{"expr":"25 * 4"}}',
+        '"open the wallet" -> {"tool":"goto","args":{"app":"wallet"}}',
+        '"night shift please" -> {"tool":"theme","args":{"mode":"night"}}',
+        `PAGE: ${page} LANGUAGE: ${langOf(curLang).name}`,
+      ];
+      try {
+        const d = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
+        if (page === 'wallet' && d && Array.isArray(d.tx)) bits.push(`WALLET ${d.cur || ''} balance ${LIB.walBalance(d.tx)}`);
+      } catch { /* ignore */ }
+      return bits.join('\n');
+    }
     const bits = [
       'You are SMate, the assistive AI living inside the Singhoah web app. You operate every app for the user like a person at the browser: clicking buttons, typing into fields, picking options, navigating pages, running flows. Never refuse an in-app request — use your tools. Small talk and general questions: just answer.',
       'Reply with exactly ONE JSON object, no markdown: {"tool":"<name>","args":{...}} to act (you then see its RESULT and continue), or {"say":"<short answer in the user language>"} to finish or to answer.',
       'Tools: click(ref) fill(ref,value) pick(ref,option) read(ref) press(key) goto(app:clock|wallet|scribe|metro|module|settings|launch) timer(minutes) timerctl(pause|resume|reset) stopwatch(start|pause|resume|reset|new) zones(cities[],layout:single|side|2x2|4x4) removezone(city) removewin(timer|stopwatch) restartwin(timer|stopwatch) mode(analog|digital) theme(night|light) resync fullscreen showmap(city) ip lang(name) time(city) remind(minutes) calc(expr) clearchat clearclock settz(city) walletadd(type:income|expense,amount,note) walletbalance walletcurrency(code) wallettab(reports|days|cash) walletdeletelast cash(currency?) metrosys(TRTC|KS|TC|TY) metrozoom(in|out|reset) metroswap metroclear metrocard(balance) route(from,to) fare(from,to) scribefiles scribenew modadd(type,x?,y?,cfg?) modcfg(id,patch) modwire(from,to,port:a|b) modremove(id) modrun modclear modnew modfiles mathflow(a,op,b) cmpflow(a,cmp,b) logicflow(gate,a,b?) welcome printpage resetdata',
+      'Examples: "set a timer for 5 minutes" -> {"tool":"timer","args":{"minutes":5}} | "open the wallet" -> {"tool":"goto","args":{"app":"wallet"}} | "what is 25 * 4" -> {"tool":"calc","args":{"expr":"25 * 4"}} | "night shift please" -> {"tool":"theme","args":{"mode":"night"}}',
       'Elements can be addressed by their ref (e.g. e7) or by #id from the CONTROLS list. "change X to Y" always means act: change the timer to 10 -> timer(10); change the title to Demo -> fill(ref,"Demo"); change 5 to 7 on the flow -> modcfg. Prefer purpose-built tools over raw clicks. After the actions, finish with a short {"say"}.',
       `PAGE: ${page} LANGUAGE: ${langOf(curLang).name} NOW: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
     ];
@@ -1159,15 +1186,36 @@
     setStatusText('AI …');
     const hist = [];
     let scolded = false;
+    let lastRaw = '';
+    const seed = aiCpu ? CPU_FEWSHOT : [];   /* the tiny brain needs to see the pattern */
     for (let round = 0; round < 6; round++) {
       let r = '';
       try {
         r = await Promise.race([
-          askEngine([{ role: 'system', content: agentSys() }, { role: 'user', content: raw }, ...hist]),
+          askEngine([{ role: 'system', content: agentSys() }, ...seed, { role: 'user', content: raw }, ...hist]),
           new Promise((_, rej) => setTimeout(() => rej(new Error('smate-ai-slow')), AI_TIMEOUT)),
         ]);
       } catch { return null; }
-      const j = extractJson(r);
+      lastRaw = String(r || '');
+      let j = extractJson(r);
+      /* the tiny CPU model swaps arg keys between tools: goto with {expr}
+         means calc, timer with {app} means goto — repair by the args given.
+         Larger models get it right; leave their calls untouched */
+      const TOOL_ARG_KEYS = { timer: 'minutes', remind: 'minutes', calc: 'expr', goto: 'app', theme: 'mode', zones: 'cities' };
+      if (aiCpu && j && j.tool && TOOL_ARG_KEYS[j.tool] && j.args && typeof j.args === 'object' && !Array.isArray(j.args)) {
+        const want = TOOL_ARG_KEYS[j.tool];
+        if (j.args[want] == null || j.args[want] === '') {
+          for (const [tn, key] of Object.entries(TOOL_ARG_KEYS)) {
+            if (key !== want && j.args[key] != null && j.args[key] !== '') { j = { tool: tn, args: j.args }; break; }
+          }
+        }
+      }
+      /* a model saying {"tool":"wallet"} means "open the wallet" — app names
+         are destinations, so read them as goto */
+      if (j && j.tool && !TOOLS[j.tool]) {
+        const tn = String(j.tool).trim().toLowerCase();
+        if (['clock', 'wallet', 'scribe', 'metro', 'module', 'settings', 'launch'].includes(tn)) j = { tool: 'goto', args: { app: tn } };
+      }
       if (j && typeof j === 'object' && !Array.isArray(j)) {
         if (j.say != null) return String(j.say);
         const fn = j.tool && TOOLS[j.tool];
@@ -1181,11 +1229,17 @@
           continue;
         }
       }
-      if (scolded || round >= 5) return null;
+      if (scolded || round >= 5) {
+        const p2 = (lastRaw || '').trim();
+        if (aiCpu && p2 && p2.length <= 240 && !p2.includes('{')) return p2;
+        return null;
+      }
       scolded = true;
       hist.push({ role: 'assistant', content: String(r).slice(0, 160) },
         { role: 'user', content: 'Invalid reply. Answer with ONE JSON object only: {"tool":"<name>","args":{...}} to act, or {"say":"<text>"} to finish.' });
     }
+    const p3 = (lastRaw || '').trim();
+    if (aiCpu && p3 && p3.length <= 240 && !p3.includes('{')) return p3;
     return null;
   }
 
@@ -1214,17 +1268,15 @@
         } else if (aiState === 'err') {
           out = t(curLang, 'aiNoGpu');
         } else {
-          let can = !!globalThis.__SMATE_AI_ENGINE;
-          if (!can && navigator.gpu) { try { can = !!(await navigator.gpu.requestAdapter()); } catch { can = false; } }
-          if (!can) out = t(curLang, 'aiNoGpu');
-          else {
-            aiInit();   /* the site started loading it at arrival — join the wait */
-            const t0 = Date.now();
-            while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
-            if (aiState === 'on' && aiEngine) out = await agent(raw);
-            else if (aiState === 'err') out = t(curLang, 'aiNoGpu');
-            else out = t(curLang, 'smateAIWait');
-          }
+          /* the arrival preload is already on its way — GPU or CPU, every
+             browser gets an engine. Join the wait; answer honestly if it
+             never arrives */
+          aiInit();
+          const t0 = Date.now();
+          while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
+          if (aiState === 'on' && aiEngine) out = await agent(raw);
+          else if (aiState === 'err') out = t(curLang, 'aiNoGpu');
+          else out = t(curLang, 'smateAIWait');
         }
       } catch { out = null; }
       if (dots.isConnected) dots.remove();
@@ -1288,6 +1340,28 @@
      and answers through tools. Turning the chip off pauses the assistant
      until it is turned back on. --------- */  const aiBtn = $('smateAI');
   let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
+  let aiCpu = false;   /* the WASM engine: small model, slim prompt */
+  /* few-shot dialogue for the tiny CPU brain: it follows what it sees */
+  const CPU_FEWSHOT = [
+    { role: 'user', content: 'open the metro' },
+    { role: 'assistant', content: '{"tool":"goto","args":{"app":"metro"}}' },
+    { role: 'user', content: 'RESULT: going to metro' },
+    { role: 'assistant', content: '{"say":"Opening the metro."}' },
+    { role: 'user', content: 'what is 12 * 3' },
+    { role: 'assistant', content: '{"tool":"calc","args":{"expr":"12 * 3"}}' },
+    { role: 'user', content: 'RESULT: 36' },
+    { role: 'assistant', content: '{"say":"36"}' },
+    { role: 'user', content: 'timer 8' },
+    { role: 'assistant', content: '{"tool":"timer","args":{"minutes":8}}' },
+    { role: 'user', content: 'RESULT: Timer · 8 minutes' },
+    { role: 'assistant', content: '{"say":"Timer set for 8 minutes."}' },
+    { role: 'user', content: 'set a timer for 3 minutes' },
+    { role: 'assistant', content: '{"tool":"timer","args":{"minutes":3}}' },
+    { role: 'user', content: 'RESULT: Timer · 3 minutes' },
+    { role: 'assistant', content: '{"say":"Timer set for 3 minutes."}' },
+  ];
+
+
   /* arrive-and-ready: the model starts loading the moment the site opens,
      so the first fuzzy message already meets a warm brain. Until it is up,
      the instant offline interpreter answers — nobody is ever told the AI
@@ -1295,8 +1369,12 @@
      and stays off across visits. */
   let aiPref = 'on';
   try { if (localStorage.getItem('singhoah:smateAI') === 'off') aiPref = 'off'; } catch { /* ignore */ }
-  const AI_TIMEOUT = Number(globalThis.__SMATE_AI_TIMEOUT || 20000);
+  const AI_TIMEOUT = Number(globalThis.__SMATE_AI_TIMEOUT || 30000);
   const AI_MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1', 'SmolLM2-360M-Instruct-q4f16_1', 'Qwen2.5-0.5B-Instruct-q4f32_1'];
+  /* no WebGPU? the same agent loop runs on the CPU through Transformers.js
+     (WASM, int8). The model is deliberately tiny: a 135M brain fits even a
+     2GB machine, where a 360M+ one would take the whole tab down */
+  const WASM_MODELS = ['HuggingFaceTB/SmolLM2-135M-Instruct'];
   const aiUI = () => {
     aiBtn.setAttribute('aria-pressed', String(aiPref === 'on'));
     aiBtn.classList.toggle('loading', aiState === 'loading');
@@ -1304,16 +1382,9 @@
   };
   aiUI();                        /* default-ON chip reflects the pref immediately */
   /* the preload: the model starts loading at page arrival — no tap, no
-     "Loading" gate. Without WebGPU (or with the test engine stubbed in)
-     this resolves instantly one way or the other */
-  if (aiPref === 'on') {
-    (async () => {
-      if (globalThis.__SMATE_AI_ENGINE) { aiInit(); return; }
-      if (navigator.gpu) {
-        try { if (await navigator.gpu.requestAdapter()) aiInit(); } catch { /* the offline brain stays */ }
-      }
-    })();
-  }
+     "Loading" gate. WebGPU machines get web-llm; every other browser gets
+     the CPU engine. Either way the assistant works */
+  if (aiPref === 'on') aiInit();
 
   async function aiInit() {
     if (aiState === 'loading') return;
@@ -1323,23 +1394,56 @@
       if (globalThis.__SMATE_AI_ENGINE) {
         aiEngine = globalThis.__SMATE_AI_ENGINE; /* test/extension hook */
       } else {
-        const mod = await import('https://esm.run/@mlc-ai/web-llm');
-        const create = mod.CreateWebLLMEngine || mod.CreateMLCEngine;
-        if (!create) throw new Error('web-llm has no engine factory');
-        let lastErr = null;
-        for (const id of AI_MODELS) {
-          try {
-            aiEngine = await create(id, {
-              initProgressCallback: (r) => {
-                const st = $('smateStatus');
-                if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
-              },
-            });
-            lastErr = null;
-            break;
-          } catch (e) { lastErr = e; }
+        let gpu = false;
+        try { gpu = !!navigator.gpu && !!(await navigator.gpu.requestAdapter()); } catch { gpu = false; }
+        if (gpu) {
+          const mod = await import('https://esm.run/@mlc-ai/web-llm');
+          const create = mod.CreateWebLLMEngine || mod.CreateMLCEngine;
+          if (!create) throw new Error('web-llm has no engine factory');
+          let lastErr = null;
+          for (const id of AI_MODELS) {
+            try {
+              aiEngine = await create(id, {
+                initProgressCallback: (r) => {
+                  const st = $('smateStatus');
+                  if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
+                },
+              });
+              lastErr = null;
+              break;
+            } catch (e) { lastErr = e; }
+          }
+          if (!aiEngine) throw lastErr || new Error('no model');
+        } else {
+          /* the CPU engine: Transformers.js, WASM backend, int8 quantized.
+             It speaks the same chat.completions protocol as web-llm, so the
+             agent loop never knows the difference */
+          const tmod = await import('https://esm.run/@huggingface/transformers@3');
+          try { tmod.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1; } catch { /* older builds: default */ }
+          aiCpu = true;
+          const prog = (p) => {
+            const st = $('smateStatus');
+            if (st && aiState === 'loading' && p && p.status === 'progress') st.textContent = `AI ${Math.round((p.progress || 0) * 100)}%`;
+          };
+          let lastErr = null;
+          for (const id of WASM_MODELS) {
+            try {
+              const pipe = await tmod.pipeline('text-generation', id, { dtype: 'q8', device: 'wasm', progress_callback: prog });
+              aiEngine = { chat: { completions: { async create({ messages, max_tokens }) {
+                const out = await pipe(messages, { max_new_tokens: Math.min(max_tokens ?? 220, 90), do_sample: false, return_full_text: false });
+                const g = out && out[0] && out[0].generated_text;
+                const text = typeof g === 'string' ? g
+                  : Array.isArray(g) ? ((g[g.length - 1] || {}).content || '')
+                  : (g && g.content) || '';
+                try { (globalThis.__SMATE_CPU_RAW = globalThis.__SMATE_CPU_RAW || []).push(String(text).slice(0, 200)); } catch { /* diagnostics hook */ }
+                return { choices: [{ message: { content: text } }] };
+              } } } };
+              lastErr = null;
+              break;
+            } catch (e) { lastErr = e; }
+          }
+          if (!aiEngine) throw lastErr || new Error('no model');
         }
-        if (!aiEngine) throw lastErr || new Error('no model');
       }
       if (aiPref !== 'on') { aiEngine = null; aiState = 'off'; aiUI(); return; }   /* turned away mid-load: discard */
       aiState = 'on';
@@ -1352,7 +1456,7 @@
   }
   aiBtn.addEventListener('click', () => {
     if (aiPref === 'on') {
-      aiPref = 'off'; aiState = 'off'; aiEngine = null;
+      aiPref = 'off'; aiState = 'off'; aiEngine = null; aiCpu = false;
       try { localStorage.setItem('singhoah:smateAI', 'off'); } catch { /* ignore */ }
       aiUI(); setStatus('smateOnline');
     } else {

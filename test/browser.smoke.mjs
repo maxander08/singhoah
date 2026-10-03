@@ -9,7 +9,7 @@ const ok = (name, cond, extra = '') => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? '  → ' + extra : ''}`);
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--host-resolver-rules=MAP huggingface.co 127.0.0.2, MAP cdn-lfs.huggingface.co 127.0.0.2, MAP cdn-lfs-us-1.hf.co 127.0.0.2, MAP cas-bridge.xethub.hf.co 127.0.0.2'] });
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
 
@@ -24,10 +24,17 @@ page.on('console', (m) => {
     warnings.push(`geolocation rate-limited (429): ${u}`);
     return;
   }
+  /* the Hugging Face hub is deliberately host-blocked in this suite (no
+     battery context may download a model) — its refused requests are the
+     block working, not a product error */
+  if (/ERR_CONNECTION_REFUSED|ERR_NAME_NOT_RESOLVED/.test(m.text()) && /huggingface\.co|\.hf\.co/.test(u)) return;
   errors.push(`console: ${m.text()}`);
 });
 page.on('pageerror', (e) => errors.push(`pageerror: ${e}`));
-page.on('requestfailed', (r) => errors.push(`request failed: ${r.url()} ${r.failure()?.errorText}`));
+page.on('requestfailed', (r) => {
+  if (/huggingface\.co|\.hf\.co/.test(r.url())) return;   /* blocked on purpose */
+  errors.push(`request failed: ${r.url()} ${r.failure()?.errorText}`);
+});
 
 await page.goto(URL, { waitUntil: 'load' });
 ok('first visit lands on the SinghoLaunch launchpad', page.url().includes('launch.html'), page.url());
@@ -1749,7 +1756,7 @@ ok('with the AI off SMate answers honestly — there is no offline interpreter a
 await ap.close();
 await ai.close();
 
-/* no WebGPU / blocked CDN: SMate explains honestly and never downloads */
+/* no WebGPU: the CPU engine is attempted; with the CDN blocked it fails honestly */
 const ai2 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await ai2.addInitScript(() => {
   localStorage.setItem('singhoah:visited', '1');
@@ -1758,16 +1765,14 @@ await ai2.addInitScript(() => {
 await ai2.route(/esm\.run|mlc/, (r) => r.abort());
 const a2p = await ai2.newPage();
 await a2p.goto(URL + 'index.html', { waitUntil: 'load' });
-await a2p.waitForTimeout(300);
-ok('no WebGPU: the chip arms without starting any download', await a2p.evaluate(() =>
-  document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'
-  && !document.getElementById('smateAI').classList.contains('loading')));
+ok('no WebGPU: the chip tries the CPU engine and, with the CDN blocked, lands on an honest error', await a2p.waitForFunction(
+  () => document.getElementById('smateAI').classList.contains('err'), null, { timeout: 10000 }).then(() => true).catch(() => false));
 await a2p.click('#smateBtn');
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
 await a2p.waitForTimeout(1400);
-ok('without WebGPU SMate explains instead of downloading anything', await a2p.evaluate(() =>
-  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
+ok('a blocked CDN on a no-WebGPU browser gets the honest couldn’t-start message', await a2p.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('couldn’t start')));
 await a2p.click('#smateAI'); /* off by choice */
 await a2p.waitForTimeout(200);
 ok('the chip can still turn AI off by choice', await a2p.evaluate(() =>
@@ -1803,7 +1808,7 @@ await a5p.click('#smateSend');
 await a5p.waitForTimeout(1500);
 ok('a failed AI load answers honestly instead of looping "waking up"', await a5p.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
-  return last.includes('WebGPU') && !/waking up/i.test(last);
+  return last.includes('couldn’t start') && !/waking up/i.test(last);
 }));
 await a5p.close();
 await ai5.close();
@@ -4541,7 +4546,7 @@ await browser.close();
    engine runtimes (esm.run, Pyodide, wasm-clang, CheerpJ) together need the
    headroom */
 {
-  const tbr = await chromium.launch();
+  const tbr = await chromium.launch({ args: ['--host-resolver-rules=MAP huggingface.co 127.0.0.2, MAP cdn-lfs.huggingface.co 127.0.0.2, MAP cdn-lfs-us-1.hf.co 127.0.0.2, MAP cas-bridge.xethub.hf.co 127.0.0.2'] });
   const tcx = await tbr.newContext({ viewport: { width: 1280, height: 860 } });
   const tp = await tcx.newPage();
   await tp.goto(URL + 'module.html', { waitUntil: 'load' });

@@ -35,7 +35,7 @@ const stub = (ctx) => ctx.route('https://www.gstatic.com/firebasejs/10.12.2/**',
 
 const wallet5000 = JSON.stringify({ cur: 'USD', tx: [{ id: 'a1', type: 'in', amt: 5000, ts: Date.now(), note: 'Income' }] });
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--host-resolver-rules=MAP huggingface.co 127.0.0.2, MAP cdn-lfs.huggingface.co 127.0.0.2, MAP cdn-lfs-us-1.hf.co 127.0.0.2, MAP cas-bridge.xethub.hf.co 127.0.0.2'] });
 
 /* ---- device A: has a 5000 income locally, signed in ---- */
 const ctxA = await browser.newContext();
