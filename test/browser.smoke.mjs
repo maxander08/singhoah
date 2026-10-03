@@ -1683,6 +1683,8 @@ await ai.addInitScript({ content: SMATE_STUB({
   'too bright': ['{"tool":"theme","args":{"mode":"night"}}', '{"say":"Better — I dimmed the site for you."}'],
   'sky': ['{"say":"The sky looks blue because air scatters short blue wavelengths of sunlight far more than red — Rayleigh scattering."}'],
   'spent': ['{"say":"You have spent 42 USD this month: 12 on coffee and 30 on lunch."}'],
+  'in singapore': ['{"tool":"time","args":{"city":"Singapore"}}', '{"say":"It is 15:00 in Singapore."}'],
+  'parrot': ['{"say":"<text>"}', '{"say":"<text>"}'],
   'module studio': ['{"tool":"goto","args":{"app":"module"}}', '{"say":"Opening the module studio."}'],
   'multiply 6 by 7': ['{"tool":"mathflow","args":{"a":"6","op":"*","b":"7"}}', '{"say":"Six times seven is forty-two."}'],
   'change 6 to 9': ['{"tool":"modcfg","args":{"find":"6","patch":{"value":"9"}}}', '{"tool":"modrun","args":{}}', '{"say":"Changed the 6 to a 9 — the flow now answers 63."}'],
@@ -1714,6 +1716,18 @@ ok('money questions carry the live ledger into the AI context', await ap.evaluat
   (window.__AI_SYSTEM || '').includes('coffee') && (window.__AI_SYSTEM || '').includes('WALLET')));
 ok('the model answers from that live ledger', await ap.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('coffee')));
+await ap.fill('#smateIn', 'what time is it in Singapore');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1600);
+ok('the time question drives the agent loop: real time tool, then the answer', await ap.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('15:00')));
+await ap.fill('#smateIn', 'parrot test');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1800);
+ok('a parroted placeholder ("<text>") is never shown — the honest apology instead', await ap.evaluate(() => {
+  const last = ([...document.querySelectorAll('.smate-it')].pop().textContent || '').trim();
+  return !last.includes('<text>') && last.length > 10;
+}));
 await ap.fill('#smateIn', 'open the module studio');
 await ap.click('#smateSend');
 try { await ap.waitForURL('**/module.html', { timeout: 6000 }); } catch { /* asserted below */ }

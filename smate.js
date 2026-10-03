@@ -1118,7 +1118,7 @@
       /* the CPU model is tiny: a compact, example-first prompt it can follow */
       const bits = [
         'You are SMate, the assistant inside the Singhoah web app. You drive the app for the user.',
-        'ALWAYS reply with exactly ONE JSON object, nothing else: {"tool":"<name>","args":{...}} to act (you then see its RESULT), or {"say":"<short text>"} to answer.',
+        'ALWAYS reply with exactly ONE JSON object, nothing else: a tool call like {"tool":"timer","args":{"minutes":5}} (you then see its RESULT), or a real answer like {"say":"Timer set for 5 minutes."}.',
         'Tools: timer(minutes) calc(expr) goto(app:clock|wallet|scribe|metro|module|settings|launch) theme(night|light) zones(cities,layout) remind(minutes) time(city) walletbalance',
         '"set a timer for 5 minutes" -> {"tool":"timer","args":{"minutes":5}}',
         '"what is 25 * 4" -> {"tool":"calc","args":{"expr":"25 * 4"}}',
@@ -1134,7 +1134,7 @@
     }
     const bits = [
       'You are SMate, the assistive AI living inside the Singhoah web app. You operate every app for the user like a person at the browser: clicking buttons, typing into fields, picking options, navigating pages, running flows. Never refuse an in-app request — use your tools. Small talk and general questions: just answer.',
-      'Reply with exactly ONE JSON object, no markdown: {"tool":"<name>","args":{...}} to act (you then see its RESULT and continue), or {"say":"<short answer in the user language>"} to finish or to answer.',
+      'Reply with exactly ONE JSON object, no markdown: a tool call like {"tool":"timer","args":{"minutes":5}} to act (you then see its RESULT and continue), or a real answer in the user language like {"say":"Timer set for 5 minutes."} to finish or to answer.',
       'Tools: click(ref) fill(ref,value) pick(ref,option) read(ref) press(key) goto(app:clock|wallet|scribe|metro|module|settings|launch) timer(minutes) timerctl(pause|resume|reset) stopwatch(start|pause|resume|reset|new) zones(cities[],layout:single|side|2x2|4x4) removezone(city) removewin(timer|stopwatch) restartwin(timer|stopwatch) mode(analog|digital) theme(night|light) resync fullscreen showmap(city) ip lang(name) time(city) remind(minutes) calc(expr) clearchat clearclock settz(city) walletadd(type:income|expense,amount,note) walletbalance walletcurrency(code) wallettab(reports|days|cash) walletdeletelast cash(currency?) metrosys(TRTC|KS|TC|TY) metrozoom(in|out|reset) metroswap metroclear metrocard(balance) route(from,to) fare(from,to) scribefiles scribenew modadd(type,x?,y?,cfg?) modcfg(id,patch) modwire(from,to,port:a|b) modremove(id) modrun modclear modnew modfiles mathflow(a,op,b) cmpflow(a,cmp,b) logicflow(gate,a,b?) welcome printpage resetdata',
       'Examples: "set a timer for 5 minutes" -> {"tool":"timer","args":{"minutes":5}} | "open the wallet" -> {"tool":"goto","args":{"app":"wallet"}} | "what is 25 * 4" -> {"tool":"calc","args":{"expr":"25 * 4"}} | "night shift please" -> {"tool":"theme","args":{"mode":"night"}}',
       'Elements can be addressed by their ref (e.g. e7) or by #id from the CONTROLS list. "change X to Y" always means act: change the timer to 10 -> timer(10); change the title to Demo -> fill(ref,"Demo"); change 5 to 7 on the flow -> modcfg. Prefer purpose-built tools over raw clicks. After the actions, finish with a short {"say"}.',
@@ -1217,7 +1217,13 @@
         if (['clock', 'wallet', 'scribe', 'metro', 'module', 'settings', 'launch'].includes(tn)) j = { tool: 'goto', args: { app: tn } };
       }
       if (j && typeof j === 'object' && !Array.isArray(j)) {
-        if (j.say != null) return String(j.say);
+        if (j.say != null) {
+          /* a leading <...> tag is a parroted prompt placeholder ("<text>"),
+             never a real answer — strip it; if nothing real remains, treat
+             the reply as invalid and let the nudge/fallback paths handle it */
+          const s = String(j.say).trim().replace(/^<[^>]*>\s*/, '').trim();
+          if (s && s.toLowerCase() !== String(raw || '').trim().toLowerCase()) return s;
+        }
         const fn = j.tool && TOOLS[j.tool];
         if (fn) {
           hist.push({ role: 'assistant', content: JSON.stringify({ tool: j.tool, args: j.args || {} }) });
@@ -1236,7 +1242,7 @@
       }
       scolded = true;
       hist.push({ role: 'assistant', content: String(r).slice(0, 160) },
-        { role: 'user', content: 'Invalid reply. Answer with ONE JSON object only: {"tool":"<name>","args":{...}} to act, or {"say":"<text>"} to finish.' });
+        { role: 'user', content: 'Invalid reply. Valid tools: ' + (aiCpu ? 'timer calc goto theme zones remind time walletbalance' : 'the tools in the list') + '. Reply with ONE JSON object only: a tool call, or your real answer in "say".' });
     }
     const p3 = (lastRaw || '').trim();
     if (aiCpu && p3 && p3.length <= 240 && !p3.includes('{')) return p3;
@@ -1250,7 +1256,7 @@
   const recover = async (raw) => {
     aiInit();
     const t0 = Date.now();
-    while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
+    while (aiState === 'loading' && Date.now() - t0 < 90000) await new Promise((r) => setTimeout(r, 250));
     if (aiPref === 'off') return t(curLang, 'smateAIOff');
     if (aiState === 'on' && aiEngine) return await agent(raw);
     if (aiState === 'err') return t(curLang, 'aiNoGpu');
@@ -1287,7 +1293,7 @@
              never arrives */
           aiInit();
           const t0 = Date.now();
-          while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
+          while (aiState === 'loading' && Date.now() - t0 < 90000) await new Promise((r) => setTimeout(r, 250));   /* a first model download is big — hold the question */
           if (aiPref === 'off') out = t(curLang, 'smateAIOff');
           else if (aiState === 'on' && aiEngine) out = await agent(raw);
           else if (aiState === 'err') out = await recover(raw);
@@ -1373,6 +1379,10 @@
     { role: 'assistant', content: '{"tool":"calc","args":{"expr":"12 * 3"}}' },
     { role: 'user', content: 'RESULT: 36' },
     { role: 'assistant', content: '{"say":"36"}' },
+    { role: 'user', content: 'what time is it in tokyo' },
+    { role: 'assistant', content: '{"tool":"time","args":{"city":"Tokyo"}}' },
+    { role: 'user', content: 'RESULT: It is 09:30 in Tokyo.' },
+    { role: 'assistant', content: '{"say":"It is 09:30 in Tokyo."}' },
     { role: 'user', content: 'timer 8' },
     { role: 'assistant', content: '{"tool":"timer","args":{"minutes":8}}' },
     { role: 'user', content: 'RESULT: Timer · 8 minutes' },
