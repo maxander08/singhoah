@@ -1367,7 +1367,7 @@ function setZoom(z) {
 const cpts = new Map();   /* live canvas pointers: one pans, two pinch */
 let pinch = null, panMoved = false;
 canvas.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.mod-node') || e.target.closest('.mod-zoom') || e.target.closest('.mod-palette')) return;
+  if (e.target.closest('.mod-node') || e.target.closest('.mod-zoom')) return;
   try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic events carry no real pointer */ }
   cpts.set(e.pointerId, { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY });
   panMoved = false;
@@ -1631,10 +1631,63 @@ $('modGrid').addEventListener('click', () => {
   applyView();
   touch();
 });
-document.querySelectorAll('.mod-add').forEach((b) => b.addEventListener('click', () => {
-  if (!docId) return;
-  addNode(b.dataset.add);
-}));
+/* the module picker: one ribbon button, Singho's dropdown UI (tz-pop) */
+const ADD_KEYS = { text: 'mText', number: 'mNumber', operator: 'mOperator', comparator: 'mComparator', logic: 'mLogic', boolean: 'mBoolean', code: 'mCode', io: 'mIO' };
+function buildAddList() {
+  const list = $('modAddList');
+  list.innerHTML = '';
+  for (const [type, key] of Object.entries(ADD_KEYS)) {
+    const row = document.createElement('div');
+    row.className = 'tz-row';
+    row.setAttribute('role', 'option');
+    row.dataset.add = type;
+    row.title = t(lang, key);
+    row.setAttribute('aria-label', t(lang, key));
+    const dot = document.createElement('span');
+    dot.className = 'mod-dot';
+    dot.style.background = TYPES[type].color;
+    const name = document.createElement('span');
+    name.className = 'tz-city';
+    name.textContent = t(lang, key);
+    row.append(dot, name);
+    list.appendChild(row);
+  }
+}
+function closeAddPop() {
+  $('modAddPop').hidden = true;
+  $('modAddBtn').setAttribute('aria-expanded', 'false');
+}
+$('modAddBtn').addEventListener('click', () => {
+  const pop = $('modAddPop');
+  const open = pop.hidden;
+  pop.hidden = !open;
+  $('modAddBtn').setAttribute('aria-expanded', String(open));
+  if (open) {
+    /* anchor under the button: the ribbon scrolls sideways on phones, so a
+       Singho pop sits in the viewport, never clipped by the scroll bar */
+    const r = $('modAddBtn').getBoundingClientRect();
+    pop.style.position = 'fixed';
+    pop.style.top = `${Math.round(r.bottom + 6)}px`;
+    pop.style.left = '0px';
+    const w = pop.getBoundingClientRect().width;
+    let x = r.left;
+    if (x + w > innerWidth - 8) x = innerWidth - 8 - w;
+    if (x < 8) x = 8;
+    pop.style.left = `${Math.round(x)}px`;
+  }
+});
+$('modAddList').addEventListener('click', (e) => {
+  const row = e.target.closest('.tz-row');
+  if (!row || !docId) return;
+  closeAddPop();
+  addNode(row.dataset.add);
+});
+document.addEventListener('pointerdown', (e) => {
+  if (!$('modAddPop').hidden && !e.target.closest('.modmenu')) closeAddPop();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('modAddPop').hidden) closeAddPop();
+});
 $('modExport').addEventListener('click', () => { if (docId) { clearTimeout(saveTimer); touch(); setTimeout(() => FS.docsExport(docId), 550); } });
 $('modImport').addEventListener('click', () => $('modFile').click());
 $('modClear').addEventListener('click', clearCanvas);
@@ -1663,23 +1716,11 @@ function applyLang(id, persist = true) {
   $('settingsText').textContent = t(lang, 'settings');
   $('btnSettings').title = t(lang, 'settings');
   $('btnLaunch').title = t(lang, 'launchpad');
-  $('modAddT').textContent = t(lang, 'mText');
-  $('modAddIO').textContent = t(lang, 'mIO');
-  $('modAddC').textContent = t(lang, 'mCode');
-  $('modAddN').textContent = t(lang, 'mNumber');
-  $('modAddO').textContent = t(lang, 'mOperator');
-  $('modAddCmp').textContent = t(lang, 'mComparator');
-  $('modAddL').textContent = t(lang, 'mLogic');
-  $('modAddB').textContent = t(lang, 'mBoolean');
-  /* the palette chips carry their name as title + aria-label: the labels
-     themselves hide on phones, but the names never disappear */
-  const ADD_KEYS = { text: 'mText', number: 'mNumber', operator: 'mOperator', comparator: 'mComparator', logic: 'mLogic', boolean: 'mBoolean', code: 'mCode', io: 'mIO' };
-  document.querySelectorAll('.mod-palette .mod-add').forEach((b) => {
-    const key = ADD_KEYS[b.dataset.add];
-    if (!key) return;
-    b.title = t(lang, key);
-    b.setAttribute('aria-label', t(lang, key));
-  });
+  $('modAddBtnT').textContent = t(lang, 'mAddMod');
+  $('modAddBtn').title = t(lang, 'mAddMod');
+  $('modAddBtn').setAttribute('aria-label', t(lang, 'mAddMod'));
+  $('modAddList').setAttribute('aria-label', t(lang, 'mModules'));
+  buildAddList();   /* the dropdown rows carry their translated names + titles */
   $('modGridT').textContent = t(lang, 'mGrid');
   $('modRunT').textContent = t(lang, 'mRun');
   $('modTitle').placeholder = t(lang, 'flUntitledFlow');

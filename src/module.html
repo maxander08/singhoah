@@ -53,6 +53,16 @@
 
 <main class="mod-app" id="modEditor" hidden>
   <div class="mod-bar">
+    <div class="modmenu">
+      <button type="button" class="btn" id="modAddBtn" aria-haspopup="listbox" aria-expanded="false" title="Add module">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M12 8.2v7.6M8.2 12h7.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span id="modAddBtnT">Add module</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="tz-pop mod-pop" id="modAddPop" hidden>
+        <div class="tz-list" id="modAddList" role="listbox" aria-label="Modules"></div>
+      </div>
+    </div>
     <button type="button" class="btn scr-ic" id="modFiles" title="Files" aria-label="Files"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" fill="currentColor"/></svg></button>
     <input id="modTitle" class="mod-title" placeholder="Untitled flow" aria-label="Flow title">
     <span class="mod-saved" id="modSaved" aria-live="polite"></span>
@@ -67,16 +77,6 @@
   <div class="mod-canvas" id="modCanvas">
     <div class="mod-world" id="modWorld">
       <svg class="mod-wires" id="modWires" width="4000" height="3000" aria-hidden="true"></svg>
-    </div>
-    <div class="mod-palette" id="modPalette" role="toolbar" aria-label="Modules">
-      <button type="button" class="btn mod-add" data-add="text" title="Text" aria-label="Text"><span class="mod-dot" style="background:#4a76b8"></span><span class="mod-add-t" id="modAddT">Text</span></button>
-      <button type="button" class="btn mod-add" data-add="number" title="Number" aria-label="Number"><span class="mod-dot" style="background:#5f9e63"></span><span class="mod-add-t" id="modAddN">Number</span></button>
-      <button type="button" class="btn mod-add" data-add="operator" title="Operator" aria-label="Operator"><span class="mod-dot" style="background:#b8764a"></span><span class="mod-add-t" id="modAddO">Operator</span></button>
-      <button type="button" class="btn mod-add" data-add="comparator" title="Comparator" aria-label="Comparator"><span class="mod-dot" style="background:#4a8f9e"></span><span class="mod-add-t" id="modAddCmp">Comparator</span></button>
-      <button type="button" class="btn mod-add" data-add="logic" title="Logic" aria-label="Logic"><span class="mod-dot" style="background:#b84a8f"></span><span class="mod-add-t" id="modAddL">Logic</span></button>
-      <button type="button" class="btn mod-add" data-add="boolean" title="Boolean" aria-label="Boolean"><span class="mod-dot" style="background:#c94a4a"></span><span class="mod-add-t" id="modAddB">Boolean</span></button>
-      <button type="button" class="btn mod-add" data-add="code" title="Code" aria-label="Code"><span class="mod-dot" style="background:#8b5fbf"></span><span class="mod-add-t" id="modAddC">Code</span></button>
-      <button type="button" class="btn mod-add" data-add="io" title="I/O" aria-label="I/O"><span class="mod-dot" style="background:#c9a24a"></span><span class="mod-add-t" id="modAddIO">I/O</span></button>
     </div>
     <div class="mod-zoom">
       <button type="button" class="btn" id="modZoomOut" aria-label="Zoom out">−</button>

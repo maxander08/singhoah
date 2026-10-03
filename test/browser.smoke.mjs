@@ -2729,7 +2729,7 @@ await prn.close();
   ok('connectors are square: H-V-H only, no curve commands', /^[MHV\d\s.]+$/.test(flow.d) && !/[CcQqAaSsTt]/.test(flow.d), flow.d);
   ok('Text renders Markdown natively (h1 + bold in Output, no Markdown module)', await mp.evaluate(() =>
     !!document.querySelector('.mod-md h1') && !!document.querySelector('.mod-md strong')
-    && !document.querySelector('.mod-add[data-add="markdown"]')));
+    && !document.querySelector('#modAddList .tz-row[data-add="markdown"]')));
   const enc = await mp.evaluate(() => {
     const M = globalThis.__MOD;
     const a = M.nodes().find((n) => n.type === 'text');
@@ -3082,9 +3082,10 @@ await prn.close();
   const np = await ncx.newPage();
   await np.goto(URL + 'module.html', { waitUntil: 'load' });
   await np.waitForTimeout(900);
-  ok('the Number module joins the toolbar', await np.evaluate(() =>
-    !!document.querySelector('.mod-add[data-add="number"]')
-    && document.getElementById('modAddN').textContent === 'Number'));
+  ok('the Number module rides in the picker dropdown', await np.evaluate(() => {
+    const row = document.querySelector('#modAddList .tz-row[data-add="number"]');
+    return !!row && row.querySelector('.tz-city').textContent === 'Number' && row.title === 'Number';
+  }));
   /* structure: a source node with an out port only, type select + base select */
   const numId = await np.evaluate(() => {
     const M = globalThis.__MOD;
@@ -3275,9 +3276,10 @@ await prn.close();
   const opg = await ocx.newPage();
   await opg.goto(URL + 'module.html', { waitUntil: 'load' });
   await opg.waitForTimeout(900);
-  ok('the Operator module joins the toolbar', await opg.evaluate(() =>
-    !!document.querySelector('.mod-add[data-add="operator"]')
-    && document.getElementById('modAddO').textContent === 'Operator'));
+  ok('the Operator module rides in the picker dropdown', await opg.evaluate(() => {
+    const row = document.querySelector('#modAddList .tz-row[data-add="operator"]');
+    return !!row && row.querySelector('.tz-city').textContent === 'Operator' && row.title === 'Operator';
+  }));
   const ids = await opg.evaluate(() => {
     const M = globalThis.__MOD;
     if (document.getElementById('modEditor').hidden) M.newDoc();
@@ -3452,9 +3454,13 @@ await prn.close();
   const kpg = await kcx.newPage();
   await kpg.goto(URL + 'module.html', { waitUntil: 'load' });
   await kpg.waitForTimeout(900);
-  ok('the Comparator module joins the toolbar right after the Operator', await kpg.evaluate(() =>
-    !!document.querySelector('.mod-add[data-add="comparator"]')
-      && document.getElementById('modAddCmp').textContent === 'Comparator'));
+  ok('the Comparator module sits right after the Operator in the picker dropdown', await kpg.evaluate(() => {
+    const rows = [...document.querySelectorAll('#modAddList .tz-row')];
+    const op = rows.find((r) => r.dataset.add === 'operator');
+    const cmp = rows.find((r) => r.dataset.add === 'comparator');
+    return !!op && !!cmp && op.nextElementSibling === cmp
+      && cmp.querySelector('.tz-city').textContent === 'Comparator';
+  }));
   /* placement geometry: a lone control spans its row exactly (symmetric 12px
      insets, the Code module's rule), and a fresh module waits in silence */
   const geo = await kpg.evaluate(() => {
@@ -3747,7 +3753,7 @@ await prn.close();
     M.cfg(cp.id, { cmp: 'gt' });
     await M.run();
     return {
-      btn: document.getElementById('modAddCmp').textContent,
+      btn: document.querySelector('#modAddList .tz-row[data-add="comparator"] .tz-city').textContent,
       name: el.querySelector('.mod-nname').textContent,
       first: list[0],
       kanji: list.every((x) => /[一-龯]/.test(x)),
@@ -3898,7 +3904,8 @@ await prn.close();
     const view = globalThis.__MOD.view();
     const vl = -view.x / view.z, vt = -view.y / view.z;
     const vw = r.width / view.z, vh = r.height / view.z;
-    document.querySelector('.mod-add[data-add="comparator"]').click();
+    document.getElementById('modAddBtn').click();
+    document.querySelector('#modAddList .tz-row[data-add="comparator"]').click();
     const n1 = globalThis.__MOD.nodes().pop();
     out.addInview = n1.x >= vl - 1 && n1.x + 210 <= vl + vw + 1 && n1.y >= vt - 1 && n1.y + 140 <= vt + vh + 1;
     out.addSpot = [n1.x, n1.y];
@@ -4108,19 +4115,58 @@ await prn.close();
   await lgp.waitForTimeout(900);
   const pal = await lgp.evaluate(() => {
     const bar = document.querySelector('.mod-bar');
-    const chips = [...document.querySelectorAll('#modPalette .mod-add')];
-    const zoomChip = getComputedStyle(document.querySelector('.mod-zoom .btn'));
+    const btn = document.getElementById('modAddBtn');
     return {
-      ribbonAdds: bar.querySelectorAll('.mod-add').length,
-      n: chips.length,
-      order: chips.map((c) => c.dataset.add).join(','),
-      titles: chips.map((c) => c.title).join(','),
-      solid: getComputedStyle(chips[0]).backgroundColor === zoomChip.backgroundColor,
+      inRibbon: !!btn && !!bar.contains(btn) && bar.firstElementChild.contains(btn),
+      haspopup: btn.getAttribute('aria-haspopup'),
+      canvasPalette: !!document.querySelector('.mod-palette'),
+      popClass: document.getElementById('modAddPop').className,
+      popHidden: document.getElementById('modAddPop').hidden,
     };
   });
-  ok('the module picker is a toolbar on the canvas now: 8 solid chips (text…io), ribbon decluttered',
-    pal.ribbonAdds === 0 && pal.n === 8 && pal.order === 'text,number,operator,comparator,logic,boolean,code,io'
-      && pal.solid && pal.titles === 'Text,Number,Operator,Comparator,Logic,Boolean,Code,I/O', JSON.stringify(pal));
+  ok('the module picker is one ribbon button now — no left-edge chip bar on the canvas',
+    pal.inRibbon && pal.haspopup === 'listbox' && !pal.canvasPalette
+      && pal.popClass.includes('tz-pop') && pal.popHidden, JSON.stringify(pal));
+  const palOpen = await lgp.evaluate(() => {
+    document.getElementById('modAddBtn').click();
+    const pop = document.getElementById('modAddPop');
+    const rows = [...document.querySelectorAll('#modAddList .tz-row')];
+    const r = pop.getBoundingClientRect();
+    return {
+      open: !pop.hidden,
+      expanded: document.getElementById('modAddBtn').getAttribute('aria-expanded'),
+      n: rows.length,
+      order: rows.map((x) => x.dataset.add).join(','),
+      names: rows.map((x) => x.title).join(','),
+      dot: rows[4] ? rows[4].querySelector('.mod-dot').style.background : '',
+      fits: r.left >= 0 && r.right <= innerWidth && r.top > 0,
+    };
+  });
+  ok('the button opens Singho\'s dropdown UI: 8 rows (text…io), translated, color dots, inside the viewport',
+    palOpen.open && palOpen.expanded === 'true' && palOpen.n === 8
+      && palOpen.order === 'text,number,operator,comparator,logic,boolean,code,io'
+      && palOpen.names === 'Text,Number,Operator,Comparator,Logic,Boolean,Code,I/O'
+      && palOpen.dot === 'rgb(184, 74, 143)' && palOpen.fits, JSON.stringify(palOpen));
+  const palAct = await lgp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const before = M.nodes().length;
+    document.querySelector('#modAddList .tz-row[data-add="text"]').click();
+    const added = M.nodes().length === before + 1 && M.nodes()[M.nodes().length - 1].type === 'text';
+    const closedAfterPick = document.getElementById('modAddPop').hidden
+      && document.getElementById('modAddBtn').getAttribute('aria-expanded') === 'false';
+    document.getElementById('modAddBtn').click();
+    const reopened = !document.getElementById('modAddPop').hidden;
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    const closedByOutside = document.getElementById('modAddPop').hidden;
+    document.getElementById('modAddBtn').click();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    const closedByEsc = document.getElementById('modAddPop').hidden;
+    return { added, closedAfterPick, reopened, closedByOutside, closedByEsc };
+  });
+  ok('picking a row adds the module and closes the menu; outside click and Escape close it too',
+    palAct.added && palAct.closedAfterPick && palAct.reopened && palAct.closedByOutside && palAct.closedByEsc,
+    JSON.stringify(palAct));
   const lgn = await lgp.evaluate(() => {
     const M = globalThis.__MOD;
     if (document.getElementById('modEditor').hidden) M.newDoc();
@@ -4286,7 +4332,7 @@ await prn.close();
       && lgStray.length === 0, JSON.stringify({ lgsm1, lgsm2, lgStray }));
   await lgcx.close();
 
-  /* mobile: the palette shrinks to dots */
+  /* mobile: the picker rides the ribbon — Singho's dropdown, never clipped */
   const mgcx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const mgp = await mgcx.newPage();
   await mgp.goto(URL + 'module.html', { waitUntil: 'load' });
@@ -4294,16 +4340,26 @@ await prn.close();
   const mg = await mgp.evaluate(() => {
     const M = globalThis.__MOD;
     if (document.getElementById('modEditor').hidden) M.newDoc();
-    const chips = [...document.querySelectorAll('#modPalette .mod-add')];
-    const labelHidden = getComputedStyle(document.querySelector('#modPalette .mod-add-t')).display === 'none';
-    document.querySelector('.mod-add[data-add="logic"]').click();
+    const btn = document.getElementById('modAddBtn');
+    btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const br = btn.getBoundingClientRect();
+    const btnReachable = br.width > 0 && br.right <= window.innerWidth;
+    btn.click();
+    const pop = document.getElementById('modAddPop');
+    const r = pop.getBoundingClientRect();
+    const rows = [...document.querySelectorAll('#modAddList .tz-row')];
+    const logicRow = rows.find((x) => x.dataset.add === 'logic');
+    const named = logicRow && logicRow.title === 'Logic' && logicRow.querySelector('.tz-city').textContent === 'Logic';
+    logicRow.click();
     const n = M.nodes()[M.nodes().length - 1];
-    return { n: chips.length, labelHidden, chipW: +chips[0].getBoundingClientRect().width.toFixed(0), added: n.type,
-      fits: document.documentElement.scrollWidth <= window.innerWidth + 1,
-      title: chips[4].title };
+    return { btnReachable, n: rows.length, named,
+      fits: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight,
+      added: n.type, closed: pop.hidden,
+      pageFits: document.documentElement.scrollWidth <= window.innerWidth + 1 };
   });
-  ok('mobile: the palette is 8 dot-only chips (names kept in titles), tapping adds, the page fits 390px',
-    mg.n === 8 && mg.labelHidden && mg.chipW <= 40 && mg.added === 'logic' && mg.fits && mg.title === 'Logic', JSON.stringify(mg));
+  ok('mobile: the ribbon picker opens Singho\'s dropdown with full names, anchored inside the phone screen, tapping adds',
+    mg.btnReachable && mg.n === 8 && mg.named && mg.fits && mg.added === 'logic' && mg.closed && mg.pageFits,
+    JSON.stringify(mg));
   await mgcx.close();
 }
 

@@ -1528,8 +1528,11 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .mod-title { flex: 1 1 140px; min-width: 90px; max-width: 320px; background: transparent; border: none; color: inherit; font: 600 15px/1.2 var(--font-sans); padding: 6px 4px; }
 .mod-title:focus { outline: none; border-bottom: 2px solid var(--notification, #000dff); }
 .mod-grow { flex: 1; }
-.mod-add { display: inline-flex; align-items: center; gap: 6px; }
 .mod-dot { width: 9px; height: 9px; display: inline-block; }
+/* the module picker: a ribbon button + Singho's tz-pop dropdown */
+.modmenu { position: relative; }
+.mod-pop { width: 190px; max-width: calc(100vw - 28px); }
+.mod-pop .mod-dot { flex: 0 0 auto; }
 .mod-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; cursor: grab;
   background-color: #101418;   /* dark workspace */
   background-image: linear-gradient(rgba(127, 127, 127, .09) 1px, transparent 1px), linear-gradient(90deg, rgba(127, 127, 127, .09) 1px, transparent 1px); }
@@ -1708,8 +1711,6 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 /* the module picker lives on the canvas itself — a toolbar of solid chips
    down the left edge, out of the ribbon. The ribbon keeps the flow-level
    actions (files, title, grid, run, export, import, clear) */
-.mod-palette { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; align-items: stretch; gap: 4px; z-index: 6; }
-.mod-palette .btn { background: var(--paper); justify-content: flex-start; }   /* solid chips: readable over any canvas, same as the zoom corner */
 @media (prefers-reduced-motion: reduce) { .mod-node.ran .mod-head { animation: none; } }
 
 /* ---- files home (SinghoScribe notes + SinghoModule flows) ---- */
@@ -1739,7 +1740,4 @@ body.mod-fileshome .mod-app { display: none; }
   .mod-bar { padding: 6px 8px; flex-wrap: nowrap; overflow-x: auto; }
   .mod-bar .btn { flex: 0 0 auto; }
   .mod-title { flex: 0 0 100px; }
-  .mod-palette { left: 6px; top: 6px; gap: 4px; }
-  .mod-palette .mod-add { min-width: 30px; padding: 8px 9px; justify-content: center; }
-  .mod-palette .mod-add-t { display: none; }   /* dots only: the names live on in title + aria-label */
 }
