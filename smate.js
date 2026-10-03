@@ -1,6 +1,8 @@
-/* SMate — the Singho assistant. A floating chat that understands commands
-   typed in any of the fifteen Singho languages and drives the page through its
-   real controls (the same code paths a click uses). Fully offline. */
+/* SMate — the Singho assistant: a fully AI, assistive companion that drives
+   every Singho app the way a person would — clicking buttons, typing into
+   fields, picking options, navigating pages — through a set of tools. The
+   on-device model is the only brain: it sees the live page context and
+   decides what to do. It loads the moment the site opens. */
 (() => {
   const LIB = globalThis.__SING_LIB;
   if (!LIB || document.getElementById('smateBtn')) return;
@@ -550,173 +552,6 @@
   /* ---------------- the interpreter ---------------- */
 
   /* every word the app itself shows, grouped per intent, across all langs */
-  const words = (keys) => {
-    const set = new Set();
-    for (const L of LANGS) for (const k of keys) {
-      const v = (STRINGS[L.id] || {})[k];
-      if (v) set.add(v.toLowerCase());
-    }
-    return [...set];
-  };
-  /* Number + Operator flows: pull "<a> <op> <b>" out of a request, in any of
-     the common phrasings and languages. Symbols work too: "calculate 2 ^ 10". */
-  const MOD_OPS = [
-    ['pow', /to the power(?: of)?|power of|\^|pow|べき乗|거듭제곱|в степени|степень|puissance/],
-    ['mul', /multiplied by|multiply|times|product|\*|×|乗じて|かけて|곱하기|乘以|乘算|乘|умножить на|умножить|multiplicado por|multiplié par/],
-    ['div', /divided by|divide by|divide[sd]?|over|\/|÷|除以|除|割って|割る|나누기|разделить на|разделить|dividido por|divisé par|gedeeld door|durch/],
-    ['mod', /modulo|remainder|mod\b|%|余り|剰余|나머지|остаток|resto/],
-    ['add', /plus|\badd(?:ed)?(?: to)?\b|sum of|\bsum\b|\+|たす|足す|足し算|더하기|加上|加|плюс|más|più/],
-    ['sub', /-|minus|subtract|less|引く|引き算|빼기|减去|减|moins|menos|weniger/],
-  ];
-  const OPS_SYM = { add: '+', sub: '−', mul: '×', div: '÷', mod: '%', pow: '^' };
-  function modMathOf(raw) {
-    const text = latinDigits(raw).replace(/×/g, '*').replace(/÷/g, '/').replace(/−|–/g, '-').toLowerCase();
-    const nums = (text.match(/-?\d+(?:\.\d+)?/g) || []).filter((x) => x !== '-');
-    if (nums.length < 2) return null;
-    for (const [id, re] of MOD_OPS) {
-      if (!re.test(text)) continue;
-      /* "subtract 5 from 12" flips the operands; everything else keeps order */
-      const flip = id === 'sub' && /\bfrom\b/.test(text) && text.indexOf('from') > text.indexOf(String(nums[0]));
-      const a = nums[0], b = nums[1];
-      return flip ? { op: id, a: b, b: a } : { op: id, a, b };
-    }
-    return null;
-  }
-  /* Comparator flows: "is 5 greater than 3", "compare 5 and 3", "5 >= 5".
-     Checked BEFORE the arithmetic table: "less than" is a comparison, while
-     bare "less" still falls through to subtraction. The on-device AI covers
-     the long tail of phrasings through the CMD grammar. */
-  const MOD_CMPS = [
-    ['gte', /greater than or equal|greater or equal|equal or greater|at least|no less than|not less than|>=|≥|mayor o igual|no menor|plus grand ou égal|supérieur ou égal|größer oder gleich|groter of gelijk|не меньше|не менее|以上|크거나 같/],
-    ['lte', /less than or equal|less or equal|equal or less|at most|no more than|not more than|<=|≤|menor o igual|no mayor|plus petit ou égal|inférieur ou égal|kleiner oder gleich|kleiner of gelijk|не больше|не более|以下|작거나 같/],
-    ['neq', /not equal|isn.t equal|doesn.t equal|unequal|differ(?:s|ent) (?:from|to)|distinto|différent|различн|не равно|ungleich|niet gelijk|no es igual|pas égal|nicht gleich|!=|≠|等しくない|不相等|不等於|다르/],
-    ['eq', /equal|same as|identical|igual|égal|gleich|gelijk|равно|同じ|等しい|等於|等于|같|=|==/],
-    ['gt', /greater than|bigger than|larger than|more than|exceeds|higher than|>|大于|大於|より大きい|크다|больше|mayor que|plus grand que|größer als|groter dan|meer dan/],
-    ['lt', /less than|smaller than|fewer than|lower than|<|小于|小於|より小さい|작다|меньше|menor que|plus petit que|kleiner als|minder dan/],
-  ];
-  const CMP_SYM = { gt: '>', lt: '<', gte: '≥', lte: '≤', eq: '=', neq: '≠' };
-  function modCompareOf(raw) {
-    const text = latinDigits(raw).replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/≠/g, '!=').toLowerCase();
-    const nums = (text.match(/-?\d+(?:\.\d+)?/g) || []).filter((x) => x !== '-');
-    if (nums.length < 2) return null;
-    for (const [id, re] of MOD_CMPS) {
-      if (!re.test(text)) continue;
-      return { cmp: id, a: nums[0], b: nums[1] };
-    }
-    return null;
-  }
-  /* the Logic module's gates, longest names first so xnor never reads as nor */
-  const MOD_GATES = [
-    ['not', /\bnot\b|~|¬|negate|非|否定|아니|\bне\b/],
-    ['nand', /\bnand\b|↑|與非|与非|否定論理積/],
-    ['nor', /\bnor\b|↓|或非|否定論理和/],
-    ['xnor', /\bxnor\b|同或|同値|equivalence/],
-    ['xor', /\bxor\b|exclusive or|異或|异或|排他的?論理和|⊕/],
-    ['and', /\band\b|&&|且|並且|并且|與|与|論理積|그리고|\bund\b|\bet\b/],
-    ['or', /\bor\b|\|\||或|或者|論理和|または|\bou\b|\boder\b/],
-  ];
-  const GATE_SYM = { not: '~', or: '+', and: '*', nor: '↓', nand: '↑', xor: '⊕', xnor: '≡' };
-  /* boolean literals in the user's language, in the order they were spoken —
-     the split captures exact words, so each part classifies cleanly */
-  function modLogicOf(raw) {
-    const text = latinDigits(raw).toLowerCase();
-    const parts = text.split(/(true|false|真|假|참|거짓|vrai|faux|wahr|falsch|verdadero|falso|verdadeiro|صحيح|خطأ|سچا|جھوٹا|सत्य|असत्य|benar|salah|истина|ложь)/);
-    const lits = [];
-    const isFalse = (w) => /false|假|거짓|faux|falsch|falso|خطأ|جھوٹا|असत्य|salah|ложь/.test(w);
-    const isTrue = (w) => /true|真|참|vrai|wahr|verdadero|verdadeiro|صحيح|سچا|सत्य|benar|истина/.test(w);
-    for (const p of parts) {
-      if (!p) continue;
-      if (isFalse(p)) { if (lits.length < 2) lits.push('false'); }
-      else if (isTrue(p)) { if (lits.length < 2) lits.push('true'); }
-    }
-    if (!lits.length) return null;
-    for (const [id, re] of MOD_GATES) {
-      if (!re.test(text)) continue;
-      if (id === 'not') return { gate: 'not', a: lits[0], b: null };
-      if (lits.length < 2) return null;
-      return { gate: id, a: lits[0], b: lits[1] };
-    }
-    return null;
-  }
-  const KW = {
-    timer: [...words(['timer']), 'timer', 'temporizador'],
-    stopwatch: words(['stopwatch']),
-    start: [...words(['start']), 'go'],
-    pause: words(['pause']),
-    resume: words(['resume']),
-    reset: [...words(['reset']), '↺'],
-    minutes: [...words(['minutes']), 'min', 'mins', '分'],
-    analog: words(['analog']),
-    digital: words(['digital']),
-    single: words(['single']),
-    side: [...words(['side']), 'side', '並排', 'lado', 'côte'],
-    quad: [...words(['quad']), '2x2', '2 × 2', 'quad'],
-    grid16: [...words(['grid16']), '4x4', '4×4'],
-    clearAll: [...words(['clearAll']), 'clear all', 'clear-all', 'reset window', '全部清除'],
-    timeQ: ['what time', 'time in', 'current time', 'how late', '幾點', '几点', 'क्या बजा', 'कितने बजे', 'qué hora', 'hora en', 'quelle heure', 'heure à', 'كم الساعة', 'কটা বাজে', 'который час', 'сколько времени', 'время в', 'que horas', 'hora em', 'کتنا بجہ', 'che ore', 'ora a', 'jam berapa', 'pukul berapa', '몇 시', '지금 몇', '何時', 'いま何時', 'pukul berapa'],
-    remind: ['remind', 'reminder', '提醒', 'याद दिला', 'recuérdame', 'recuerdame', 'rappelle', 'ذكرني', 'মনে করিয়ে', 'напомни', 'lembre', 'یاد دہانی', 'ricordami', 'ingatkan', '알림', '리마인드', '知らせ', 'erinner mich', 'erinnere', 'przypomnij', 'mind mig om', 'minn meg på', 'påminn mig', 'muistuta', 'podseti me', 'herinner me', 'υπενθύμισέ'],
-    clearChat: [...words(['clearChat']), 'clear chat', 'clear conversation', '清除對話'],
-    remove: ['remove', 'delete', 'get rid', '刪除', '删除', 'हटा', 'borra', 'elimina', 'supprime', 'احذف', 'মোছ', 'удали', 'remova', 'exclua', 'ہٹا', 'مٹا', 'rimuovi', 'hapus', '삭제', '削除', 'padam', 'entferne', 'lösche', 'usuń', 'fjern', 'slet', 'slett', 'ta bort', 'radera', 'poista', 'ukloni', 'obriši', 'verwijder', 'διάγραψε', 'αφαίρεσε'],
-    restart: ['restart', 'start over', 'begin again', '重新開始', 'फिर से शुरू', 'reinicia', 'recommence', 'আবার শুরু', 'перезапусти', 'reinicie', 'دوبارہ شروع', 'riavvia', 'mulai ulang', '다시 시작', '最初から', 'mula semula', 'starte neu', 'uruchom ponownie', 'genstart', 'start på nytt', 'starta om', 'käynnistä uudelleen', 'pokreni ponovo', 'restartuj', 'herstart', 'ξεκίνα ξανά'],
-    undo: ['undo', 'पूर्ववत', 'deshaz', 'annule', 'تراجع', 'আনডু', 'отмени', 'desfaça', 'annulla', 'urungkan', '실행 취소', '元に戻す', 'buat asal', 'rückgängig', 'cofnij', 'fortryd', 'angre', 'ångra', 'kumoa', 'opozovi', 'ongedaan', 'αναίρεσε'],
-    redo: ['redo', 'पुनः करें', 'rehaz', 'rétablis', 'ریڈو', 'রিডু', 'верни', 'refaça', 'ripeti', 'ulangi', '다시 실행', 'やり直す', 'buat semula', 'wiederhole', 'ponów', 'gentag', 'gjør om', 'gör om', 'tee uudelleen', 'ponovi', 'opnieuw', 'επανάλαβε'],
-    print: ['print', '列印', '打印', 'छापें', 'imprime', 'اطبع', 'প্রিন্ট', 'печатай', 'imprima', 'پرنٹ', 'stampa', 'cetak', '인쇄', '印刷', 'cetak', 'drucke', 'drukuj', 'udskriv', 'skriv ut', 'tulosta', 'štampaj', 'druk af', 'print', 'εκτύπωσε'],
-    copy: ['copy', '複製', 'कॉपी', 'copie', 'انسخ', 'কপি', 'копируй', 'کاپی', 'copia', 'salin', '복사', 'コピー', 'salin', 'kopiere', 'kopiuj', 'kopiér', 'kopier', 'kopiera', 'kopioi', 'kopiraj', 'kopieer', 'αντίγραψε'],
-    download: ['download', '下載', 'डाउनलोड', 'télécharge', 'تحميل', 'ডাউনলোড', 'скачай', 'baixe', 'ڈاؤن لوڈ', 'scarica', 'unduh', '다운로드', 'ダウンロード', 'muat turun', 'lade herunter', 'pobierz', 'last ned', 'ladda ner', 'lataa', 'preuzmi', 'download', 'κατέβασε'],
-    stamps: ['timestamp', 'stamps', '時間戳'],
-    theme: ['theme', '主題', 'थीम', 'tema', 'thème', 'সময', 'থিম', 'теما', 'تھیم', 'tema', '테마', 'テーマ', 'thema', 'design', 'motyw', 'temat', 'teema', 'θέμα'],
-    clearDoc: ['clear', 'wipe'],
-    map: words(['map']),
-    metro: ['metro', 'métro', 'subway', 'mrt', 'underground', 'u-bahn', '捷運', '捷運', '地铁', '地鐵', 'метро', 'مترو', 'میٹرو', 'মেট্রো', 'मेट्रो', '지하철', '地下鉄', 'รถไฟฟ้า', 'tàu điện'],
-    sysTaipei: ['taipei', 'trtc', '台北', '臺北', '타이베이', 'ไทเป', 'ताइपे', 'تايبيه', 'تایپه', 'тайбэй', 'তাইপে'],
-    sysKaohsiung: ['kaohsiung', 'krtc', '高雄', '가오슝', '카오슝'],
-    sysTaichung: ['taichung', '台中', '臺中', '타이중', 'ไถจง'],
-    sysTaoyuan: ['taoyuan', '桃園', '桃園', '桃园', '机场捷运', '機場捷運', '机场捷运', 'airport mrt', 'airport line', '타오위안', 'เถาหยวน'],
-    zoomIn: ['zoom in', 'zoom closer', '放大', '放大', '拡大', 'acercar', 'más cerca', 'zoom avant', 'приблизь', 'укрупни', 'تكبير', 'ज़ूम इन', 'जूम इन', 'inzoomen', 'vergrößern', 'powiększ', 'ingrandisci', '확대', 'besarkan', 'μεγέθυνση'],
-    zoomOut: ['zoom out', '縮小', '縮小', '縮小', 'alejar', 'dézoom', 'отдали', 'уменьши', 'تصغير', 'ज़ूम आउट', 'छोटा', 'uitzoomen', 'verkleinern', 'pomniejsz', 'rimpicciolisci', '축소', 'perkecil', 'σμίκρυνση'],
-    zoomReset: ['reset zoom', 'zoom reset', 'show all', 'overview', 'fit', '全部顯示', '顯示全部', '全圖', '全图', '重設縮放', '重置缩放', 'restablecer', 'réinitialiser', 'сброс масштаба', 'сбросить масштаб', 'रीसेट ज़ूम', 'zoom zurücksetzen', 'alle anzeigen', '전체 보기', '全体表示', 'tampilkan semua'],
-    fareW: ['fare', '票價', '票价', '요금', '운임', '運賃', 'tarifa', 'tarif', 'tariffa', 'prix', 'preis', 'цена', 'тариф', 'سعر', 'قیمت', 'कीमत', 'দাম', 'harga', 'how much', 'cuánto', 'cuanto', 'combien', 'сколько', 'كم', 'कितना', 'কত', 'berapa', '얼마', 'いくら', '多少'],
-    resync: [...words(['resync']), 'sync'],
-    full: words(['full']),
-    night: [...words(['night']), 'dark'],
-    light: [...words(['light']), 'day'],
-    lang: [...words(['language']), 'language', 'lang'],
-    tz: [...words(['tzTitle', 'homeCity']), 'zone', 'timezone', 'tz', '時區'],
-    wallet: [...words(['wallet']), 'singhowallet'],
-    clock: [...words(['lpClock']), 'clock', 'singhoclock'],
-    settings: [...words(['settings']), 'singhosettings'],
-    scribe: [...words(['lpScribe']), 'scribe', 'singhoscribe'],
-    launch: words(['launchpad']),
-    expense: words(['walExpense']),
-    income: words(['walIncome']),
-    balance: words(['walBalance']),
-    days: words(['walDays']),
-    reports: words(['walReports']),
-    module: [...words(['lpModule']), 'singhomodule', 'automation', 'module', 'workflow', '自動化', '自动化', 'モジュール'],
-    number: [...words(['mNumber']), 'number module', 'number node', '數字模組', '数字模块', '数値モジュール', '숫자 모듈'],
-    operator: [...words(['mOperator']), 'operator module', 'operator node', '運算子', '运算符', '演算子モジュール', '연산자 모듈'],
-    comparator: [...words(['mComparator']), 'comparator module', 'comparator node', 'compare', 'compared', 'comparison', '比較', '比较', '比べ', '비교', 'قارن', 'तुलना', 'сравни', 'vergelijk', 'vergleiche', 'porównaj', 'confronta', 'bandingkan', 'karşılaştır', 'jämför', 'sammenlign', 'vertaa'],
-    logic: [...words(['mLogic']), 'logic module', 'logic node', 'logic gate', 'logic gates', '邏輯模組', '逻辑模块', '論理モジュール', '논리 모듈'],
-    boolean: [...words(['mBoolean']), 'boolean module', 'boolean node', 'bool', '布林模組', '布尔模块', 'ブールモジュール', '불 모듈'],
-    files: [...words(['flFiles']), 'documents', 'my docs', '檔案管理', '文件管理'],
-    run: ['run', 'execute', '執行', '执行', '実行', '실행', 'ejecutar', 'exécuter', 'ausführen', 'تشغيل', 'चलाओ', 'запустить', 'rodar', 'esegui', 'jalankan', 'chạy'],
-    newdoc: [...words(['flNew']), 'new flow', 'new note', '新流程', '新筆記'],
-    modClear: [...words(['mClearCv']), 'clear canvas', 'clear the canvas', 'clear all modules', 'delete all modules', 'remove all modules', 'empty the canvas', '刪除所有模組', '删除所有模块', '清空所有模組', '全部削除', '모두 지우기', '전부 삭제', 'очисти холст', 'удали все модули', 'borra todos los módulos'],
-    cash: [...words(['walCash']), 'cash', 'banknote', 'banknotes', 'coin', 'coins', '紙鈔', '钞票', '硬幣', '硬币', 'お札', '硬貨', '지폐', '동전'],
-    currency: [...words(['currency']), 'currency'],
-    add: [...words(['walAdd']), 'add', 'add'],
-    help: ['help', '幫助', '説明', 'ayuda', 'aide', 'مساعدة', 'সাহায্য', 'помощь', 'ajuda', 'مدد'],
-    swap: [...words(['mSwap']), 'swap', 'interchange', '交換', ' intercambiar', 'échanger', 'tauschen', 'wissel', '스왑', '스왑', 'สลับ', 'hoán đổi'],
-    mclear: [...words(['mClear']), 'clear fare', 'clear selection'],
-    card: ['card', 'ic card', 'easycard', 'ipay', '票卡', '卡片', '悠遊卡', '一卡通', 'بطاقة', 'карта', 'cartão', 'tarjeta', 'carte', 'कार्ड', 'কার্ড', 'کارت', '카드', 'カード', 'บัตร', 'karte', 'karta', 'kaart', 'kort', 'κάρτα'],
-    find: [...words(['scribeFind']), 'find', 'search', '尋找', '検索', 'buscar', 'rechercher', 'suchen', 'zoeken', '찾기', 'بحث', 'खोज', 'поиск', 'procurar', 'cari'],
-    welcome: ['welcome', '歡迎', 'bienvenue', 'bienvenido', 'willkommen', 'welkom', 'benvenuto', 'ようこそ', '환영', 'مرحبا', 'स्वागत', 'স্বাগত', 'خوش آمدید', 'добро пожаловать', 'bem-vindo', 'καλώς ήρθατε', 'velkommen', 'välkommen', 'tervetuloa', 'dobrodošli', 'witaj'],
-    resetData: ['reset data', 'factory reset', 'wipe data', '清除資料', '重置資料', 'borrar datos', 'réinitialiser les données', 'сбросить данные', 'reset de fábrica', 'dados de fábrica', 'dati di fabbrica', 'Daten zurücksetzen', 'gegevens wissen', '데이터 초기화', 'データをリセット'],
-    entry: ['entry', 'entries', 'transaction', 'record', '項目', '記錄', '기록', 'registro', 'entrée', 'запись', 'eintrag', 'registro', 'entri', 'καταχώρηση', 'prone'],
-  };
-  const OPEN_VERBS = ['open', 'go to', 'goto', 'show', 'open', '打开', '開啟', '開', '去', 'खोलें',
-    'abrir', 'ir a', 'ouvrir', 'aller à', 'افتح', 'اذهب إلى', 'খুলুন', 'открыть', 'открой', 'перейти',
-    'abrir', 'ir para', 'کھولیں', 'open'];
   const LANG_NAMES = {
     en: ['english', 'inglés', 'anglais'], 'zh-Hant': ['chinese', 'traditionnel', '繁體', '繁中', '中文', 'chino', 'chinois'],
     hi: ['hindi', 'hindí', 'hin', 'हिन्दी'], es: ['spanish', 'espagnol', 'español'],
@@ -739,19 +574,6 @@
      languages) must never fire inside "Jakarta"; scripts without word
      spaces (CJK etc.) keep substring matching, where partial matches are
      how those languages work */
-  const LATINISH = /^[a-z0-9\u00C0-\u024F\u1E00-\u1EFF'\u2019 -]+$/;
-  const KW_RX = new Map();
-  const has = (text, list) => list.some((rawW) => {
-    const w = String(rawW).trim().toLowerCase();
-    if (!w) return false;
-    if (!LATINISH.test(w)) return text.includes(w);
-    let rx = KW_RX.get(w);
-    if (!rx) {
-      rx = new RegExp('(?:^|[^\\p{L}\\p{N}])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:$|[^\\p{L}\\p{N}])', 'u');
-      KW_RX.set(w, rx);
-    }
-    return rx.test(text);
-  });
   const num = (text) => {
     const m = latinDigits(text).match(/(\d+(?:[.,]\d+)?)/);
     return m ? parseFloat(m[1].replace(',', '.')) : null;
@@ -834,12 +656,12 @@
     },
     timerCtl(w) {
       const cells = [...document.querySelectorAll('.cell.timer')];
-      if (has(w, KW.pause) || has(w, KW.reset)) {
+      if (w === 'pause' || w === 'reset') {
         if (!cells.length) return null;
         cells.forEach((c) => toggleCell(c, false));
         return t(curLang, 'done');
       }
-      if (has(w, KW.start) || has(w, KW.resume)) {
+      if (w === 'start' || w === 'resume') {
         if (!cells.length) { click($('timerStart')); const c = document.querySelector('.cell.timer'); if (c) c.dataset.smateRun = '1'; }
         else cells.forEach((c) => toggleCell(c, true));
         return t(curLang, 'done');
@@ -847,16 +669,16 @@
       return null;
     },
     stopwatch(w) {
-      if (has(w, KW.reset)) {
+      if (w === 'reset') {
         const r = document.querySelector('.cell.stop .cap-reset');
         if (r) { r.click(); return t(curLang, 'done'); }
         return null;
       }
-      if (has(w, KW.pause) || has(w, KW.start) || has(w, KW.resume)) {
+      if (w === 'pause' || w === 'start' || w === 'resume') {
         let cell = document.querySelector('.cell.stop');
         if (!cell) { click($('btnStop')); cell = document.querySelector('.cell.stop'); if (cell) cell.dataset.smateRun = '1'; }
         if (!cell) return null;
-        toggleCell(cell, has(w, KW.start) || has(w, KW.resume));
+        toggleCell(cell, w === 'start' || w === 'resume');
         return t(curLang, 'done');
       }
       if (!document.querySelector('.cell.stop')) { click($('btnStop')); const c = document.querySelector('.cell.stop'); if (c) c.dataset.smateRun = '1'; }
@@ -870,44 +692,16 @@
       setTimeout(() => { location.href = target; }, 350);
       return `→ ${where === 'wallet' ? t(curLang, 'wallet') : where === 'settings' ? t(curLang, 'settings') : where === 'scribe' ? t(curLang, 'lpScribe') : where === 'launch' ? t(curLang, 'launchpad') : t(curLang, 'lpClock')}`;
     },
-    walletAdd(text, type) {
-      const amt = num(text);
-      if (amt == null) return null;
+    walletAdd(type, amt, note) {
+      if (amt == null || isNaN(amt)) return null;
       if (page !== 'wallet') { act.nav('wallet'); return t(curLang, 'wallet'); }
       click(type === 'in' ? $('walTypeIn') : $('walTypeOut'));
       $('walAmt').value = String(amt);
-      const note = text.replace(/[\d.,]+/g, '').trim();
-      if ($('walNote')) $('walNote').value = note.slice(0, 40);
+      if ($('walNote')) $('walNote').value = String(note || '').slice(0, 40);
       $('walAddBtn').click();
       return `${t(curLang, 'done')} · ${$('walBal').textContent}`;
     },
-    walletCur(code) {
-      if (page !== 'wallet') return null;
-      click($('walCurBtn'));
-      const s = $('curSearch');
-      s.value = code;
-      s.dispatchEvent(new Event('input', { bubbles: true }));
-      const row = document.querySelector('#curList .cur-row:not([hidden])');
-      if (row) { row.click(); return `${t(curLang, 'done')} · ${code}`; }
-      return null;
-    },
-    scribeCtl(w) {
-      if (has(w, KW.start)) return click($('scrMic')) ? t(curLang, 'done') : null;
-      if (has(w, KW.pause) || has(w, KW.reset)) return click($('scrMic')) ? t(curLang, 'done') : null;
-      return null;
-    },
   };
-
-  function helpText() {
-    const bits = [t(curLang, 'timer'), t(curLang, 'stopwatch'), t(curLang, 'tzTitle'),
-      t(curLang, 'language'), t(curLang, 'analog') + '/' + t(curLang, 'digital'),
-      t(curLang, 'winTitle'), t(curLang, 'clearAll'), t(curLang, 'map'), t(curLang, 'resync'), t(curLang, 'full'),
-      t(curLang, 'mFare'),
-      t(curLang, 'wallet'), t(curLang, 'walCash'), t(curLang, 'lpScribe'), t(curLang, 'lpModule'), t(curLang, 'settings')];
-    if (page === 'metro') bits.push(t(curLang, 'mTRTC'), t(curLang, 'mKS'), t(curLang, 'mTC'), t(curLang, 'mTY'), t(curLang, 'mFare'), t(curLang, 'mSwap'), t(curLang, 'mClear'), t(curLang, 'mCard'));
-    if (page === 'launch') bits.push(t(curLang, 'lpWelcomeT'));
-    return `SMate · ${bits.join(' · ')}`;
-  }
 
   /* localized city names so zones can be spoken in any of the fifteen languages */
   const CITY_ALIASES = {
@@ -980,21 +774,6 @@
     return { text: `${t(curLang, 'mFare')}: ${nm(a.id)} → ${nm(b.id)} · ${row}`, spec: { k: 'fare', sys: a.sys, a: a.id, b: b.id, path: r.path, row, t: t(curLang, 'mFare') } };
   }
 
-  const BYW = [' by ', ' × ', '乘', ' por ', ' par ', ' на ', ' في ', ' গুণ ', ' ضرب ', ' गुणा ', ' per '];
-  const layoutIntent = (text) => {
-    if (modMathOf(text) || modCompareOf(text)) return null;   /* "multiply 6 by 7" and "is 5 greater than 3" are math, not window layouts */
-    if (has(text, KW.comparator)) return null;   /* an explicit comparator mention is never a layout either */
-    if (has(text, KW.grid16)) return 16;
-    let s2 = ` ${latinDigits(text)} `;
-    for (const w of BYW) s2 = s2.split(w).join(' x ');
-    const m = s2.match(/(\d+)\s*x\s*(\d+)/);
-    if (m) { const p = Number(m[1]) * Number(m[2]); return p <= 1 ? 1 : p <= 2 ? 2 : p <= 4 ? 4 : 16; }
-    if (has(text, KW.quad)) return 4;
-    if (has(text, KW.side)) return 2;
-    if (has(text, KW.single)) return 1;
-    return null;
-  };
-
   /* station aliases for fare lookups (longest names first so
      "Taipei Main Station" wins over "Taipei"); built lazily because
      smate.js loads before metro.js has exposed __METRO */
@@ -1009,500 +788,405 @@
     }
     return ST_ALIAS;
   };
-  const findStations = (tl, sysNow) => {
-    const hits = [];
-    for (const s of stAlias()) {
-      if (s.sys !== sysNow) continue;
-      const i = Math.min(tl.includes(s.en) ? tl.indexOf(s.en) : 1e9, s.zh && tl.includes(s.zh) ? tl.indexOf(s.zh) : 1e9);
-      if (i < 1e9 && !hits.some((h) => h.i === i)) hits.push({ i, id: s.id });
+  const matchSt = (name, sysNow) => {
+    const n2 = latinDigits(String(name || '')).toLowerCase().trim();
+    if (!n2) return null;
+    for (const st of stAlias()) {
+      if (st.sys !== sysNow) continue;
+      if ((st.en && n2.includes(st.en)) || (st.zh && name.includes(st.zh))) return st.id;
     }
-    hits.sort((a, b) => a.i - b.i);
-    return hits.map((h) => h.id);
+    /* a shorter spoken name may still mean the station: "Taipei Main" ->
+       Taipei Main Station (long names first, so the best match wins) */
+    if (n2.length >= 5) {
+      for (const st of stAlias()) {
+        if (st.sys !== sysNow) continue;
+        if ((st.en && st.en.includes(n2)) || (st.zh && st.zh.includes(n2))) return st.id;
+      }
+    }
+    return null;
   };
 
-  /* every detectable intent runs, in one pass — compound sentences work */
-  function run(raw) {
-    const text = LIB.brandFix(raw).toLowerCase();
-    if (/^(?:hey |hi |hello |ok |okay )?smate[!?.]*$/.test(text)) return helpText();
-    if (has(text, KW.help) || text === '?' || text === '؟' || text === '？') return helpText();
-    const outs = [];
-    const note = (v) => { if (v) outs.push(v); };
+  /* ---------- the AI's hands: a tool for everything a person can do ----------
+     Generic tools operate the live page (click, fill, pick, read, press,
+     goto) exactly like a user at the browser; purpose-built tools drive the
+     apps' tested code paths. The model picks tools from the live page
+     context; every result feeds back so it can continue multi-step work. */
+  let ELMAP = new Map();
+  const tick = () => new Promise((r) => setTimeout(r, 60));
+  const elOf = (a) => ELMAP.get(String((a && a.ref) || '')) || (a && a.id ? document.getElementById(String(a.id)) : null) || (a && a.sel ? document.querySelector(String(a.sel)) : null);
+  const doneT = () => t(curLang, 'done');
+  const NAV = (say) => ({ nav: true, say });
 
-    /* language switch */
-    const lg = findLang(text);
-    if (lg && (has(text, KW.lang) || (LANG_NAMES[lg] || []).some((n) => text.includes(n.toLowerCase())) || text.includes(LANGS.find((l) => l.id === lg).name.toLowerCase()))) {
-      { const r = setLang(lg); note(r); if (r) abPush({ k: 'done', t: t(curLang, 'language'), b: langOf(lg).name }); }
-    }
-
-    /* clear all: reset the clock window (from any page) */
-    if (has(text, KW.clearAll)) {
-      if (page === 'clock') { LIB.clearWindow(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'clearAll') }); }
-      else {
-        try { localStorage.setItem('singhoah:pendingClear', '1'); } catch { /* ignore */ }
-        note(act.nav('clock'));
+  function inventory() {
+    ELMAP = new Map();
+    const out = [];
+    const els = document.querySelectorAll('button, input, select, textarea, a[href], [contenteditable="true"], [role="button"], [role="tab"], [role="switch"]');
+    for (const el of els) {
+      if (out.length >= 36) break;
+      if (el.id === 'smateBtn' || el.closest('#smatePop')) continue;
+      if (el.type === 'file' || el.disabled || el.hidden) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) continue;
+      const ref = 'e' + (ELMAP.size + 1);
+      ELMAP.set(ref, el);
+      const name = (el.getAttribute('aria-label') || el.title || el.placeholder || (el.labels && el.labels[0] && el.labels[0].textContent) || el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 26);
+      let d = `${ref} ${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${name ? ' "' + name + '"' : ''}`;
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        if (el.type === 'checkbox' || el.type === 'radio') d += el.checked ? ' [on]' : ' [off]';
+        else if (el.value) d += ` =${String(el.value).slice(0, 32)}`;
+      } else if (el.tagName === 'SELECT') {
+        d += ` {${[...el.options].slice(0, 8).map((o) => o.textContent.trim()).join('|')}}`;
       }
-      return outs.length ? outs.join(' · ') : null;
+      if (el.getAttribute('aria-pressed') === 'true') d += ' [on]';
+      out.push(d);
     }
+    return out.join('\n');
+  }
 
-    /* metro (SinghoMetro page): switch system, zoom, look up fares —
-       works in every tab and at every zoom level, in any language */
-    if (page === 'metro' && globalThis.__METRO) {
-      const M = globalThis.__METRO;
-      const tl = text.toLowerCase();
-      const wantSys = has(tl, KW.sysTaipei) ? 'TRTC'
-        : has(tl, KW.sysKaohsiung) ? 'KS'
-        : has(tl, KW.sysTaichung) ? 'TC'
-        : has(tl, KW.sysTaoyuan) ? 'TY' : null;
-      if (wantSys && M.setSys(wantSys)) note(`${t(curLang, 'done')}: ${t(curLang, 'm' + wantSys)}`);
-      if (has(tl, KW.swap)) { click($('mSwap')); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'mSwap') }); }
-      if (has(tl, KW.mclear) && !has(tl, ['chat', 'conversation', '對話', '对话'])) { click($('mClear')); note(t(curLang, 'done')); }
-      if (has(tl, KW.card)) {
-        click($('mCard'));
-        const n = num(text);
-        if (n != null) { const b = $('mCardBal'); if (b) { b.value = String(n); b.dispatchEvent(new Event('change', { bubbles: true })); } }
-        note(t(curLang, 'done'));
-        abPush({ k: 'done', t: `${t(curLang, 'mCard')}${n != null ? ` · ${n}` : ''}`, b: n != null ? `${t(curLang, 'walBalance')} · ${n}` : '' });
-      }
-      if (has(tl, KW.zoomIn)) { M.zoomBy(1.7); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'done'), b: '×1.7' }); }
-      else if (has(tl, KW.zoomOut)) { M.zoomBy(1 / 1.7); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'done'), b: '÷1.7' }); }
-      else if (has(tl, KW.zoomReset)) { M.resetView(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'done'), b: '⌂' }); }
-      const hits = findStations(tl, M.sys);
-      if (hits.length >= 2) {
-        M.pick(hits[0]); M.pick(hits[1]);
-        const r = M.route(hits[0], hits[1]);
-        if (r) {
-          const f = M.fare(M.sys, hits[0], hits[1], r);
-          const nm = (id) => `${M.ST[id].en} ${M.ST[id].zh}`;
-          note(`${t(curLang, 'mFare')}: ${nm(hits[0])} → ${nm(hits[1])} · NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`);
-          abPush({ k: 'fare', sys: M.sys, a: hits[0], b: hits[1], path: r.path, row: `NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`, t: t(curLang, 'mFare') });
-        }
-      } else if (hits.length === 1) M.pick(hits[0]);
-    } else if (page !== 'metro' && has(text.toLowerCase(), KW.metro) && has(text.toLowerCase(), OPEN_VERBS)) note(act.nav('metro'));
+  const matchCity = (name) => {
+    const n2 = latinDigits(String(name || '')).toLowerCase().trim();
+    if (!n2) return null;
+    for (const [z, names] of Object.entries(CITY_ALIASES)) {
+      for (const x of names) { if (n2.includes(x) || x.includes(n2)) return z; }
+    }
+    for (const z of zoneList()) { const c = cityOf(z).toLowerCase(); if (c && c.length > 2 && (n2.includes(c) || c.includes(n2))) return z; }
+    return findZone(name);
+  };
+  const LAYMAP = { single: 1, side: 2, '2x2': 4, quad: 4, '4x4': 16, grid: 16 };
+  const OPID = { 'add': 'add', '+': 'add', 'plus': 'add', 'sub': 'sub', '-': 'sub', 'minus': 'sub', 'mul': 'mul', '*': 'mul', 'x': 'mul', '×': 'mul', 'div': 'div', '/': 'div', 'mod': 'mod', '%': 'mod', 'pow': 'pow', '^': 'pow' };
+  const CMPID = { 'gt': 'gt', '>': 'gt', 'greater': 'gt', 'lt': 'lt', '<': 'lt', 'less': 'lt', 'gte': 'gte', '>=': 'gte', '≥': 'gte', 'lte': 'lte', '<=': 'lte', '≤': 'lte', 'eq': 'eq', '=': 'eq', '==': 'eq', 'equal': 'eq', 'neq': 'neq', '!=': 'neq', '≠': 'neq' };
+  const GATEID = { 'not': 'not', '~': 'not', '¬': 'not', 'or': 'or', '+': 'or', 'and': 'and', '*': 'and', 'nor': 'nor', '↓': 'nor', 'nand': 'nand', '↑': 'nand', 'xor': 'xor', '⊕': 'xor', 'xnor': 'xnor', '≡': 'xnor' };
+  const boolArg = (v) => (v === true || v === 1 || String(v).toLowerCase() === 'true' || String(v) === '1') ? 'true' : 'false';
+  function modEditorOpen() {
+    if (!document.getElementById('modEditor').hidden) return;
+    const M = globalThis.__MOD;
+    const id = M.latest && M.latest();
+    if (id) M.openDoc(id); else M.newDoc();
+  }
 
-        /* window shape + zones, in the order spoken */
-    const lay = layoutIntent(text);
-    const zones = findAllZones(text);
-    /* on the metro page city names belong to station/fare talk — only an
-       explicit timezone/clock phrase may leave for the clock window */
-    const zoneGate = page === 'metro'
-      ? (has(text, KW.tz) || has(text, KW.clock))
-      : (has(text, KW.tz) || has(text, OPEN_VERBS) || zones.length > 1 || text.split(' ').length <= 3);
-    /* a fare/station question is station talk, not window talk — let the
-       fare engine answer instead of reshaping the clock window */
-    const fareIntent = has(text, KW.fareW) || has(text, ['station', '站']);
-    if (!fareIntent && !has(text, KW.remove) && (lay != null || (zones.length && zoneGate))) {
+  /* switch the wallet currency through the wallet's own picker UI */
+  const walCur = (code) => {
+    const b = $('walCurBtn');
+    if (!b) return null;
+    b.click();                                    /* opens the currency tab */
+    const row = document.querySelector(`.cur-row[data-code="${code}"]`);
+    if (!row) { b.click(); return null; }         /* nothing matched — close */
+    row.click();                                  /* picks it and returns */
+    return code;
+  };
+  const TOOLS = {
+    async click(a) { const el = elOf(a); if (!el) return 'no such element'; el.click(); await tick(); return 'clicked'; },
+    async fill(a) { const el = elOf(a); if (!el) return 'no such element'; const v = String(a.value ?? ''); el.focus(); if (el.isContentEditable) { el.innerText = v; el.dispatchEvent(new Event('input', { bubbles: true })); } else { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } await tick(); return 'set'; },
+    async pick(a) { const el = elOf(a); if (!el) return 'no such element'; const want = String(a.option ?? a.value ?? ''); if (el.tagName === 'SELECT') { const o = [...el.options].find((x) => x.value === want) || [...el.options].find((x) => x.textContent.trim().toLowerCase() === want.toLowerCase()) || [...el.options].find((x) => x.textContent.trim().toLowerCase().includes(want.toLowerCase())); if (!o) return 'no such option'; el.value = o.value; el.dispatchEvent(new Event('change', { bubbles: true })); await tick(); return 'picked ' + o.textContent.trim(); } if (el.type === 'checkbox' || el.type === 'radio') { el.checked = want === 'true' || want === 'on' || want === 'check' || a.option === true; el.dispatchEvent(new Event('change', { bubbles: true })); await tick(); return el.checked ? 'checked' : 'unchecked'; } el.value = want; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); await tick(); return 'set'; },
+    async read(a) { const el = elOf(a); if (!el) return 'no such element'; const v = (el.value != null && el.value !== '') ? el.value : (el.innerText || el.textContent); return String(v).trim().slice(0, 400) || '(empty)'; },
+    async press(a) { const el = elOf(a) || document.activeElement || document.body; const k = String(a.key || 'Enter'); const ev = (type) => new KeyboardEvent(type, { key: k, bubbles: true, cancelable: true }); el.dispatchEvent(ev('keydown')); el.dispatchEvent(ev('keyup')); await tick(); return 'pressed ' + k; },
+    async goto(a) { const r = act.nav(String(a.app || 'clock')); return (r && String(r).startsWith('→')) ? NAV(r) : (r || 'no such app'); },
+
+    async timer(a) {
+      const n = Number(a.minutes);
+      if (!n || n <= 0) return 'minutes required';
       if (page === 'clock') {
-        abPush({ k: 'clocks', z: zoneGate ? zones : [], t: t(curLang, 'winTitle') });
-        LIB.smateWindow(zoneGate ? zones : [], lay);
+        const r = act.timerSet(n);
+        const tv = LIB.timersView(); const q = tv[tv.length - 1];
+        abPush({ k: 'timer', e: q ? q.e : Date.now() + n * 60000, d: n * 60000, t: `${t(curLang, 'timer')} · ${n} ${t(curLang, 'minutes')}` });
+        return r;
+      }
+      try { localStorage.setItem('singhoah:pendingTimer', JSON.stringify({ m: n })); } catch { /* ignore */ }
+      abPush({ k: 'timer', e: Date.now() + n * 60000 + 1500, d: n * 60000, t: `${t(curLang, 'timer')} · ${n} ${t(curLang, 'minutes')}` });
+      return NAV(act.nav('clock'));
+    },
+    async timerctl(a) {
+      const w = String(a.action || '');
+      const r = act.timerCtl(w);
+      if (r) { const tv = LIB.timersView(); const q = tv[tv.length - 1]; if (q) abPush({ k: 'timer', e: q.e, d: q.d, t: t(curLang, 'timer') }); }
+      return r || 'no timer running';
+    },
+    async stopwatch(a) {
+      const r = act.stopwatch(String(a.action || 'new'));
+      if (r) { const sv = LIB.stopsView(); const q = sv[sv.length - 1]; abPush({ k: 'stop', s: q ? q.s : null, t: t(curLang, 'stopwatch') }); }
+      return r || 'no stopwatch';
+    },
+    async zones(a) {
+      const cities = Array.isArray(a.cities) ? a.cities : (a.city ? [a.city] : []);
+      const zs = [...new Set(cities.map((c) => matchCity(c)).filter(Boolean))];
+      const lay = a.layout ? (LAYMAP[String(a.layout).toLowerCase()] || null) : null;
+      if (!zs.length && lay == null) return 'name at least one city';
+      if (page === 'clock') {
+        abPush({ k: 'clocks', z: zs, t: t(curLang, 'winTitle') });
+        LIB.smateWindow(zs, lay);
         const bits = [];
         if (lay != null) bits.push(lay === 16 ? t(curLang, 'grid16') : lay === 4 ? t(curLang, 'quad') : lay === 2 ? t(curLang, 'side') : t(curLang, 'single'));
-        if (zoneGate && zones.length) bits.push(zones.map((z) => cityOf(z)).join(', '));
-        note(`${t(curLang, 'winTitle')}: ${bits.join(' · ')}`);
-      } else if (page === 'settings' && zones.length) {
-        { const r = setTz(zones[0]); note(r); if (r) abPush({ k: 'clocks', z: [zones[0]], t: t(curLang, 'tzTitle') }); }
-      } else {
-        try { localStorage.setItem('singhoah:pendingWin', JSON.stringify({ z: zones, l: lay })); } catch { /* ignore */ }
-        abPush({ k: 'clocks', z: zones, t: t(curLang, 'winTitle') });
-        note(act.nav('clock'));
+        if (zs.length) bits.push(zs.map((z) => cityOf(z)).join(', '));
+        return `${t(curLang, 'winTitle')}: ${bits.join(' · ')}`;
       }
-    }
+      if (page === 'settings' && zs.length) { const r = setTz(zs[0]); abPush({ k: 'clocks', z: [zs[0]], t: t(curLang, 'tzTitle') }); return r || 'failed'; }
+      try { localStorage.setItem('singhoah:pendingWin', JSON.stringify({ z: zs, l: lay })); } catch { /* ignore */ }
+      abPush({ k: 'clocks', z: zs, t: t(curLang, 'winTitle') });
+      return NAV(act.nav('clock'));
+    },
+    async removezone(a) { if (page !== 'clock') return 'clock page only'; const z = matchCity(String(a.city || '')); if (!z) return 'no such city'; const r = LIB.smateRemove(z) ? doneT() : null; if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${cityOf(z)}` }); return r || 'not found'; },
+    async removewin(a) { if (page !== 'clock') return 'clock page only'; const w = String(a.what) === 'stopwatch' ? 'stop' : 'timer'; const r = LIB.smateRemove(w) ? doneT() : null; if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${t(curLang, w === 'timer' ? 'timer' : 'stopwatch')}` }); return r || 'none'; },
+    async restartwin(a) { if (page !== 'clock') return 'clock page only'; const w = String(a.what) === 'stopwatch' ? 'stop' : 'timer'; const r = LIB.smateRestart(w) ? doneT() : null; if (r) abPush({ k: 'done', t: `${t(curLang, 'restart')} · ${t(curLang, w === 'timer' ? 'timer' : 'stopwatch')}` }); return r || 'none'; },
+    async mode(a) { const wantAnalog = String(a.mode) === 'analog'; const b = $('btnMode'); if (b) { const isAnalog = b.getAttribute('aria-pressed') === 'true'; if (wantAnalog !== isAnalog) b.click(); } else { try { localStorage.setItem('singhoah:pendingMode', wantAnalog ? 'analog' : 'digital'); } catch { /* ignore */ } } abPush({ k: 'mode', an: wantAnalog, t: t(curLang, wantAnalog ? 'analog' : 'digital') }); return doneT(); },
+    async theme(a) { const wantDark = String(a.mode) === 'night' || String(a.mode) === 'dark'; if (page === 'settings') { click($('btnTheme')); return doneT(); } const b = $('btnNight'); if (!b) return 'no theme control here'; const dark = document.documentElement.classList.contains('dark'); if (wantDark !== dark) b.click(); abPush({ k: 'done', t: t(curLang, wantDark ? 'night' : 'light') }); return doneT(); },
+    async resync() { const r = click($('btnSync')) ? doneT() : null; if (r) abPush({ k: 'done', t: t(curLang, 'resync') }); return r || 'not here'; },
+    async fullscreen() { const r = click($('btnFull')) ? doneT() : null; if (r) abPush({ k: 'done', t: t(curLang, 'full') }); return r || 'not here'; },
+    async showmap(a) { const zm = a.city ? findZone(String(a.city)) : null; const spec = { k: 'mapnav', z: zm || null, c: zm ? cityOf(zm) : String(a.city || '').slice(0, 24), t: t(curLang, 'map') }; if (page === 'clock') { click($('btnMap')); LIB.mapGoCity(String(a.city || '')); abPush(spec); return doneT(); } try { localStorage.setItem('singhoah:pendingMap', JSON.stringify({ c: a.city || '' })); } catch { /* ignore */ } abPush(spec); return NAV(act.nav('clock')); },
+    async ip() { if (page !== 'clock') return 'clock page only'; return click($('btnIp')) ? doneT() : 'not found'; },
+    async lang(a) { const lg = findLang(String(a.name || '')); if (!lg) return 'unknown language'; const r = setLang(lg); if (r) abPush({ k: 'done', t: t(curLang, 'language'), b: langOf(lg).name }); return r || 'failed'; },
+    async time(a) {
+      const z = a.city ? (matchCity(String(a.city)) || findZone(String(a.city))) : null;
+      const tf = new Intl.DateTimeFormat(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', timeZone: z || undefined });
+      if (z) return t(curLang, 'timeIn').replace('{t}', tf.format(new Date())).replace('{c}', cityOf(z));
+      return tf.format(new Date());
+    },
+    async remind(a) { const m = Number(a.minutes); if (!m || m <= 0) return 'minutes required'; reminders.push({ at: Date.now() + m * 60000 }); const txt = t(curLang, 'remindSet').replace('{n}', String(m)); abPush({ k: 'remind', at: Date.now() + m * 60000, t: txt }); return txt; },
+    async calc(a) { const v = safeMath(String(a.expr || '')); return v == null ? 'cannot compute that' : String(Math.round(v * 10000) / 10000); },
+    async clearchat() { clearChatNow(); return doneT(); },
+    async clearclock() { if (page === 'clock') { LIB.clearWindow(); abPush({ k: 'done', t: t(curLang, 'clearAll') }); return doneT(); } try { localStorage.setItem('singhoah:pendingClear', '1'); } catch { /* ignore */ } return NAV(act.nav('clock')); },
+    async settz(a) { if (page !== 'settings') return 'settings page only'; const z = matchCity(String(a.city || '')) || findZone(String(a.city || '')); if (!z) return 'unknown city'; const r = setTz(z); if (r) abPush({ k: 'clocks', z: [z], t: t(curLang, 'tzTitle') }); return r || 'failed'; },
 
-    /* assistant: what time is it in <City>? */
-    if (has(text, KW.timeQ)) {
-      const zq = findAllZones(text)[0];
-      if (zq) {
-        const tf = new Intl.DateTimeFormat(langOf(curLang).locale, { hour: '2-digit', minute: '2-digit', timeZone: zq });
-        return t(curLang, 'timeIn').replace('{t}', tf.format(new Date())).replace('{c}', cityOf(zq));
+    async walletadd(a) {
+      const type = String(a.type) === 'income' ? 'in' : 'out';
+      const amt = Number(a.amount);
+      if (!amt || isNaN(amt)) return 'amount required';
+      const note = String(a.note || '').slice(0, 40);
+      const ttl = t(curLang, type === 'in' ? 'walIncome' : 'walExpense');
+      if (page === 'wallet') {
+        click(type === 'in' ? $('walTypeIn') : $('walTypeOut'));
+        $('walAmt').value = String(amt);
+        if ($('walNote')) $('walNote').value = note;
+        $('walAddBtn').click();
+        const bal = $('walBal') ? $('walBal').textContent : '';
+        abPush({ k: 'wallet', inn: type === 'in', amt, bal: `${t(curLang, 'walBalance')} · ${bal}`, t: ttl });
+        return `${doneT()} · ${bal}`;
       }
-    }
-    /* assistant: reminders */
-    if (has(text, KW.remind) && num(text) != null) {
-      const m = num(text);
-      reminders.push({ at: Date.now() + m * 60000 });
-      abPush({ k: 'remind', at: Date.now() + m * 60000, t: t(curLang, 'remindSet').replace('{n}', String(m)) });
-      return t(curLang, 'remindSet').replace('{n}', String(m));
-    }
-    /* assistant: quick math (only when nothing else is meant) */
-    if (lay == null && !zones.length) {
-      const ms = latinDigits(text).replace(/×/g, '*').replace(/÷/g, '/').trim();
-      if (/^[\d\s+\-*/().%]+$/.test(ms) && /\d/.test(ms) && /[+\-*/%]/.test(ms)) {
-        const v = safeMath(ms);
-        if (v != null) return String(Math.round(v * 10000) / 10000);
-      }
-    }
-    /* assistant: clear the conversation */
-    if (has(text, KW.clearChat)) {
-      clearChatNow();
-      return t(curLang, 'done');
-    }
-        /* pane surgery: delete / restart timers & stopwatches, remove zones */
-    const wantTimer = has(text, KW.timer);
-    const wantStop = has(text, KW.stopwatch);
-    if (page === 'clock' && has(text, KW.remove) && (wantTimer || wantStop)) {
-      { const r = LIB.smateRemove(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${t(curLang, wantTimer ? 'timer' : 'stopwatch')}` }); }
-    } else if (page === 'clock' && has(text, KW.restart) && (wantTimer || wantStop)) {
-      { const r = LIB.smateRestart(wantTimer ? 'timer' : 'stop') ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'restart')} · ${t(curLang, wantTimer ? 'timer' : 'stopwatch')}` }); }
-    } else if (page === 'clock' && has(text, KW.remove)) {
-      const z = findAllZones(text)[0];
-      if (z) { const r = LIB.smateRemove(z) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: `${t(curLang, 'remove')} · ${cityOf(z)}` }); }
-    }
-    /* SinghoScribe files: the notes home (Google-Docs style) */
-    if (page === 'scribe') {
-      if (has(text, KW.files)) { const r = globalThis.__SCRIBE ? (globalThis.__SCRIBE.showHome(), t(curLang, 'flFiles')) : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
-      if (has(text, KW.newdoc)) {
-        if (globalThis.__SCRIBE) {
-          const id = globalThis.__SCRIBE.docs.docsCreate('note', '', {});
-          globalThis.__SCRIBE.openDoc(id);
-          note(t(curLang, 'done'));
-          abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'flUntitledNote')}` });
-        }
-      }
-    }
-    /* SinghoModule: run the flow, open files, start a new flow, toggle the grid */
-    if (page === 'module' && globalThis.__MOD) {
-      /* every comparison request shares one builder: two Numbers wired into
-         the Comparator's A and B ports, verdict to the I/O terminal, run,
-         answer with the verdict in chat — the flow stays on the canvas */
-      const buildCmpFlow = (cid, a, b) => {
-        const M = globalThis.__MOD;
-        const na = M.add('number');   /* lands wherever the user is looking */
-        const nb = M.add('number', na.x, na.y + 260);
-        const cp = M.add('comparator', na.x + 320, na.y + 130);
-        const io = M.add('io', na.x + 600, na.y + 130);
-        M.cfg(na.id, { numtype: 'dec', value: a });
-        M.cfg(nb.id, { numtype: 'dec', value: b });
-        M.cfg(cp.id, { cmp: cid });
-        M.wire(na.id, cp.id, 'a');
-        M.wire(nb.id, cp.id, 'b');
-        M.wire(cp.id, io.id);
-        note(t(curLang, 'mRun'));
-        Promise.resolve(M.run()).then((r) => {
-          const out = (r && r.length) ? r.join(' · ') : '';
-          sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mComparator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
-        }).catch(() => { /* the node's status line shows the error */ });
-      };
-      /* every logic request shares one builder: Booleans wired into the
-         Logic gate's A (and B) inputs, verdict to the I/O terminal, run,
-         answer with the verdict in chat — the flow stays on the canvas */
-      const buildLogicFlow = (gid, a, b) => {
-        const M = globalThis.__MOD;
-        const unary = gid === 'not';
-        const ba = M.add('boolean');   /* lands wherever the user is looking */
-        M.cfg(ba.id, { val: a });
-        let bb = null;
-        if (!unary) { bb = M.add('boolean', ba.x, ba.y + 260); M.cfg(bb.id, { val: b }); }
-        const dy = unary ? 0 : 130;
-        const lg = M.add('logic', ba.x + 320, ba.y + dy);
-        M.cfg(lg.id, { gate: gid });
-        const io = M.add('io', ba.x + 600, ba.y + dy);
-        M.wire(ba.id, lg.id, 'a');
-        if (!unary) M.wire(bb.id, lg.id, 'b');
-        M.wire(lg.id, io.id);
-        note(t(curLang, 'mRun'));
-        Promise.resolve(M.run()).then((r) => {
-          const out = (r && r.length) ? r.join(' · ') : '';
-          sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mLogic')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
-        }).catch(() => { /* the node's status line shows the error */ });
-      };
-      if (has(text, KW.files)) { globalThis.__MOD.home(); note(t(curLang, 'flFiles')); abPush({ k: 'done', t: t(curLang, 'flFiles') }); }
-      else if (has(text, KW.newdoc)) { globalThis.__MOD.newDoc(); note(t(curLang, 'done')); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); }
-      else if (has(text, KW.run)) {
-        /* on the files home, "run" hands off to the newest flow first — the
-           action must also visibly happen in the main window */
-        if (document.getElementById('modEditor').hidden) {
-          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
-          if (id) globalThis.__MOD.openDoc(id);
-          else note(t(curLang, 'flEmpty'));
-        }
-        if (!document.getElementById('modEditor').hidden) {
-          /* the flow runs async; the output block lands the moment it finishes */
-          note(t(curLang, 'mRun'));
-          Promise.resolve(globalThis.__MOD.run()).then((r) => {
-            const snippet = (r && r.length) ? r.join(' · ').slice(0, 140) : t(curLang, 'mResult');
-            sayBlock({ k: 'done', t: t(curLang, 'mRun'), b: snippet });
-          }).catch(() => { /* the canvas already shows the error */ });
-        }
-      }
-      /* "clear the canvas" — every module and wire goes; the request itself
-         is the confirmation, the canvas visibly empties, the block reports */
-      else if (has(text, KW.modClear)) {
-        if (document.getElementById('modEditor').hidden) {
-          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
-          if (id) globalThis.__MOD.openDoc(id); else globalThis.__MOD.newDoc();
-        }
-        if (!document.getElementById('modEditor').hidden) {
-          const oc = window.confirm; window.confirm = () => true;
-          const r = globalThis.__MOD.clear();
-          window.confirm = oc;
-          note(r ? t(curLang, 'done') : null);
-          if (r) abPush({ k: 'done', t: t(curLang, 'mClearCv') });
-        }
-      }
-      /* "add a number module 255 base 16" / "add an operator *" / "add a
-         comparator >=" — an explicit module mention always means the node
-         (or, with two numbers to compare, the run), never a calculation */
-      if (has(text, KW.number) || has(text, KW.operator) || has(text, KW.comparator) || has(text, KW.logic) || has(text, KW.boolean)) {
-        if (document.getElementById('modEditor').hidden) {
-          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
-          if (id) globalThis.__MOD.openDoc(id); else globalThis.__MOD.newDoc();
-        }
-        if (!document.getElementById('modEditor').hidden) {
-          const M = globalThis.__MOD;
-          if (has(text, KW.comparator)) {
-            const t2 = latinDigits(text).replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/≠/g, '!=').toLowerCase();
-            const cid = (MOD_CMPS.find(([, re]) => re.test(t2)) || [])[0];
-            const nums = (t2.match(/-?\d+(?:\.\d+)?/g) || []).filter((x) => x !== '-');
-            if (nums.length >= 2) {
-              /* "compare 5 and 3" runs as a real flow; no relation spoken means equal */
-              buildCmpFlow(cid || 'eq', nums[0], nums[1]);
-            } else {
-              const n = M.add('comparator');   /* lands in the current view */
-              M.cfg(n.id, { cmp: cid || 'gt' });
-              note(t(curLang, 'done'));
-              abPush({ k: 'done', t: `${t(curLang, 'mComparator')} ${CMP_SYM[cid || 'gt']}` });
+      const r = LIB.walPush(type, amt, note);
+      const bal = `${LIB.curSymbol(r.cur)}${r.bal.toLocaleString(langOf(curLang).locale, { minimumFractionDigits: 2 })}`;
+      abPush({ k: 'wallet', inn: type === 'in', amt, bal: `${t(curLang, 'walBalance')} · ${bal}`, t: ttl });
+      return `${doneT()} · ${bal}`;
+    },
+    async walletbalance() {
+      if (page === 'wallet') return `${t(curLang, 'walBalance')}: ${$('walBal') ? $('walBal').textContent : ''}`;
+      let seed = null;
+      try { seed = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null'); } catch { /* ignore */ }
+      const tx = (seed && Array.isArray(seed.tx)) ? seed.tx : [];
+      const bal = LIB.walBalance(tx);
+      const cur = (seed && seed.cur) || 'USD';
+      return `${t(curLang, 'walBalance')}: ${LIB.curSymbol(cur)}${bal.toLocaleString(langOf(curLang).locale, { minimumFractionDigits: 2 })}`;
+    },
+    async walletcurrency(a) { const c = findCurrency(String(a.code || '')); if (!c) return 'unknown currency'; if (page !== 'wallet') return 'wallet page only'; return walCur(c) || 'failed'; },
+    async wallettab(a) { const m = { reports: 'walTabR', days: 'walTabD', cash: 'walTabC' }; const id = m[String(a.tab || '')]; if (!id || page !== 'wallet') return 'wallet page only'; click($(id)); if (id === 'walTabC') abPush({ k: 'cash', row: `${t(curLang, 'walBalance')} · ${$('walBal') ? $('walBal').textContent : ''}` }); return doneT(); },
+    async walletdeletelast() { if (page !== 'wallet') return 'wallet page only'; const xs = document.querySelectorAll('.wal-x'); if (!xs.length) return 'no entries'; xs[xs.length - 1].click(); return doneT(); },
+    async cash(a) {
+      if (a && a.currency) { const c = findCurrency(String(a.currency)); if (c && page === 'wallet') walCur(c); }
+      if (page === 'wallet') { click($('walTabC')); abPush({ k: 'cash', row: `${t(curLang, 'walBalance')} · ${$('walBal') ? $('walBal').textContent : ''}` }); return doneT(); }
+      abPush({ k: 'cash' });
+      setTimeout(() => { location.href = 'wallet.html#tab=cash'; }, 700);
+      return NAV(`→ ${t(curLang, 'wallet')} · ${t(curLang, 'walCash')}`);
+    },
+
+    async metrosys(a) { if (page !== 'metro' || !globalThis.__METRO) return 'metro page only'; const M = globalThis.__METRO; const sy = String(a.sys || '').toUpperCase(); if (!M.setSys(sy)) return 'unknown system'; return `${doneT()}: ${t(curLang, 'm' + sy)}`; },
+    async metrozoom(a) { if (page !== 'metro' || !globalThis.__METRO) return 'metro page only'; const M = globalThis.__METRO; if (a.dir === 'reset') { M.resetView(); return doneT(); } M.zoomBy(a.dir === 'out' ? 1 / 1.7 : 1.7); abPush({ k: 'done', t: t(curLang, 'done'), b: a.dir === 'out' ? '÷1.7' : '×1.7' }); return doneT(); },
+    async metroswap() { if (page !== 'metro') return 'metro page only'; click($('mSwap')); abPush({ k: 'done', t: t(curLang, 'mSwap') }); return doneT(); },
+    async metroclear() { if (page !== 'metro') return 'metro page only'; click($('mClear')); return doneT(); },
+    async metrocard(a) { if (page !== 'metro') return 'metro page only'; click($('mCard')); const has = a.balance != null && String(a.balance) !== ''; if (has) { const b = $('mCardBal'); if (b) { b.value = String(a.balance); b.dispatchEvent(new Event('change', { bubbles: true })); } } abPush({ k: 'done', t: `${t(curLang, 'mCard')}${has ? ` · ${a.balance}` : ''}`, b: has ? `${t(curLang, 'walBalance')} · ${a.balance}` : '' }); return doneT(); },
+    async route(a) {
+      if (page !== 'metro' || !globalThis.__METRO) return 'metro page only';
+      const M = globalThis.__METRO;
+      const from = matchSt(String(a.from || ''), M.sys), to = matchSt(String(a.to || ''), M.sys);
+      if (!from || !to) return 'station not found';
+      M.pick(from); M.pick(to);
+      const r = M.route(from, to);
+      if (!r) return 'no route';
+      const f = M.fare(M.sys, from, to, r);
+      const nm = (id) => `${M.ST[id].en} ${M.ST[id].zh}`;
+      const row = `NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`;
+      abPush({ k: 'fare', sys: M.sys, a: from, b: to, path: r.path, row, t: t(curLang, 'mFare') });
+      return `${t(curLang, 'mFare')}: ${nm(from)} → ${nm(to)} · ${row}`;
+    },
+    async fare(a) {
+      const F = await fareMod();
+      if (F) {
+        const byName = (nm) => {
+          const n2 = latinDigits(String(nm || '')).toLowerCase().trim();
+          if (!n2) return null;
+          const sts = Object.values(F.ST).map((st) => ({ id: st.id, sys: st.sys, en: st.en.toLowerCase(), zh: st.zh || '', len: Math.max(st.en.length, (st.zh || '').length) })).sort((x, y) => y.len - x.len);
+          for (const st of sts) { if ((st.en && n2.includes(st.en)) || (st.zh && nm.includes(st.zh))) return st; }
+          if (n2.length >= 5) for (const st of sts) { if ((st.en && st.en.includes(n2)) || (st.zh && st.zh.includes(n2))) return st; }
+          return null;
+        };
+        const A = byName(a.from), B2 = byName(a.to);
+        if (A && B2) {
+          const nm = (st) => `${F.ST[st.id].en} ${F.ST[st.id].zh}`;
+          if (A.sys !== B2.sys) {
+            const spec = { k: 'fare', sys: A.sys, a: A.id, b: B2.id, path: [], row: t(curLang, 'fareXsys'), t: t(curLang, 'mFare') };
+            abPush(spec);
+            return `${t(curLang, 'mFare')}: ${nm(A)} → ${nm(B2)} · ${t(curLang, 'fareXsys')}`;
+          }
+          const r = F.route(A.id, B2.id);
+          if (r) {
+            const f = F.fare(A.sys, A.id, B2.id, r);
+            if (f != null) {
+              const row = `NT$${f} · ${r.stops + 1} ${t(curLang, 'mStations')} · ${r.transfers} ${t(curLang, 'mTransfers')}`;
+              abPush({ k: 'fare', sys: A.sys, a: A.id, b: B2.id, path: r.path, row, t: t(curLang, 'mFare') });
+              return `${t(curLang, 'mFare')}: ${nm(A)} → ${nm(B2)} · ${row}`;
             }
-          } else if (has(text, KW.operator)) {
-            const t2 = latinDigits(text).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').toLowerCase();
-            const oid = (MOD_OPS.find(([, re]) => re.test(t2)) || [])[0] || 'add';
-            const n = M.add('operator');   /* lands in the current view */
-            M.cfg(n.id, { op: oid });
-            note(t(curLang, 'done'));
-            abPush({ k: 'done', t: `${t(curLang, 'mOperator')} ${OPS_SYM[oid]}` });
-          } else if (has(text, KW.logic)) {
-            /* "logic xor true false" runs as a real flow; "add a logic gate
-               nand" adds the node with the gate selected */
-            const q = modLogicOf(text);
-            if (q) buildLogicFlow(q.gate, q.a, q.b);
-            else {
-              const t2 = latinDigits(text).toLowerCase();
-              const gid = (MOD_GATES.find(([, re]) => re.test(t2)) || [])[0] || 'or';
-              const n = M.add('logic');   /* lands in the current view */
-              M.cfg(n.id, { gate: gid });
-              note(t(curLang, 'done'));
-              abPush({ k: 'done', t: `${t(curLang, 'mLogic')} ${GATE_SYM[gid]}` });
-            }
-          } else if (has(text, KW.boolean)) {
-            const t2 = latinDigits(text).toLowerCase();
-            const v = /\bfalse\b|假|거짓/.test(t2) ? 'false' : 'true';
-            const n = M.add('boolean');   /* lands in the current view */
-            M.cfg(n.id, { val: v });
-            note(t(curLang, 'done'));
-            abPush({ k: 'done', t: `${t(curLang, 'mBoolean')} · ${t(curLang, v === 'true' ? 'mTrue' : 'mFalse')}` });
-          } else {
-            const n = M.add('number');   /* lands in the current view */
-            const v = num(text);
-            const bm = /base\s*(\d{1,2})/.exec(text.toLowerCase());
-            const hexa = /hex|hexadecimal|十六進|十六进/.test(text);
-            const base = bm ? Math.min(36, Math.max(1, parseInt(bm[1], 10))) : hexa ? 16 : 10;
-            let val = v == null ? '0' : latinDigits(String(v));
-            const frac = /\d\.\d/.test(text);
-            let useBase = base;
-            if (base !== 10 && !frac && /^-?\d+$/.test(val)) {
-              /* "number 255 base 16" means the VALUE 255 shown in base 16 (ff) */
-              let x = BigInt(val), neg = x < 0n;
-              if (neg) x = -x;
-              const D = '0123456789abcdefghijklmnopqrstuvwxyz';
-              const B = BigInt(base);
-              let hx = '';
-              do { hx = D[Number(x % B)] + hx; x /= B; } while (x > 0n);
-              if (neg) hx = '-' + hx;
-              val = hx;
-            } else if (base !== 10) useBase = 10;
-            M.cfg(n.id, { numtype: frac ? 'dec' : 'int', base: useBase, value: val });
-            note(t(curLang, 'done'));
-            abPush({ k: 'done', t: `${t(curLang, 'mNumber')} · ${val}${useBase !== 10 ? ' (base ' + useBase + ')' : ''}` });
           }
         }
       }
-      /* comparison flows: "is 5 greater than 3", "5 <= 5" — checked BEFORE
-         arithmetic so "less than" reads as a comparison, never subtraction */
-      else if (modCompareOf(text)) {
-        const q = modCompareOf(text);
-        if (document.getElementById('modEditor').hidden) {
-          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
-          if (id) globalThis.__MOD.openDoc(id);
+      const fr = await fareAnywhere(`${a.from} to ${a.to}`);
+      if (!fr) return 'stations not found';
+      abPush(fr.spec);
+      return fr.text;
+    },
+
+    async scribefiles() { if (!globalThis.__SCRIBE) return 'scribe page only'; globalThis.__SCRIBE.showHome(); abPush({ k: 'done', t: t(curLang, 'flFiles') }); return t(curLang, 'flFiles'); },
+    async scribenew() { if (!globalThis.__SCRIBE) return 'scribe page only'; const id = globalThis.__SCRIBE.docs.docsCreate('note', '', {}); globalThis.__SCRIBE.openDoc(id); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'flUntitledNote')}` }); return doneT(); },
+
+    async modadd(a) { const M = globalThis.__MOD; if (!M) return 'module page only'; modEditorOpen(); const n = M.add(String(a.type || 'number'), a.x != null ? Number(a.x) : undefined, a.y != null ? Number(a.y) : undefined); if (a.cfg && typeof a.cfg === 'object') M.cfg(n.id, a.cfg); return `${n.id} ${n.type} at ${Math.round(n.x)},${Math.round(n.y)}`; },
+    async modcfg(a) { const M = globalThis.__MOD; if (!M) return 'module page only'; let id = String(a.id || ''); if (!M.nodes().some((n) => n.id === id) && a.find != null) { const f = M.nodes().find((n) => n.cfg && String(n.cfg.value != null ? n.cfg.value : n.cfg.text) === String(a.find)); if (f) id = f.id; } if (!M.nodes().some((n) => n.id === id)) return 'no such node'; let patch = (a.patch && typeof a.patch === 'object') ? { ...a.patch } : { ...a }; delete patch.id; delete patch.x; delete patch.y; M.cfg(id, patch); return 'ok'; },
+    async modwire(a) { const M = globalThis.__MOD; if (!M) return 'module page only'; return M.wire(String(a.from || ''), String(a.to || ''), String(a.port || 'a')) ? 'wired' : 'cannot wire these'; },
+    async modremove(a) { const M = globalThis.__MOD; if (!M) return 'module page only'; if (!M.nodes().some((n) => n.id === String(a.id || ''))) return 'no such node'; M.removeNode(String(a.id)); return 'removed'; },
+    async modrun() { const M = globalThis.__MOD; if (!M) return 'module page only'; modEditorOpen(); const r = await M.run(); return (r && r.length) ? r.join(' · ').slice(0, 200) : '(no output)'; },
+    async modclear() { const M = globalThis.__MOD; if (!M) return 'module page only'; modEditorOpen(); const oc = window.confirm; window.confirm = () => true; const r = M.clear(); window.confirm = oc; if (r) abPush({ k: 'done', t: t(curLang, 'mClearCv') }); return r ? doneT() : 'already empty'; },
+    async modnew() { const M = globalThis.__MOD; if (!M) return 'module page only'; M.newDoc(); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); return doneT(); },
+    async modfiles() { const M = globalThis.__MOD; if (!M) return 'module page only'; M.home(); abPush({ k: 'done', t: t(curLang, 'flFiles') }); return t(curLang, 'flFiles'); },
+    async mathflow(a) {
+      const M = globalThis.__MOD; if (!M) return 'module page only';
+      const oid = OPID[String(a.op || '').toLowerCase()] || 'add';
+      const A = String(a.a ?? ''), B = String(a.b ?? '');
+      const na = M.add('number'); const nb = M.add('number', na.x, na.y + 260);
+      const op = M.add('operator', na.x + 320, na.y + 130); const io = M.add('io', na.x + 600, na.y + 130);
+      M.cfg(na.id, { numtype: 'dec', value: A }); M.cfg(nb.id, { numtype: 'dec', value: B }); M.cfg(op.id, { op: oid });
+      M.wire(na.id, op.id, 'a'); M.wire(nb.id, op.id, 'b'); M.wire(op.id, io.id);
+      const r = await M.run();
+      const out = (r && r.length) ? r.join(' · ') : '';
+      sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mOperator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
+      return out || '(no output)';
+    },
+    async cmpflow(a) {
+      const M = globalThis.__MOD; if (!M) return 'module page only';
+      const cid = CMPID[String(a.cmp || '').toLowerCase()] || 'gt';
+      const A = String(a.a ?? ''), B = String(a.b ?? '');
+      const na = M.add('number'); const nb = M.add('number', na.x, na.y + 260);
+      const cp = M.add('comparator', na.x + 320, na.y + 130); const io = M.add('io', na.x + 600, na.y + 130);
+      M.cfg(na.id, { numtype: 'dec', value: A }); M.cfg(nb.id, { numtype: 'dec', value: B }); M.cfg(cp.id, { cmp: cid });
+      M.wire(na.id, cp.id, 'a'); M.wire(nb.id, cp.id, 'b'); M.wire(cp.id, io.id);
+      const r = await M.run();
+      const out = (r && r.length) ? r.join(' · ') : '';
+      sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mComparator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
+      return out || '(no output)';
+    },
+    async logicflow(a) {
+      const M = globalThis.__MOD; if (!M) return 'module page only';
+      const gid = GATEID[String(a.gate || '').toLowerCase()] || 'or';
+      const A = boolArg(a.a), B = boolArg(a.b);
+      const ba = M.add('boolean'); M.cfg(ba.id, { val: A });
+      let bb = null;
+      if (gid !== 'not') { bb = M.add('boolean', ba.x, ba.y + 260); M.cfg(bb.id, { val: B }); }
+      const dy = gid === 'not' ? 0 : 130;
+      const lg = M.add('logic', ba.x + 320, ba.y + dy); M.cfg(lg.id, { gate: gid });
+      const io = M.add('io', ba.x + 600, ba.y + dy);
+      M.wire(ba.id, lg.id, 'a');
+      if (gid !== 'not') M.wire(bb.id, lg.id, 'b');
+      M.wire(lg.id, io.id);
+      const r = await M.run();
+      const out = (r && r.length) ? r.join(' · ') : '';
+      sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mLogic')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
+      return out || '(no output)';
+    },
+
+    async welcome() { if (page === 'launch') { document.dispatchEvent(new CustomEvent('singhoah:lpWelcome')); abPush({ k: 'done', t: t(curLang, 'lpWelcomeT') }); return doneT(); } return NAV(act.nav('launch')); },
+    async printpage() { window.print(); abPush({ k: 'done', t: t(curLang, 'print') }); return doneT(); },
+    async resetdata() { if (page !== 'settings') return 'settings page only'; const oc = window.confirm; window.confirm = () => true; const r = click($('btnReset')) ? doneT() : null; window.confirm = oc; return r || 'not found'; },
+  };
+
+  /* the model sees the live page: which app, which controls (with refs and
+     #ids), the wallet ledger, the flow on the canvas — enough context to act
+     like an assistant who is looking at the screen */
+  function agentSys() {
+    const bits = [
+      'You are SMate, the assistive AI living inside the Singhoah web app. You operate every app for the user like a person at the browser: clicking buttons, typing into fields, picking options, navigating pages, running flows. Never refuse an in-app request — use your tools. Small talk and general questions: just answer.',
+      'Reply with exactly ONE JSON object, no markdown: {"tool":"<name>","args":{...}} to act (you then see its RESULT and continue), or {"say":"<short answer in the user language>"} to finish or to answer.',
+      'Tools: click(ref) fill(ref,value) pick(ref,option) read(ref) press(key) goto(app:clock|wallet|scribe|metro|module|settings|launch) timer(minutes) timerctl(pause|resume|reset) stopwatch(start|pause|resume|reset|new) zones(cities[],layout:single|side|2x2|4x4) removezone(city) removewin(timer|stopwatch) restartwin(timer|stopwatch) mode(analog|digital) theme(night|light) resync fullscreen showmap(city) ip lang(name) time(city) remind(minutes) calc(expr) clearchat clearclock settz(city) walletadd(type:income|expense,amount,note) walletbalance walletcurrency(code) wallettab(reports|days|cash) walletdeletelast cash(currency?) metrosys(TRTC|KS|TC|TY) metrozoom(in|out|reset) metroswap metroclear metrocard(balance) route(from,to) fare(from,to) scribefiles scribenew modadd(type,x?,y?,cfg?) modcfg(id,patch) modwire(from,to,port:a|b) modremove(id) modrun modclear modnew modfiles mathflow(a,op,b) cmpflow(a,cmp,b) logicflow(gate,a,b?) welcome printpage resetdata',
+      'Elements can be addressed by their ref (e.g. e7) or by #id from the CONTROLS list. "change X to Y" always means act: change the timer to 10 -> timer(10); change the title to Demo -> fill(ref,"Demo"); change 5 to 7 on the flow -> modcfg. Prefer purpose-built tools over raw clicks. After the actions, finish with a short {"say"}.',
+      `PAGE: ${page} LANGUAGE: ${langOf(curLang).name} NOW: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
+    ];
+    try {
+      const d = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
+      if (page === 'wallet' || (d && Array.isArray(d.tx) && d.tx.length)) {
+        const rows = d.tx.slice(-8).map((x) => `${x.date} ${x.type === 'in' ? '+' : '-'}${x.amt} ${x.note || ''}`);
+        bits.push(`WALLET ${d.cur || ''} balance ${LIB.walBalance(d.tx)}; recent rows: ${rows.join(' | ')}`);
+      }
+    } catch { /* ignore */ }
+    if (page === 'module' && globalThis.__MOD) {
+      try {
+        const M = globalThis.__MOD;
+        const ns = M.nodes();
+        const desc = ns.slice(0, 12).map((n) => {
+          const c = n.cfg || {};
+          const v = c.value != null ? '=' + c.value : c.op ? c.op : c.cmp ? c.cmp : c.gate ? c.gate : c.val ? '=' + c.val : c.numtype ? c.numtype : '';
+          return `${n.id} ${n.type}${v ? ' ' + v : ''}`;
+        }).join('; ');
+        bits.push(`FLOW "${$('modTitle') ? $('modTitle').value : ''}": ${ns.length} nodes${desc ? ' — ' + desc : ''}, ${M.wires().length} wires`);
+      } catch { /* ignore */ }
+    }
+    if (page === 'metro' && globalThis.__METRO) bits.push(`METRO system: ${globalThis.__METRO.sys}`);
+    bits.push('CONTROLS:\n' + inventory());
+    return bits.join('\n');
+  }
+
+  /* one JSON object out of a model reply — even if wrapped in prose */
+  function extractJson(str) {
+    if (!str) return null;
+    const i = str.indexOf('{');
+    if (i < 0) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let k = i; k < str.length; k++) {
+      const c = str[k];
+      if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+      if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}') { depth--; if (!depth) { try { return JSON.parse(str.slice(i, k + 1)); } catch { return null; } } }
+    }
+    return null;
+  }
+
+  /* the agent loop: ask the model, run its tool, show it the result, repeat —
+     until it says the answer. Navigation ends the turn (the page leaves) */
+  async function agent(raw) {
+    setStatusText('AI …');
+    const hist = [];
+    let scolded = false;
+    for (let round = 0; round < 6; round++) {
+      let r = '';
+      try {
+        r = await Promise.race([
+          askEngine([{ role: 'system', content: agentSys() }, { role: 'user', content: raw }, ...hist]),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('smate-ai-slow')), AI_TIMEOUT)),
+        ]);
+      } catch { return null; }
+      const j = extractJson(r);
+      if (j && typeof j === 'object' && !Array.isArray(j)) {
+        if (j.say != null) return String(j.say);
+        const fn = j.tool && TOOLS[j.tool];
+        if (fn) {
+          hist.push({ role: 'assistant', content: JSON.stringify({ tool: j.tool, args: j.args || {} }) });
+          let res;
+          try { res = await fn(j.args || {}); } catch { res = 'error'; }
+          if (res && typeof res === 'object' && res.nav) return res.say;
+          hist.push({ role: 'user', content: 'RESULT: ' + String(res).slice(0, 220) });
+          while (hist.length > 6) hist.splice(0, 2);
+          continue;
         }
-        if (!document.getElementById('modEditor').hidden) buildCmpFlow(q.cmp, q.a, q.b);
       }
-      /* number + operator flows: "multiply 6 by 7", "calculate 2 ^ 10" —
-         SMate builds the real flow (Number → Operator ← Number → I/O), runs
-         it, and answers with the exact result; the flow stays on the canvas */
-      else if (modMathOf(text)) {
-        const q = modMathOf(text);
-        if (document.getElementById('modEditor').hidden) {
-          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
-          if (id) globalThis.__MOD.openDoc(id);
-        }
-        if (!document.getElementById('modEditor').hidden) {
-          const M = globalThis.__MOD;
-          const na = M.add('number');   /* lands wherever the user is looking */
-          const nb = M.add('number', na.x, na.y + 260);
-          const op = M.add('operator', na.x + 320, na.y + 130);
-          const io = M.add('io', na.x + 600, na.y + 130);
-          M.cfg(na.id, { numtype: 'dec', value: q.a });
-          M.cfg(nb.id, { numtype: 'dec', value: q.b });
-          M.cfg(op.id, { op: q.op });
-          M.wire(na.id, op.id, 'a');
-          M.wire(nb.id, op.id, 'b');
-          M.wire(op.id, io.id);
-          note(t(curLang, 'mRun'));
-          Promise.resolve(M.run()).then((r) => {
-            const out = (r && r.length) ? r.join(' · ') : '';
-            sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mOperator')}`, b: out.slice(0, 140) || t(curLang, 'mResult') });
-          }).catch(() => { /* the node's status line shows the error */ });
-        }
-      }
-      /* logic requests: "not true", "true and false", "true xor false" —
-         SMate builds the real flow (Boolean → Logic ← Boolean → I/O), runs
-         it, and answers with the verdict; the flow stays on the canvas */
-      else if (modLogicOf(text)) {
-        const q = modLogicOf(text);
-        if (document.getElementById('modEditor').hidden) {
-          const id = globalThis.__MOD.latest && globalThis.__MOD.latest();
-          if (id) globalThis.__MOD.openDoc(id);
-        }
-        if (!document.getElementById('modEditor').hidden) buildLogicFlow(q.gate, q.a, q.b);
-      }
+      if (scolded || round >= 5) return null;
+      scolded = true;
+      hist.push({ role: 'assistant', content: String(r).slice(0, 160) },
+        { role: 'user', content: 'Invalid reply. Answer with ONE JSON object only: {"tool":"<name>","args":{...}} to act, or {"say":"<text>"} to finish.' });
     }
-    /* the Scribe toolbar, by voice or text */
-    if (page === 'scribe') {
-      if (has(text, KW.undo)) { const r = click($('scrUndo')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'undo') }); }
-      if (has(text, KW.redo)) { const r = click($('scrRedo')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'redo') }); }
-      if (has(text, KW.copy)) { const r = click($('scrCopy')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'copy') }); }
-      if (has(text, KW.download)) { const r = click($('scrDl')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'download') }); }
-      if (has(text, KW.print)) { const r = click($('scrPrint')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'print') }); }
-      if (has(text, KW.stamps)) { const r = click($('scrStamps')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'stamps') }); }
-      if (has(text, KW.find)) { const r = click($('scrFind')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'find') }); }
-      if (!has(text, KW.clearAll) && !has(text, KW.clearChat) && has(text, KW.clearDoc)) {
-        const oc = window.confirm; window.confirm = () => true;
-        note(click($('scrClear')) ? t(curLang, 'done') : null);
-        window.confirm = oc;
-      }
-    }
-    /* print anywhere else, theme, IP locator */
-    if (has(text, KW.print) && page !== 'scribe') { window.print(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'print') }); }
-    if (has(text, KW.theme)) {
-      if (page === 'settings') note(click($('btnTheme')) ? t(curLang, 'done') : null);
-      else note(act.nav('settings'));
-    }
-    if (page === 'clock' && /\bip\b/.test(text)) note(click($('btnIp')) ? t(curLang, 'done') : null);
-    if (page === 'settings' && has(text, KW.resetData)) {
-      const oc = window.confirm; window.confirm = () => true;
-      note(click($('btnReset')) ? t(curLang, 'done') : null);
-      window.confirm = oc;
-    }
-    if (has(text, KW.welcome)) {
-      if (page === 'launch') { document.dispatchEvent(new CustomEvent('singhoah:lpWelcome')); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, 'lpWelcomeT') }); }
-      else note(act.nav('launch'));
-    }
-        /* timer */
-    if (has(text, KW.timer) && num(text) != null) {
-      const n = num(text);
-      if (page === 'clock') {
-        note(act.timerSet(n));
-        const tv = LIB.timersView(); const q = tv[tv.length - 1];
-        abPush({ k: 'timer', e: q ? q.e : Date.now() + n * 60000, d: n * 60000, t: `${t(curLang, 'timer')} · ${n} ${t(curLang, 'minutes')}` });
-      } else {
-        try { localStorage.setItem('singhoah:pendingTimer', JSON.stringify({ m: n })); } catch { /* ignore */ }
-        note(act.nav('clock'));
-        abPush({ k: 'timer', e: Date.now() + n * 60000 + 1500, d: n * 60000, t: `${t(curLang, 'timer')} · ${n} ${t(curLang, 'minutes')}` });
-      }
-    }
-    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && (has(text, KW.start) || has(text, KW.pause) || has(text, KW.resume) || has(text, KW.reset))) { const r = act.timerCtl(text); note(r); if (r) { const tv = LIB.timersView(); const q = tv[tv.length - 1]; if (q) abPush({ k: 'timer', e: q.e, d: q.d, t: t(curLang, 'timer') }); } }
-    else if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.timer) && page === 'clock') { const r = act.timerCtl(text + ' start'); note(r); if (r) { const tv = LIB.timersView(); const q = tv[tv.length - 1]; if (q) abPush({ k: 'timer', e: q.e, d: q.d, t: t(curLang, 'timer') }); } }
-    /* stopwatch */
-    if (!has(text, KW.remove) && !has(text, KW.restart) && has(text, KW.stopwatch)) {
-      if (page === 'clock') {
-        const r = act.stopwatch(text); note(r);
-        if (r) { const sv = LIB.stopsView(); const q = sv[sv.length - 1]; abPush({ k: 'stop', s: q ? q.s : null, t: t(curLang, 'stopwatch') }); }
-      } else {
-        try { localStorage.setItem('singhoah:pendingStop', '1'); } catch { /* ignore */ }
-        note(act.nav('clock'));
-        abPush({ k: 'stop', s: null, t: t(curLang, 'stopwatch') });
-      }
-    }
-    /* display mode */
-    if (has(text, KW.analog) || has(text, KW.digital)) {
-      const wantAnalog = has(text, KW.analog);
-      const b = $('btnMode');
-      if (b) { const isAnalog = b.getAttribute('aria-pressed') === 'true'; if (wantAnalog !== isAnalog) b.click(); }
-      else { try { localStorage.setItem('singhoah:pendingMode', wantAnalog ? 'analog' : 'digital'); } catch { /* ignore */ } }
-      note(t(curLang, 'done'));
-      abPush({ k: 'mode', an: wantAnalog, t: t(curLang, wantAnalog ? 'analog' : 'digital') });
-    }
-    /* resync / full / map / theme */
-    if (has(text, KW.resync)) { const r = click($('btnSync')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'resync') }); }
-    if (has(text, KW.full)) { const r = click($('btnFull')) ? t(curLang, 'done') : null; note(r); if (r) abPush({ k: 'done', t: t(curLang, 'full') }); }
-    if (has(text, KW.map)) {
-      const zm = findZone(text);
-      if (page === 'clock') { note(click($('btnMap')) ? t(curLang, 'done') : null); LIB.mapGoCity(text); }
-      else { try { localStorage.setItem('singhoah:pendingMap', JSON.stringify({ c: text })); } catch { /* ignore */ } note(act.nav('clock')); }
-      abPush({ k: 'mapnav', z: zm || null, c: zm ? cityOf(zm) : text.slice(0, 24), t: t(curLang, 'map') });
-    }
-    if (has(text, KW.night) || has(text, KW.light)) {
-      const b = $('btnNight');
-      if (b) { const dark = document.documentElement.classList.contains('dark'); const wantDark = has(text, KW.night); if (wantDark !== dark) b.click(); note(t(curLang, 'done')); abPush({ k: 'done', t: t(curLang, wantDark ? 'night' : 'light') }); }
-    }
-    /* wallet — the balance answers on every page, straight from the ledger */
-    const walDo = (type) => {
-      const amt = num(text); if (amt == null) return;
-      const ttl = t(curLang, type === 'in' ? 'walIncome' : 'walExpense');
-      if (page === 'wallet') {
-        note(act.walletAdd(text, type));
-        abPush({ k: 'wallet', inn: type === 'in', amt, bal: `${t(curLang, 'walBalance')} · ${$('walBal') ? $('walBal').textContent : ''}`, t: ttl });
-      } else {
-        const r = LIB.walPush(type, amt, text.replace(/[\d.,]+/g, '').trim());
-        const bal = `${LIB.curSymbol(r.cur)}${r.bal.toLocaleString(langOf(curLang).locale, { minimumFractionDigits: 2 })}`;
-        note(`${t(curLang, 'done')} · ${bal}`);
-        abPush({ k: 'wallet', inn: type === 'in', amt, bal: `${t(curLang, 'walBalance')} · ${bal}`, t: ttl });
-      }
-    };
-    if (has(text, KW.income) && num(text) != null) walDo('in');
-    if (has(text, KW.expense) && num(text) != null) walDo('out');
-    if (has(text, KW.balance)) {
-      if (page === 'wallet') {
-        note($('walBal').textContent);
-      } else {
-        let seed = null;
-        try { seed = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null'); } catch { /* ignore */ }
-        const tx = (seed && Array.isArray(seed.tx)) ? seed.tx : [];
-        const bal = LIB.walBalance(tx);
-        const cur = (seed && seed.cur) || 'USD';
-        const sym = LIB.curSymbol(cur);
-        note(`${t(curLang, 'walBalance')}: ${sym}${bal.toLocaleString(langOf(curLang).locale, { minimumFractionDigits: 2 })}`);
-      }
-    }
-    if (page === 'wallet') {
-      if (has(text, KW.remove) && (has(text, KW.entry) || has(text, KW.expense) || has(text, KW.income))) {
-        const xs = document.querySelectorAll('.wal-x');
-        if (xs.length) { xs[xs.length - 1].click(); note(t(curLang, 'done')); }
-      }
-      if (has(text, KW.reports)) note(click($('walTabR')) ? t(curLang, 'done') : null);
-      if (has(text, KW.days)) note(click($('walTabD')) ? t(curLang, 'done') : null);
-      const cur = findCurrency(text);
-      if (cur && (has(text, KW.currency) || /\b[a-z]{3}\b/.test(text))) note(act.walletCur(cur));
-      if (has(text, KW.cash)) {
-        note(click($('walTabC')) ? t(curLang, 'walCash') : null);
-        abPush({ k: 'cash', row: `${t(curLang, 'walBalance')} · ${$('walBal') ? $('walBal').textContent : ''}` });
-      }
-    }
-    /* scribe */
-    if (page === 'scribe' && (has(text, KW.start) || has(text, KW.pause))) note(act.scribeCtl(text));
-    /* cash — the wallet's Cash tab, from any page: the action block shows
-       the live mini, and the main window hands off to the real thing */
-    let cashNav = false;
-    if (page !== 'wallet' && has(text, KW.cash)) {
-      cashNav = true;
-      const r = `→ ${t(curLang, 'wallet')} · ${t(curLang, 'walCash')}`;
-      note(r);
-      abPush({ k: 'cash' });
-      setTimeout(() => { location.href = 'wallet.html#tab=cash'; }, 700);
-    }
-    /* navigation last — it leaves the page */
-    if (!cashNav) for (const [where, keys] of [['wallet', KW.wallet], ['module', KW.module], ['settings', KW.settings], ['scribe', KW.scribe], ['launch', KW.launch], ['clock', KW.clock]]) {
-      if (has(text, keys)) { const r = act.nav(where); note(r); if (r) abPush({ k: 'done', t: r }); break; }
-    }
-    return outs.length ? outs.join(' · ') : null;
+    return null;
   }
 
   /* WhatsApp-style flow: my line -> typing dots + status -> answer */
@@ -1522,39 +1206,27 @@
     const wait = 420 + Math.min(700, raw.length * 18);
     setTimeout(async () => {
       let out = null;
-      try { out = run(raw); } catch { out = null; }
-      if (!out && (has(raw.toLowerCase(), KW.fareW) || has(raw.toLowerCase(), ['station', '站']))) {
-        try { const fr = await fareAnywhere(raw); if (fr) { out = fr.text; abPush(fr.spec); } } catch { /* offline interpreter stays the fallback */ }
-      }
-      if (!out && aiPref !== 'off') {
-        if (aiState === 'on' && aiEngine) {
-          setStatusText('AI …');
-          try {
-            const r = await Promise.race([
-              askAI(raw + walletDigest(raw)),
-              new Promise((_, rej) => setTimeout(() => rej(new Error('smate-ai-slow')), AI_TIMEOUT)),
-            ]);
-            if (/^\s*CMD:/i.test(r)) { try { out = run(r.replace(/^\s*CMD:/i, '').trim()); } catch { out = null; } }
-            else if (r) out = r;
-          } catch { /* the offline brain stays the fallback */ }
+      try {
+        if (aiPref === 'off') {
+          out = t(curLang, 'smateAIOff');
+        } else if (aiState === 'on' && aiEngine) {
+          out = await agent(LIB.brandFix ? LIB.brandFix(raw) : raw);
+        } else if (aiState === 'err') {
+          out = t(curLang, 'aiNoGpu');
         } else {
           let can = !!globalThis.__SMATE_AI_ENGINE;
           if (!can && navigator.gpu) { try { can = !!(await navigator.gpu.requestAdapter()); } catch { can = false; } }
-          if (!can) {
-            out = t(curLang, 'aiNoGpu');
-          } else if (aiState === 'err') {
-            /* the model failed to load (blocked CDN, download error, …):
-               never tease with "waking up" — the offline brain answers
-               and the AI chip shows its error state until the user retries */
-            out = null;
-          } else {
-            /* still loading (or about to): no "waking up" tease, ever —
-               the instant offline interpreter answers this one */
-            aiInit();
-            out = null;
+          if (!can) out = t(curLang, 'aiNoGpu');
+          else {
+            aiInit();   /* the site started loading it at arrival — join the wait */
+            const t0 = Date.now();
+            while (aiState === 'loading' && Date.now() - t0 < 25000) await new Promise((r) => setTimeout(r, 250));
+            if (aiState === 'on' && aiEngine) out = await agent(raw);
+            else if (aiState === 'err') out = t(curLang, 'aiNoGpu');
+            else out = t(curLang, 'smateAIWait');
           }
         }
-      }
+      } catch { out = null; }
       if (dots.isConnected) dots.remove();
       say(out || t(curLang, 'smateUnknown'));
       for (const sp of abDrain()) sayBlock(sp);
@@ -1610,12 +1282,11 @@
     try { vrec.start(); } catch { setStatus('smateUnavailable'); }
   });
 
-  /* --------- on-device AI (WebLLM): fuzzy commands + light questions -------
-     Free, serverless, private: a small open model runs in the browser on
-     WebGPU, cached in IndexedDB after the first download. The deterministic
-     interpreter always gets first crack; the model only sees what it misses,
-     and either translates it into a canonical command or answers outright. */
-  const aiBtn = $('smateAI');
+  /* --------- the brain: an on-device model (WebLLM) that loads the moment
+     the site opens — no tap, no gate, no "waking up" message. It is the only
+     brain: every request goes to the model, which sees the live page context
+     and answers through tools. Turning the chip off pauses the assistant
+     until it is turned back on. --------- */  const aiBtn = $('smateAI');
   let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
   /* arrive-and-ready: the model starts loading the moment the site opens,
      so the first fuzzy message already meets a warm brain. Until it is up,
@@ -1691,35 +1362,12 @@
     }
   });
 
-  const MONEY = /spend|spent|expense|income|balance|transaction|saving|gasto|gast|ingreso|dépense|dépens|revenu|solde|ख़र्च|आय|بकाيا|خرچ|آمدنی|ব্যয়|আয়|трат|доход|расход|despesa|receita|saldo|اخراجی|آمدنی/;
-  function walletDigest(raw) {
-    if (!MONEY.test(raw)) return '';
-    try {
-      const d = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
-      if (!d || !Array.isArray(d.tx)) return '';
-      const rows = d.tx.slice(-15).map((x) => `${x.date} ${x.type === 'in' ? '+' : '-'}${x.amt} ${x.note || ''}`);
-      return ` [WALLET ${d.cur || ''} balance ${LIB.walBalance(d.tx)}; recent rows: ${rows.join(' | ')}]`;
-    } catch { return ''; }
-  }
-  const AI_SYS = [
-    'You are SMate, the AI that fully drives a world-clock web app.',
-    'If the user wants the app to DO something, reply exactly: CMD: <command>',
-    'using this grammar (combine freely with commas):',
-    'timer <n> | timer pause|resume|reset | stopwatch | stopwatch pause|resume|reset |',
-    'zone <City>[, <City>...] [in single|side by side|2 by 2|4 by 4 window] |',
-    'single | side by side | 2 by 2 | 4 by 4 | analog | digital | night shift | light mode |',
-    're-sync | full screen | map | language <name> | open wallet|settings|scribe|launchpad|clock |',
-    'open SinghoClock|SinghoWallet|SinghoScribe|SinghoSettings | add <n> income|expense | number <value> [base <n>] | operator +|-|*|/|%|^ | comparator >|<|>=|<=|=|!= | calculate <a> +|-|*|/|%|^ <b> | compare <a> >|<|>=|<=|=|!= <b> | logic ~|+|*|nor|nand|xor|xnor | boolean true|false | not <bool> | <bool> and|or|xor <bool> | currency <CODE> | clear all | clear canvas | delete timer|stopwatch | restart timer|stopwatch | remove <City> | undo | redo | copy | download | print | timestamps | theme | ip | map <City> | days | reports | clear chat | remind <n> | swap | clear fare | card | card balance <n> | delete last entry | find | welcome | reset data | help.',
-    'If a [WALLET ...] block is attached, answer money questions from it exactly (sum the rows yourself).',
-    'Otherwise answer the user briefly and kindly, in the language they used.',
-  ].join(' ');
-  async function askAI(raw) {
-    if (typeof aiEngine.chat === 'function' && !aiEngine.chat.completions) return String(await aiEngine.chat(raw));
-    const r = await aiEngine.chat.completions.create({
-      messages: [{ role: 'system', content: AI_SYS }, { role: 'user', content: raw }],
-      max_tokens: 180,
-      temperature: 0.2,
-    });
-    return String(r.choices[0].message.content || '').trim();
+  /* the wallet ledger rides along in the system prompt when it exists */
+  async function askEngine(messages) {
+    if (aiEngine.chat && aiEngine.chat.completions) {
+      const r = await aiEngine.chat.completions.create({ messages, max_tokens: 220, temperature: 0.1 });
+      return String((r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '').trim();
+    }
+    return String(await aiEngine.chat(messages.map((m) => `${m.role}: ${m.content}`).join('\n---\n'))).trim();
   }
 })();

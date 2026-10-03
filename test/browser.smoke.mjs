@@ -1306,9 +1306,52 @@ ok('auto-sync keeps a drift history and a bounded drift rate', await page.evalua
   return Array.isArray(h) && h.length >= 1 && Number.isFinite(c.rate) && Math.abs(c.rate) <= 5e-4;
 }));
 
+/* The offline interpreter is gone: every SMate gate now drives the REAL
+   agent loop through a scripted on-device engine (the __SMATE_AI_ENGINE
+   hook). The fake model replies with tool JSON for a matched phrase and,
+   once its script is exhausted, echoes the last tool RESULT as its say —
+   exactly what a well-behaved model does. */
+const SMATE_STUB = (script) => `(() => {
+  const SCRIPT = ${JSON.stringify(script)};
+  const queues = new Map(Object.entries(SCRIPT).map(([k, v]) => [k, [...v]]));
+  window.__AI_READ = 0;
+  window.__AI_SYSTEM = '';
+  Object.defineProperty(window, '__SMATE_AI_ENGINE', { configurable: true, get() {
+    window.__AI_READ += 1;
+    return { chat: { completions: { async create({ messages }) {
+      window.__AI_SYSTEM = (messages.find((m) => m.role === 'system') || {}).content || window.__AI_SYSTEM;
+      const users = messages.filter((m) => m.role === 'user');
+      const first = (users[0] || {}).content || '';
+      const key = Object.keys(SCRIPT).find((k) => k !== '*' && first.toLowerCase().includes(k)) || '*';
+      const q = queues.get(key);
+      if (q && q.length) return { choices: [{ message: { content: q.shift() } }] };
+      const lastUser = (users[users.length - 1] || {}).content || '';
+      if (lastUser.startsWith('RESULT: ')) return { choices: [{ message: { content: JSON.stringify({ say: lastUser.slice(8, 408) }) } }] };
+      const d = queues.get('*');
+      return { choices: [{ message: { content: (d && d.length) ? d.shift() : '{"say":"ok"}' } }] };
+    } } } };
+  } });
+})();`;
+
 /* --- SMate: the multilingual command assistant --- */
 const sm = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await sm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await sm.addInitScript({ content: SMATE_STUB({
+  'map jakarta': ['{"tool":"showmap","args":{"city":"Jakarta"}}'],
+  'zhongxiao': ['{"tool":"fare","args":{"from":"Zhongxiao Xinsheng","to":"Taipei Main"}}'],
+  '忠孝新生': ['{"tool":"fare","args":{"from":"忠孝新生","to":"台北車站"}}'],
+  'kaohsiung': ['{"tool":"fare","args":{"from":"Taipei Main Station","to":"Kaohsiung Main"}}'],
+  'jakarta': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei"],"layout":"side"}}'],
+  '雅加達': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei"],"layout":"side"}}'],
+  'yakarta': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei"],"layout":"side"}}'],
+  'zone taipei': ['{"tool":"zones","args":{"city":"Taipei"}}'],
+  'timer 5': ['{"tool":"timer","args":{"minutes":5}}'],
+  '計時器': ['{"tool":"timer","args":{"minutes":5}}'],
+  'timer 2': ['{"tool":"timer","args":{"minutes":2}}'],
+  'add 12': ['{"tool":"walletadd","args":{"type":"expense","amount":12}}'],
+  'add 250': ['{"tool":"walletadd","args":{"type":"income","amount":250}}'],
+  'side': ['{"tool":"zones","args":{"layout":"side"}}'],
+}) });
 let smateEverywhere = true;
 for (const pg of ['index.html', 'wallet.html', 'launch.html', 'settings.html', 'scribe.html', 'metro.html']) {
   const q = await sm.newPage();
@@ -1333,7 +1376,7 @@ ok('SMate greets in the UI language', await sq.evaluate(() =>
   !!document.querySelector('.smate-it') && document.querySelector('.smate-it').textContent.includes('SMate')));
 ok('SMate shows a WhatsApp-style status line', await sq.evaluate(() =>
   (document.getElementById('smateStatus').textContent || '').trim().length > 0));
-const smSend = async (txt) => { await sq.fill('#smateIn', txt); await sq.click('#smateSend'); await sq.waitForTimeout(950); };
+const smSend = async (txt) => { await sq.fill('#smateIn', txt); await sq.click('#smateSend'); await sq.waitForTimeout(1400); };
 const statusIdle = await sq.evaluate(() => document.getElementById('smateStatus').textContent);
 await sq.fill('#smateIn', 'timer 5');
 await sq.click('#smateSend');
@@ -1366,7 +1409,7 @@ ok('timer blocks are true minis of the timer cell and tick live', await (async (
 await smSend('zone Taipei');
 await sq.waitForTimeout(250);
 ok('SMate changes the home time zone', await sq.evaluate(() => document.getElementById('tzLabel').textContent === 'Taipei'));
-await smSend('Set time zone window of Jakarta and Taipei, side by side'); await sq.waitForTimeout(450);
+await smSend('Set time zone window of Jakarta and Taipei, side by side'); await sq.waitForTimeout(1100);
 ok('SMate builds the spoken window and does NOT open the map (Jakarta regression)', await sq.evaluate(() => {
   const mapClosed = document.getElementById('mapWrap').hidden &&
     document.getElementById('btnMap').getAttribute('aria-pressed') !== 'true';
@@ -1380,20 +1423,20 @@ ok('the window request shows a live clocks Action Block', await sq.evaluate(() =
   const txt = bl.textContent;
   return txt.includes('Jakarta') && txt.includes('Taipei') && /\d{1,2}:\d{2}/.test(txt);
 }));
-await smSend('時區 雅加達 台北 並排'); await sq.waitForTimeout(450);
+await smSend('時區 雅加達 台北 並排'); await sq.waitForTimeout(1100);
 ok('the same window request works in Traditional Chinese', await sq.evaluate(() => {
   const g = document.getElementById('grid');
   return document.getElementById('mapWrap').hidden && g.dataset.layout === '2' &&
     g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
 }));
-await smSend('zona horaria de Yakarta y Taipéi, lado a lado'); await sq.waitForTimeout(450);
+await smSend('zona horaria de Yakarta y Taipéi, lado a lado'); await sq.waitForTimeout(1100);
 ok('the same window request works in Spanish', await sq.evaluate(() => {
   const g = document.getElementById('grid');
   return document.getElementById('mapWrap').hidden && g.dataset.layout === '2' &&
     g.textContent.includes('Jakarta') && g.textContent.includes('Taipei');
 }));
 await smSend('What is the fare from Zhongxiao Xinsheng station to Taipei Main station?');
-await sq.waitForTimeout(700);
+await sq.waitForTimeout(1900);
 ok('SMate answers fare questions on the clock page (any-page fare engine)', await sq.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('NT$') && last.includes('Zhongxiao Xinsheng') && last.includes('Taipei Main');
@@ -1443,7 +1486,7 @@ ok('the fare mini centers the route instead of the whole network', await sq.wait
 }
 const txBefore = await sq.evaluate(() => { try { return JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { return 0; } });
 await smSend('add 12 expense');
-await sq.waitForTimeout(500);
+await sq.waitForTimeout(1100);
 ok('wallet actions from other pages really hit the ledger and show a block', await sq.evaluate((before) => {
   let after = 0;
   try { after = JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}').tx.length; } catch { /* ignore */ }
@@ -1451,27 +1494,24 @@ ok('wallet actions from other pages really hit the ledger and show a block', awa
   return after === before + 1 && !!bl && bl.textContent.includes('12');
 }, txBefore));
 await smSend('map Jakarta');
-await sq.waitForTimeout(900);
+await sq.waitForTimeout(1500);
 ok('map requests open the map in the main window and clone it into the block', await sq.evaluate(() => {
   const bl = [...document.querySelectorAll('.smate-block[data-ab="mapnav"]')].pop();
   const open = !document.getElementById('mapWrap').hidden;
   return !!bl && open && (!!bl.querySelector('svg') || bl.textContent.includes('Jakarta'));
 }));
 await smSend('從忠孝新生到台北車站票價多少？');
-await sq.waitForTimeout(700);
+await sq.waitForTimeout(1900);
 ok('the same fare question works in Traditional Chinese', await sq.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('NT$') && last.includes('忠孝新生');
 }));
 await smSend('What is the fare from Taipei Main Station to Kaohsiung Main?');
-await sq.waitForTimeout(700);
+await sq.waitForTimeout(1900);
 ok('cross-system fare questions get an honest one-system answer', await sq.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('different systems');
 }));
-await smSend('blorp');
-ok('without a usable GPU SMate explains the AI needs WebGPU', await sq.evaluate(() =>
-  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
 await sq.close();
 const swq = await sm.newPage();
 await swq.goto(URL + 'wallet.html', { waitUntil: 'load' });
@@ -1486,7 +1526,7 @@ await swq.click('#smateBtn');
 await ensureIn(swq);
 await swq.fill('#smateIn', 'add 250 income');
 await swq.click('#smateSend');
-await swq.waitForTimeout(950);
+await swq.waitForTimeout(1300);
 ok('SMate adds wallet entries from a sentence', await swq.evaluate(() => {
   const w = JSON.parse(localStorage.getItem('singhoah:wallet') || '{"tx":[]}');
   const lastTx = w.tx[w.tx.length - 1];
@@ -1525,6 +1565,11 @@ await sm.close();
 /* --- SMate on a phone: bottom sheet fits, window request works, nothing overflows --- */
 const smc = await browser.newContext({ viewport: { width: 375, height: 720 } });
 await smc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await smc.addInitScript({ content: SMATE_STUB({
+  'jakarta': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei"],"layout":"side"}}'],
+  'zhongxiao': ['{"tool":"fare","args":{"from":"Zhongxiao Xinsheng","to":"Taipei Main"}}'],
+  'timer 2': ['{"tool":"timer","args":{"minutes":2}}'],
+}) });
 const mq2 = await smc.newPage();
 await mq2.goto(URL + 'index.html', { waitUntil: 'load' });
 await mq2.waitForTimeout(300);
@@ -1542,7 +1587,7 @@ ok('SMate on a phone keeps the popup on-screen and shapes the window', await mq2
 }));
 await mq2.fill('#smateIn', 'What is the fare from Zhongxiao Xinsheng station to Taipei Main station?');
 await mq2.click('#smateSend');
-await mq2.waitForTimeout(1900);
+await mq2.waitForTimeout(2600);
 ok('fare questions answer on phones too', await mq2.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
   return last.includes('NT$');
@@ -1574,6 +1619,9 @@ const fakeSR = () => {
 };
 const vm = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await vm.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); });
+await vm.addInitScript({ content: SMATE_STUB({
+  'timer': ['{"tool":"timer","args":{"minutes":5}}'],
+}) });
 await vm.addInitScript(fakeSR);
 const vp = await vm.newPage();
 await vp.goto(URL + 'index.html', { waitUntil: 'load' });
@@ -1613,7 +1661,9 @@ await v2p.close();
 await v2.close();
 await vm.close();
 
-/* --- SMate on-device AI: fuzzy commands + light Q&A (stub engine) --- */
+/* --- SMate is a fully-AI assistive agent: the offline interpreter is gone.
+       Every gate below drives the REAL agent loop through a scripted
+       on-device engine — tools, RESULT feedback, multi-step chains. --- */
 const ai = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await ai.addInitScript(() => {
   localStorage.setItem('singhoah:visited', '1');
@@ -1621,39 +1671,71 @@ await ai.addInitScript(() => {
     { date: '2026-09-20', type: 'out', amt: 12, note: 'coffee' },
     { date: '2026-09-21', type: 'out', amt: 30, note: 'lunch' },
   ] }));
-  window.__SMATE_AI_ENGINE = {
-    chat: async (q) => {
-      const s = q.toLowerCase();
-      if (s.includes('bright')) return 'CMD: night shift';
-      if (s.includes('sky')) return 'The sky is blue because air scatters short blue wavelengths of sunlight more than red.';
-      if (s.includes('[wallet')) return 'You have spent 42 USD: 12 on coffee and 30 on lunch.';
-      return 'CMD: help';
-    },
-  };
 });
+await ai.addInitScript({ content: SMATE_STUB({
+  'too bright': ['{"tool":"theme","args":{"mode":"night"}}', '{"say":"Better — I dimmed the site for you."}'],
+  'sky': ['{"say":"The sky looks blue because air scatters short blue wavelengths of sunlight far more than red — Rayleigh scattering."}'],
+  'spent': ['{"say":"You have spent 42 USD this month: 12 on coffee and 30 on lunch."}'],
+  'module studio': ['{"tool":"goto","args":{"app":"module"}}', '{"say":"Opening the module studio."}'],
+  'multiply 6 by 7': ['{"tool":"mathflow","args":{"a":"6","op":"*","b":"7"}}', '{"say":"Six times seven is forty-two."}'],
+  'change 6 to 9': ['{"tool":"modcfg","args":{"find":"6","patch":{"value":"9"}}}', '{"tool":"modrun","args":{}}', '{"say":"Changed the 6 to a 9 — the flow now answers 63."}'],
+  'flow title': ['{"tool":"fill","args":{"id":"modTitle","value":"My Flow"}}', '{"say":"Renamed the flow."}'],
+}) });
 const ap = await ai.newPage();
 await ap.goto(URL + 'index.html', { waitUntil: 'load' });
-await ap.waitForTimeout(400);
-ok('arrive-and-ready: the AI is armed (and warm) before the first word', await ap.evaluate(() =>
+await ap.waitForTimeout(600);
+ok('arrive-and-ready: the AI engine is armed before the first word', await ap.evaluate(() =>
   document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'
-  && !document.getElementById('smateAI').classList.contains('loading')));
+  && !document.getElementById('smateAI').classList.contains('loading')
+  && window.__AI_READ > 0));
 await ap.click('#smateBtn');
 await ap.waitForTimeout(150);
 await ap.fill('#smateIn', 'the room is too bright for my eyes');
 await ap.click('#smateSend');
-await ap.waitForTimeout(1400);
-ok('the FIRST fuzzy message already gets the AI — no waking-up tease', await ap.evaluate(() =>
+await ap.waitForTimeout(1600);
+ok('the FIRST fuzzy message already drives a real page tool — night shift', await ap.evaluate(() =>
   document.documentElement.classList.contains('dark')));
 await ap.fill('#smateIn', 'why is the sky blue?');
 await ap.click('#smateSend');
-await ap.waitForTimeout(1400);
-ok('AI answers light questions', await ap.evaluate(() =>
+await ap.waitForTimeout(1600);
+ok('free-form questions get real AI answers', await ap.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('scatters')));
 await ap.fill('#smateIn', 'how much have I spent?');
 await ap.click('#smateSend');
-await ap.waitForTimeout(1400);
-ok('money questions get the live ledger attached for the AI', await ap.evaluate(() =>
+await ap.waitForTimeout(1600);
+ok('money questions carry the live ledger into the AI context', await ap.evaluate(() =>
+  (window.__AI_SYSTEM || '').includes('coffee') && (window.__AI_SYSTEM || '').includes('WALLET')));
+ok('the model answers from that live ledger', await ap.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('coffee')));
+await ap.fill('#smateIn', 'open the module studio');
+await ap.click('#smateSend');
+try { await ap.waitForURL('**/module.html', { timeout: 6000 }); } catch { /* asserted below */ }
+ok('the agent navigates the site itself (goto tool)', /module\.html$/.test(ap.url()), ap.url());
+await ap.waitForTimeout(500);
+if (!(await ap.locator('#smateIn').isVisible().catch(() => false))) { await ap.click('#smateBtn'); await ap.locator('#smateIn').waitFor({ state: 'visible', timeout: 5000 }); }
+await ap.fill('#smateIn', 'multiply 6 by 7');
+await ap.click('#smateSend');
+await ap.waitForTimeout(2400);
+ok('on the module page the agent builds the real flow', await ap.evaluate(() => {
+  const M = globalThis.__MOD;
+  const io = M.nodes().filter((n) => n.type === 'io').pop();
+  return M.nodes().length === 4 && M.wires().length === 3 &&
+    document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim() === '42';
+}));
+await ap.fill('#smateIn', 'change 6 to 9');
+await ap.click('#smateSend');
+await ap.waitForTimeout(2600);
+ok('"change … to …" edits the real module and re-runs it (63)', await ap.evaluate(() => {
+  const M = globalThis.__MOD;
+  const io = M.nodes().filter((n) => n.type === 'io').pop();
+  const six = M.nodes().find((n) => n.type === 'number' && n.cfg.value === '9');
+  return !!six && document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim() === '63';
+}));
+await ap.fill('#smateIn', 'change the flow title to My Flow');
+await ap.click('#smateSend');
+await ap.waitForTimeout(1800);
+ok('"change the flow title to …" types into the real field', await ap.evaluate(() =>
+  document.getElementById('modTitle').value === 'My Flow'));
 await ap.click('#smateAI');   /* off by choice — and it sticks */
 await ap.waitForTimeout(200);
 ok('turning the chip off stops the engine and saves the choice', await ap.evaluate(() =>
@@ -1661,13 +1743,13 @@ ok('turning the chip off stops the engine and saves the choice', await ap.evalua
   && localStorage.getItem('singhoah:smateAI') === 'off'));
 await ap.fill('#smateIn', 'why is the sky blue?');
 await ap.click('#smateSend');
-await ap.waitForTimeout(1200);
-ok('with the AI off, the instant offline interpreter answers again', await ap.evaluate(() =>
-  ![...document.querySelectorAll('.smate-it')].pop().textContent.includes('scatters')));
+await ap.waitForTimeout(1400);
+ok('with the AI off SMate answers honestly — there is no offline interpreter anymore', await ap.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('fully AI')));
 await ap.close();
 await ai.close();
 
-/* no WebGPU / blocked CDN: SMate explains and the offline brain keeps working */
+/* no WebGPU / blocked CDN: SMate explains honestly and never downloads */
 const ai2 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await ai2.addInitScript(() => {
   localStorage.setItem('singhoah:visited', '1');
@@ -1677,13 +1759,13 @@ await ai2.route(/esm\.run|mlc/, (r) => r.abort());
 const a2p = await ai2.newPage();
 await a2p.goto(URL + 'index.html', { waitUntil: 'load' });
 await a2p.waitForTimeout(300);
-ok('no WebGPU: arrive-and-ready arms the chip without starting any download', await a2p.evaluate(() =>
+ok('no WebGPU: the chip arms without starting any download', await a2p.evaluate(() =>
   document.getElementById('smateAI').getAttribute('aria-pressed') === 'true'
   && !document.getElementById('smateAI').classList.contains('loading')));
 await a2p.click('#smateBtn');
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
-await a2p.waitForTimeout(900);
+await a2p.waitForTimeout(1400);
 ok('without WebGPU SMate explains instead of downloading anything', await a2p.evaluate(() =>
   [...document.querySelectorAll('.smate-it')].pop().textContent.includes('WebGPU')));
 await a2p.click('#smateAI'); /* off by choice */
@@ -1693,9 +1775,9 @@ ok('the chip can still turn AI off by choice', await a2p.evaluate(() =>
   && localStorage.getItem('singhoah:smateAI') === 'off'));
 await a2p.fill('#smateIn', 'blorp');
 await a2p.click('#smateSend');
-await a2p.waitForTimeout(900);
-ok('the offline interpreter still answers when AI is off', await a2p.evaluate(() =>
-  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+await a2p.waitForTimeout(1300);
+ok('AI off + no WebGPU: the honest fully-AI message, never a fake interpreter', await a2p.evaluate(() =>
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('fully AI')));
 await a2p.reload();   /* the off choice survives the next visit */
 await a2p.waitForTimeout(400);
 ok('a turned-off AI stays off across visits', await a2p.evaluate(() =>
@@ -1718,10 +1800,10 @@ ok('a failed arrival load shows the error on the chip, never a tease in chat', a
   document.getElementById('smateAI').classList.contains('err')));
 await a5p.fill('#smateIn', 'blorp');
 await a5p.click('#smateSend');
-await a5p.waitForTimeout(1200);
-ok('a failed AI load falls back to the interpreter instead of looping "waking up"', await a5p.evaluate(() => {
+await a5p.waitForTimeout(1500);
+ok('a failed AI load answers honestly instead of looping "waking up"', await a5p.evaluate(() => {
   const last = [...document.querySelectorAll('.smate-it')].pop().textContent;
-  return last.toLowerCase().includes('help') && !/waking up/i.test(last);
+  return last.includes('WebGPU') && !/waking up/i.test(last);
 }));
 await a5p.close();
 await ai5.close();
@@ -1743,10 +1825,10 @@ await a3p.click('#smateSend');
 await a3p.waitForTimeout(300);
 await a3p.fill('#smateIn', 'blorp');
 await a3p.click('#smateSend');
-await a3p.waitForTimeout(1400);
+await a3p.waitForTimeout(1600);
 ok('a failing AI brain never hangs the chat', await a3p.evaluate(() =>
   !document.querySelector('.smate-dots') &&
-  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help')));
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('try again')));
 await a3p.close();
 await ai3.close();
 const ai4 = await browser.newContext({ viewport: { width: 1280, height: 850 } });
@@ -1767,10 +1849,10 @@ await a4p.fill('#smateIn', 'blorp');
 await a4p.click('#smateSend');
 await a4p.waitForTimeout(900);
 const midStatus = await a4p.evaluate(() => document.getElementById('smateStatus').textContent);
-await a4p.waitForTimeout(1200);
+await a4p.waitForTimeout(1400);
 ok('slow AI shows an AI status and is capped', await a4p.evaluate((mid) =>
   mid.includes('AI') && !document.querySelector('.smate-dots') &&
-  [...document.querySelectorAll('.smate-it')].pop().textContent.toLowerCase().includes('help'), midStatus));
+  [...document.querySelectorAll('.smate-it')].pop().textContent.includes('try again'), midStatus));
 await a4p.close();
 await ai4.close();
 
@@ -1778,6 +1860,14 @@ await ai4.close();
        math, memory, voice-out toggle, Ctrl+K --- */
 const as = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await as.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await as.addInitScript({ content: SMATE_STUB({
+  'timer': ['{"tool":"timer","args":{"minutes":5}}'],
+  'tokyo': ['{"tool":"time","args":{"city":"Tokyo"}}'],
+  '25 * 4': ['{"tool":"calc","args":{"expr":"25 * 4"}}'],
+  'remind': ['{"tool":"remind","args":{"minutes":0.05}}'],
+  'clear chat': ['{"tool":"clearchat","args":{}}'],
+  'balance': ['{"tool":"walletbalance","args":{}}'],
+}) });
 const asp = await as.newPage();
 await asp.goto(URL + 'index.html', { waitUntil: 'load' });
 await asp.waitForTimeout(300);
@@ -1789,7 +1879,7 @@ ok('SMate greets with tappable suggestions', await asp.evaluate(() =>
 await asp.click('.smate-chip');
 await asp.waitForTimeout(1200);
 ok('suggestion chips run real commands', await asp.evaluate(() => !!document.querySelector('.cell.timer')));
-const asSend = async (txt) => { await asp.fill('#smateIn', txt); await asp.click('#smateSend'); await asp.waitForTimeout(950); };
+const asSend = async (txt) => { await asp.fill('#smateIn', txt); await asp.click('#smateSend'); await asp.waitForTimeout(1400); };
 const tzBefore = await asp.evaluate(() => document.getElementById('tzLabel').textContent);
 await asSend('what time is it in Tokyo?');
 ok('SMate answers “what time is it in …” without changing your zone', await asp.evaluate((tz) =>
@@ -1843,11 +1933,30 @@ await as.close();
        print, theme — by text exactly as by voice --- */
 const fc = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await fc.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await fc.addInitScript(() => { window.confirm = () => true; });   /* SMate's scribe clear may ask */
+await fc.addInitScript({ content: SMATE_STUB({
+  'map taipei': ['{"tool":"showmap","args":{"city":"Taipei"}}'],
+  'wallet': ['{"tool":"goto","args":{"app":"wallet"}}'],
+  'hey smate': ['{"say":"I can drive the whole Singhoah app for you — timers, windows, the wallet, metro fares, module flows, Scribe notes and settings."}'],
+  'print': ['{"tool":"printpage","args":{}}'],
+  'remove taipei': ['{"tool":"removezone","args":{"city":"Taipei"}}'],
+  'zones': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei"],"layout":"side"}}'],
+  'restart timer': ['{"tool":"restartwin","args":{"what":"timer"}}'],
+  'delete timer': ['{"tool":"removewin","args":{"what":"timer"}}'],
+  'restart stopwatch': ['{"tool":"restartwin","args":{"what":"stopwatch"}}'],
+  'delete stopwatch': ['{"tool":"removewin","args":{"what":"stopwatch"}}'],
+  'stopwatch': ['{"tool":"stopwatch","args":{"action":"new"}}'],
+  'timer 5': ['{"tool":"timer","args":{"minutes":5}}'],
+  'theme': ['{"tool":"theme","args":{"mode":"night"}}'],
+  'undo': ['{"tool":"click","args":{"id":"scrUndo"}}'],
+  'redo': ['{"tool":"click","args":{"id":"scrRedo"}}'],
+  'clear': ['{"tool":"click","args":{"id":"scrClear"}}'],
+}) });
 const fp = await fc.newPage();
 await fp.goto(URL + 'index.html', { waitUntil: 'load' });
 await fp.waitForTimeout(300);
 await fp.click('#smateBtn');
-const fcSend = async (txt) => { await fp.fill('#smateIn', txt); await fp.click('#smateSend'); await fp.waitForTimeout(1100); };
+const fcSend = async (txt) => { await fp.fill('#smateIn', txt); await fp.click('#smateSend'); await fp.waitForTimeout(1500); };
 await fcSend('timer 5');
 await fcSend('restart timer');
 ok('SMate restarts the timer', await fp.evaluate(() => !!document.querySelector('.cell.timer')));
@@ -2005,11 +2114,16 @@ await mcc.close();
 /* --- SMate compound commands: zones + window shape + extras in one sentence --- */
 const cm = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cm.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await cm.addInitScript({ content: SMATE_STUB({
+  'jakarta': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei","Singapore"],"layout":"2x2"}}'],
+  '4 by 4': ['{"tool":"zones","args":{"layout":"4x4"}}'],
+  'tokyo': ['{"tool":"theme","args":{"mode":"night"}}', '{"tool":"mode","args":{"mode":"analog"}}', '{"tool":"zones","args":{"city":"Tokyo","layout":"single"}}', '{"say":"Done — night shift, analog clock, Tokyo in a single window."}'],
+}) });
 const cp = await cm.newPage();
 await cp.goto(URL + 'index.html', { waitUntil: 'load' });
 await cp.waitForTimeout(300);
 await cp.click('#smateBtn');
-const cmSend = async (txt) => { await cp.fill('#smateIn', txt); await cp.click('#smateSend'); await cp.waitForTimeout(1600); };
+const cmSend = async (txt) => { await cp.fill('#smateIn', txt); await cp.click('#smateSend'); await cp.waitForTimeout(2200); };
 await cmSend('set time zones to Jakarta, Taipei, and Singapore in a 2 by 2 window');
 ok('SMate parses zones + window shape from one sentence', await cp.evaluate(() => {
   const g = document.getElementById('grid');
@@ -2032,13 +2146,16 @@ await cm.close();
 /* the same compound command in Traditional Chinese */
 const cz = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cz.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); });
+await cz.addInitScript({ content: SMATE_STUB({
+  '雅加達': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei","Singapore"],"layout":"2x2"}}'],
+}) });
 const zp = await cz.newPage();
 await zp.goto(URL + 'index.html', { waitUntil: 'load' });
 await zp.waitForTimeout(300);
 await zp.click('#smateBtn');
 await zp.fill('#smateIn', '視窗 2x2，時區設為雅加達、台北、新加坡');
 await zp.click('#smateSend');
-await zp.waitForTimeout(950);
+await zp.waitForTimeout(1500);
 ok('SMate understands compound commands in other languages', await zp.evaluate(() => {
   const g = document.getElementById('grid');
   return g.dataset.layout === '2x2' && g.textContent.includes('Jakarta') &&
@@ -2050,6 +2167,9 @@ await cz.close();
 /* SMate on a phone: bottom sheet, commands work */
 const mo = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true });
 await mo.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await mo.addInitScript({ content: SMATE_STUB({
+  'night': ['{"tool":"theme","args":{"mode":"night"}}'],
+}) });
 const mp = await mo.newPage();
 await mp.goto(URL + 'index.html', { waitUntil: 'load' });
 await mp.waitForTimeout(300);
@@ -2069,6 +2189,11 @@ await mo.close();
 /* --- Clear all: Window menu + SMate, on clock and across pages --- */
 const cl = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cl.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await cl.addInitScript({ content: SMATE_STUB({
+  'jakarta': ['{"tool":"zones","args":{"cities":["Jakarta","Taipei","Singapore"],"layout":"2x2"}}'],
+  '2 by 2': ['{"tool":"zones","args":{"layout":"2x2"}}'],
+  'clear all': ['{"tool":"clearclock","args":{}}'],
+}) });
 const clp = await cl.newPage();
 await clp.goto(URL + 'index.html', { waitUntil: 'load' });
 await clp.waitForTimeout(400);
@@ -2117,6 +2242,9 @@ await cl2.close();
 /* localized clear-all (Traditional Chinese) */
 const cl3 = await browser.newContext({ viewport: { width: 1440, height: 850 } });
 await cl3.addInitScript(() => { localStorage.setItem('singhoah:visited', '1'); localStorage.setItem('singhoah:lang', 'zh-Hant'); localStorage.setItem('singhoah:layout', '4'); });
+await cl3.addInitScript({ content: SMATE_STUB({
+  '清除': ['{"tool":"clearclock","args":{}}'],
+}) });
 const cl3p = await cl3.newPage();
 await cl3p.goto(URL + 'index.html', { waitUntil: 'load' });
 await cl3p.waitForTimeout(300);
@@ -2133,6 +2261,9 @@ await cl.close();
 /* --- SinghoMetro: tap-tap fare calculator --- */
 const mtctx = await browser.newContext({ viewport: { width: 1280, height: 850 } });
 await mtctx.addInitScript(() => localStorage.setItem('singhoah:visited', '1'));
+await mtctx.addInitScript({ content: SMATE_STUB({
+  'swap': ['{"tool":"metroswap","args":{}}'],
+}) });
 const mt = await mtctx.newPage();
 const metroErrs = [];
 mt.on('pageerror', (e) => metroErrs.push(String(e)));
@@ -2533,6 +2664,9 @@ await prn.close();
 /* --- metro: lazy basemap files, zoom labels, SMate metro intents --- */
 {
   const mp = await browser.newPage();
+  await mp.addInitScript({ content: SMATE_STUB({
+    '票價': ['{"tool":"route","args":{"from":"台北車站","to":"動物園"}}'],
+  }) });
   const mbReq = [];
   mp.on('request', (r) => { if (/mb_(trtc|ks|tc)\.js/.test(r.url())) mbReq.push(r.url().split('/').pop()); });
   await mp.goto(URL + 'metro.html', { waitUntil: 'load' });
@@ -2571,6 +2705,10 @@ await prn.close();
 /* --- SinghoModule: visual automation with square wires --- */
 {
   const mc = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  await mc.addInitScript({ content: SMATE_STUB({
+    'open module': ['{"tool":"goto","args":{"app":"module"}}'],
+    'run': ['{"tool":"modrun","args":{}}'],
+  }) });
   const mp = await mc.newPage();
   const merrs = [];
   mp.on('pageerror', (e) => merrs.push(String(e)));
@@ -3255,6 +3393,11 @@ await prn.close();
 
   /* SMate builds the flow itself: "multiply X by Y" lands on the canvas */
   const scx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await scx2.addInitScript({ content: SMATE_STUB({
+    'multiply': ['{"tool":"mathflow","args":{"a":"123456789","op":"*","b":"987654321"}}'],
+    'number 255': ['{"tool":"modadd","args":{"type":"number","cfg":{"numtype":"int","base":16,"value":"ff"}}}'],
+    'operator': ['{"tool":"modadd","args":{"type":"operator","cfg":{"op":"mul"}}}'],
+  }) });
   const sp2 = await scx2.newPage();
   const strayNavs = [];
   sp2.on('framenavigated', (f) => { if (f === sp2.mainFrame() && !/module\.html/.test(f.url())) strayNavs.push(f.url()); });
@@ -3634,6 +3777,13 @@ await prn.close();
 
   /* SMate drives the comparator end to end */
   const kscx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await kscx.addInitScript({ content: SMATE_STUB({
+    'less': ['{"tool":"cmpflow","args":{"a":"5","cmp":"<","b":"3"}}'],
+    'compare 5 and 3': ['{"tool":"cmpflow","args":{"a":"5","cmp":"=","b":"3"}}'],
+    'greater or equal': ['{"tool":"cmpflow","args":{"a":"12","cmp":">=","b":"5"}}'],
+    'comparator': ['{"tool":"modadd","args":{"type":"comparator","cfg":{"cmp":"gte"}}}'],
+    'greater': ['{"tool":"cmpflow","args":{"a":"5","cmp":">","b":"3"}}'],
+  }) });
   const ksp = await kscx.newPage();
   const kstray = [];
   ksp.on('framenavigated', (f) => { if (f === ksp.mainFrame() && !/module\.html/.test(f.url())) kstray.push(f.url()); });
@@ -3698,6 +3848,9 @@ await prn.close();
   /* ---- canvas zoom + placement: cursor-anchored zoom, in-view adds,
          connection nodes on the standard alignment ---- */
   const zcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await zcx.addInitScript({ content: SMATE_STUB({
+    'greater': ['{"tool":"cmpflow","args":{"a":"9","cmp":">","b":"4"}}'],
+  }) });
   const zp = await zcx.newPage();
   await zp.goto(URL + 'module.html', { waitUntil: 'load' });
   await zp.waitForTimeout(900);
@@ -3814,6 +3967,10 @@ await prn.close();
 
   /* ---- the clear-canvas button: confirm, clear, persist — and SMate ---- */
   const clcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await clcx.addInitScript({ content: SMATE_STUB({
+    'multiply': ['{"tool":"mathflow","args":{"a":"6","op":"*","b":"7"}}'],
+    'clear': ['{"tool":"modclear","args":{}}'],
+  }) });
   const clp = await clcx.newPage();
   await clp.goto(URL + 'module.html', { waitUntil: 'load' });
   await clp.waitForTimeout(900);
@@ -3942,6 +4099,10 @@ await prn.close();
 
   /* ---- Logic + Boolean modules and the palette toolbar ---- */
   const lgcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await lgcx.addInitScript({ content: SMATE_STUB({
+    'true and false': ['{"tool":"logicflow","args":{"gate":"and","a":true,"b":false}}'],
+    'xor': ['{"tool":"modadd","args":{"type":"logic","cfg":{"gate":"xor"}}}'],
+  }) });
   const lgp = await lgcx.newPage();
   await lgp.goto(URL + 'module.html', { waitUntil: 'load' });
   await lgp.waitForTimeout(900);
@@ -4272,6 +4433,10 @@ await prn.close();
 /* --- SMate drives the cash tab: live mini in chat + real tab in the window --- */
 {
   const smc = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+  await smc.addInitScript({ content: SMATE_STUB({
+    'cash in jpy': ['{"tool":"cash","args":{"currency":"JPY"}}'],
+    'cash': ['{"tool":"cash","args":{}}'],
+  }) });
   const sc = await smc.newPage();
   await sc.goto(URL + 'wallet.html', { waitUntil: 'load' });
   await sc.evaluate(() => localStorage.setItem('singhoah:wallet',
@@ -4282,7 +4447,7 @@ await prn.close();
   await sc.waitForTimeout(250);
   await sc.fill('#smateIn', 'cash');
   await sc.click('#smateSend');
-  await sc.waitForTimeout(1100);
+  await sc.waitForTimeout(1500);
   ok('SMate "cash" opens the Cash tab in the main window', await sc.evaluate(() =>
     document.getElementById('walTabC').getAttribute('aria-pressed') === 'true' &&
     document.querySelectorAll('#walCashBox .cash-note').length === 5));
@@ -4292,7 +4457,7 @@ await prn.close();
   }));
   await sc.fill('#smateIn', 'cash in jpy');
   await sc.click('#smateSend');
-  await sc.waitForTimeout(1100);
+  await sc.waitForTimeout(1500);
   ok('SMate compounds: "cash in jpy" switches currency then opens cash', await sc.evaluate(() =>
     document.getElementById('walCurBtn').textContent.includes('JPY') &&
     document.getElementById('walTabC').getAttribute('aria-pressed') === 'true'));
@@ -4307,7 +4472,7 @@ await prn.close();
   await sc2.waitForTimeout(250);
   await sc2.fill('#smateIn', 'cash');
   await sc2.click('#smateSend');
-  await sc2.waitForTimeout(1800);
+  await sc2.waitForTimeout(2600);
   ok('SMate hands off to the wallet Cash tab from any page', /wallet\.html#tab=cash$/.test(sc2.url()), sc2.url());
   await sc2.close();
   await smc.close();
