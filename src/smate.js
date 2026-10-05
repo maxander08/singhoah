@@ -949,7 +949,14 @@
       return tf.format(new Date());
     },
     async remind(a) { const m = numArg(a.minutes); if (!m || m <= 0 || isNaN(m)) return 'minutes required'; reminders.push({ at: Date.now() + m * 60000 }); const txt = t(curLang, 'remindSet').replace('{n}', String(m)); abPush({ k: 'remind', at: Date.now() + m * 60000, t: txt }); return txt; },
-    async calc(a) { const v = safeMath(String(a.expr || '')); return v == null ? 'cannot compute that' : String(Math.round(v * 10000) / 10000); },
+    async calc(a) {
+      let e = String(a.expr || '');
+      e = e.replace(/(\d),(?=\d{3}\b)/g, '$1');                                    /* 1,200 -> 1200 */
+      e = e.replace(/(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)/gi, '$2*$1/100');   /* 15% of 80 -> 12 (same precedence, no parens) */
+      e = e.replace(/[^0-9+\-*/%.()\s]/g, '');                                   /* stray words the model let in */
+      const v = safeMath(e);
+      return v == null ? 'cannot compute that' : String(Math.round(v * 10000) / 10000);
+    },
     async clearchat() { clearChatNow(); return doneT(); },
     async clearclock() { if (page === 'clock') { LIB.clearWindow(); abPush({ k: 'done', t: t(curLang, 'clearAll') }); return doneT(); } try { localStorage.setItem('singhoah:pendingClear', '1'); } catch { /* ignore */ } return NAV(act.nav('clock')); },
     async settz(a) { if (page !== 'settings') return 'settings page only'; const z = matchCity(String(a.city || '')) || findZone(String(a.city || '')); if (!z) return 'unknown city'; const r = setTz(z); if (r) abPush({ k: 'clocks', z: [z], t: t(curLang, 'tzTitle') }); return r || 'failed'; },
@@ -1110,168 +1117,376 @@
     async resetdata() { if (page !== 'settings') return 'settings page only'; const oc = window.confirm; window.confirm = () => true; const r = click($('btnReset')) ? doneT() : null; window.confirm = oc; return r || 'not found'; },
   };
 
-  /* the model sees the live page: which app, which controls (with refs and
-     #ids), the wallet ledger, the flow on the canvas — enough context to act
-     like an assistant who is looking at the screen */
-  function agentSys() {
-    if (aiCpu) {
-      /* the CPU model is tiny: a compact, example-first prompt it can follow */
-      const bits = [
-        'You are SMate, the assistant inside the Singhoah web app. You drive the app for the user.',
-        'ALWAYS reply with exactly ONE JSON object, nothing else: a tool call like {"tool":"timer","args":{"minutes":5}} (you then see its RESULT), or a real answer like {"say":"Timer set for 5 minutes."}.',
-        'Tools: timer(minutes) calc(expr) goto(app:clock|wallet|scribe|metro|module|settings|launch) theme(night|light) zones(cities,layout) remind(minutes) time(city) walletbalance',
-        '"set a timer for 5 minutes" -> {"tool":"timer","args":{"minutes":5}}',
-        '"what is 25 * 4" -> {"tool":"calc","args":{"expr":"25 * 4"}}',
-        '"open the wallet" -> {"tool":"goto","args":{"app":"wallet"}}',
-        '"night shift please" -> {"tool":"theme","args":{"mode":"night"}}',
-        `PAGE: ${page} LANGUAGE: ${langOf(curLang).name}`,
-      ];
+  /* ---------- the interpreter: SMate understands words directly ----------
+     No model, no download, no wait. Language in, tool calls out — a
+     deterministic grammar over everything the suite can do, plus generic
+     click / fill / pick / read so ANY visible control can be driven by
+     name, exactly like a person at the browser. Unknown phrasings get an
+     honest answer with a suggestion — never a guess, never a long wait. */
+  const NUMWORDS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  const ZHDIG = { '零': 0, '一': 1, '二': 2, '兩': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+  const zhNum = (s) => {
+    if (/^\d+$/.test(s)) return Number(s);
+    if (!/^[\u96f6\u4e00\u4e8c\u5169\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+$/.test(s)) return null;
+    if (s === '十') return 10;
+    const m = s.match(/^([\u96f6\u4e00\u4e8c\u5169\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d])?\u5341([\u96f6\u4e00\u4e8c\u5169\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d])?$/);
+    if (m) return (m[1] ? ZHDIG[m[1]] : 1) * 10 + (m[2] ? ZHDIG[m[2]] : 0);
+    return s.split('').reduce((a, c) => a * 10 + ZHDIG[c], 0);
+  };
+  const numOrWord = (s) => {
+    s = String(s == null ? '' : s).trim().toLowerCase();
+    if (/^\d+(?:\.\d+)?$/.test(s)) return Number(s);
+    if (NUMWORDS[s] != null) return NUMWORDS[s];
+    const m = s.match(/^([a-z]+)-([a-z]+)$/);
+    if (m && NUMWORDS[m[1]] != null && NUMWORDS[m[2]] != null) return NUMWORDS[m[1]] + NUMWORDS[m[2]];
+    const z = zhNum(s);
+    return z != null ? z : null;
+  };
+  const APPS = {
+    clock: ['clock', 'singhoclock', 'singho clock', 'watch', 'clock page', 'the clock', '\u6642\u9418', '\u65f6\u949f', 'the watch'],
+    wallet: ['wallet', 'the wallet', 'singhowallet', 'singho wallet', 'money app', 'finance', '\u9322\u5305', '\u94b1\u5305', '\u8a18\u5e33', '\u8bb0\u8d26'],
+    scribe: ['scribe', 'singhoscribe', 'singho scribe', 'notes', 'note app', 'the notes', '\u7b46\u8a18', '\u7b14\u8bb0', '\u8a18\u4e8b', '\u8bb0\u4e8b'],
+    metro: ['metro', 'subway', 'mrt', 'transit', '\u5730\u9435', '\u5730\u94c1', '\u6377\u904b', '\u6377\u8fd0'],
+    module: ['module', 'modules', 'module studio', 'the module studio', 'logic', 'the flow', 'flow canvas', 'singhomodule', '\u6a21\u7d44', '\u6a21\u5757', '\u908f\u8f2f', '\u903b\u8f91'],
+    settings: ['settings', 'singhosettings', 'singho settings', 'preferences', 'the settings', '\u8a2d\u5b9a', '\u8bbe\u7f6e', '\u504f\u597d'],
+    launch: ['launch', 'launchpad', 'home', 'start page', '\u9996\u9801', '\u9996\u9875', '\u555f\u52d5\u9801', '\u542f\u52a8\u9875'],
+  };
+  const findApp = (q) => {
+    q = ' ' + q.trim().toLowerCase() + ' ';
+    for (const [app, names] of Object.entries(APPS)) for (const n of names) if (q.includes(' ' + n + ' ')) return app;
+    return null;
+  };
+  /* any city mentioned in the text (multilingual aliases) */
+  const cityIn = (s) => (findAllZones(String(s).toLowerCase()) || [])[0] || null;
+
+  /* resolve a visible control by how a human would call it */
+  const elByName = (nm) => {
+    try {
+      inventory();
+      nm = String(nm).trim().toLowerCase().replace(/^(the|a|an)\s+/, '');
+      if (!nm) return null;
+      const name = (el) => String(el.getAttribute('aria-label') || el.title || el.placeholder || (el.labels && el.labels[0] && el.labels[0].textContent) || el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      let hits = [];
+      for (const [r, el] of ELMAP) if (name(el) === nm) hits.push({ ref: r, el });
+      if (!hits.length) for (const [r, el] of ELMAP) { const n = name(el); if (n && n.length > 1 && (n.includes(nm) || nm.includes(n))) hits.push({ ref: r, el }); }
+      if (!hits.length) {
+        /* token overlap: how a human names a control ("the night button") */
+        const toks = nm.split(/\s+/).filter((w) => w.length > 2);
+        if (toks.length) {
+          let best = null, bestN = 0;
+          for (const [r, el] of ELMAP) {
+            const n = name(el);
+            if (!n) continue;
+            const nt = new Set(n.split(/\s+/));
+            let n2 = 0; for (const w of toks) if (nt.has(w)) n2 += 1;
+            if (n2 > bestN) { bestN = n2; best = { ref: r, el }; }
+          }
+          if (best && bestN >= Math.max(1, Math.ceil(toks.length / 2))) hits.push(best);
+        }
+      }
+      if (!hits.length) for (const [r, el] of ELMAP) if (el.id && el.id.toLowerCase().includes(nm.replace(/\s+/g, ''))) hits.push({ ref: r, el });
+      return hits[0] || null;
+    } catch { return null; }
+  };
+
+  const MATH_OPS = { plus: '+', add: '+', '+': '+', minus: '-', subtract: '-', '-': '-', times: '*', multiplied: '*', 'x': '*', '*': '*', divided: '/', divide: '/', over: '/', '/': '/' };
+  const CMPS = { greater: '>', '>': '>', more: '>', less: '<', '<': '<', fewer: '<', equal: '=', equals: '=', '=': '=', '==': '=', same: '=' };
+
+  /* the grammar: ordered, most specific first. Each matcher returns calls. */
+  const INTENTS = [
+    /* ---- timer ---- */
+    { re: /^(?:set\s+)?(?:a\s+)?timer\s*(?:for\s+)?([\d.\u4e00-\u9fff\w-]+)?\s*(?:minutes?|mins?|min|\u5206\u9418|\u5206\u949f)?$/i, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'timer', args: { minutes: n } }] : null; } },
+    { re: /^(?:set|start|make|create)\s+(?:a\s+)?(?:countdown\s+)?timer\s+(?:for\s+)?([\d.\u4e00-\u9fff\w-]+)/i, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'timer', args: { minutes: n } }] : null; } },
+    { re: /^([\d.\u4e00-\u9fff\w-]+)\s*(?:minute|min)\s+timer$/i, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'timer', args: { minutes: n } }] : null; } },
+    { re: /^(?:\u5012\u6578|\u8ba1\u65f6\u5668|\u8a08\u6642\u5668)\s*([\d\u4e00-\u9fff]+)\s*(?:\u5206\u9418|\u5206\u949f|\u5206)?$/, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'timer', args: { minutes: n } }] : null; } },
+    { re: /^(?:change|set)\s+(?:the\s+)?timer\s+(?:to|for)\s+([\d.\u4e00-\u9fff\w-]+)/i, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'timer', args: { minutes: n } }] : null; } },
+    { re: /^(?:stop|pause|hold)\s+(?:the\s+)?timer$/i, f: () => [{ tool: 'timerctl', args: { action: 'pause' } }] },
+    { re: /^(?:resume|continue|restart)\s+(?:the\s+)?timer$/i, f: () => [{ tool: 'timerctl', args: { action: 'resume' } }] },
+    { re: /^(?:reset|cancel|clear)\s+(?:the\s+)?timer$/i, f: () => [{ tool: 'timerctl', args: { action: 'reset' } }] },
+    /* ---- stopwatch ---- */
+    { re: /^(?:start|new)\s+(?:a\s+)?stopwatch$/i, f: () => [{ tool: 'stopwatch', args: { action: 'new' } }] },
+    { re: /^(?:stop|pause)\s+(?:the\s+)?stopwatch$/i, f: () => [{ tool: 'stopwatch', args: { action: 'pause' } }] },
+    { re: /^(?:resume|continue)\s+(?:the\s+)?stopwatch$/i, f: () => [{ tool: 'stopwatch', args: { action: 'resume' } }] },
+    { re: /^(?:reset|clear)\s+(?:the\s+)?stopwatch$/i, f: () => [{ tool: 'stopwatch', args: { action: 'reset' } }] },
+    { re: /^(?:\u79d2\u9336|\u79d2\u8868|\u78c1\u94c1)\s*(?:\u958b\u59cb|\u5f00\u59cb)?$/, f: () => [{ tool: 'stopwatch', args: { action: 'new' } }] },
+    /* ---- reminders ---- */
+    { re: /^(?:remind me|ping me|reminder)\s+(?:in\s+|after\s+)?([\d.\u4e00-\u9fff\w-]+)\s*(?:minutes?|mins?|min|\u5206\u9418|\u5206\u949f)?$/i, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'remind', args: { minutes: n } }] : null; } },
+    { re: /^(?:\u63d0\u9192\u6211)\s*([\d\u4e00-\u9fff]+)\s*(?:\u5206\u9418|\u5206\u949f|\u5206)?$/, f: (m) => { const n = numOrWord(m[1]); return n ? [{ tool: 'remind', args: { minutes: n } }] : null; } },
+    /* ---- zones & clock window ---- */
+    { re: /^(?:remove|delete|hide)\s+(?:the\s+)?([\s\S]+?)\s+(?:zone|clock|city)$/i, f: (m) => { const z = cityIn(m[1]); return z ? [{ tool: 'removezone', args: { city: z } }] : null; } },
+    { re: /^(?:remove|delete|hide)\s+(?!n\w+\s*$)(?:the\s+)?([A-Za-z\u00c0-\u024f\u4e00-\u9fff][\s\S]*?)\s*$/, f: (m) => { const z = cityIn(m[1]); return z ? [{ tool: 'removezone', args: { city: z } }] : null; } },
+    { re: /^(?:add\s+)?(?:the\s+)?(?:city\s+)?(?:of\s+)?([\s\S]+?)\s+(?:as\s+a\s+)?(?:zone|clock|city)$/i, f: (m, q) => /^(remove|delete|hide)/i.test(q) ? null : (() => { const z = cityIn(m[1]); return z ? [{ tool: 'zones', args: { cities: [z] } }] : null; })() },
+    { re: /^(?:zone|city|clock)\s+(?:to\s+)?([\s\S]+)$/i, f: (m) => { const z = cityIn(m[1]); if (!z) return null; const single = /single\s+window/i.test(m[1]); return [{ tool: 'zones', args: { cities: [z], ...(single ? { layout: 'single' } : {}) } }]; } },
+    /* "time zone window of Jakarta and Taipei, side by side" / "zones A, B, C in 2 by 2" / Spanish form */
+    { re: /^(?:set\s+)?(?:time\s*zones?\s+)?(?:window\s+of\s+|zones?\s+to\s+|time\s*zones?\s+to\s+|zones?\s+|zona\s+horaria(?:\s+de)?\s+|zona\s+)([\s\S]+)$/i, f: (m) => {
+      const txt = m[1];
+      const lay = /side\s*by\s*side|lado\s*a\s*lado|\u4e26\u6392|\u4e26\u5217/i.test(txt) ? 'side'
+        : /4\s*(?:x|by)\s*4/i.test(txt) ? '4x4'
+        : /2\s*(?:x|by)\s*2|quad/i.test(txt) ? '2x2' : null;
+      const zs = findAllZones(txt.toLowerCase());
+      if (!zs.length && !lay) return null;
+      return [{ tool: 'zones', args: { ...(zs.length ? { cities: zs } : {}), ...(lay ? { layout: lay } : {}) } }];
+    } },
+    { re: /^\u8996\u7a97\s*(2x2|4x4|\u4e26\u6392)?\s*\uff0c?\s*(?:.*\u6642\u5340\u8a2d\u70ba|.*\u65f6\u533a\u8bbe\u4e3a)\s*(.+)$/, f: (m) => {
+      const lay = /4x4/.test(m[1] || '') ? '4x4' : /\u4e26\u6392/.test(m[1] || '') ? 'side' : '2x2';
+      const zs = findAllZones(m[2].toLowerCase());
+      return zs.length ? [{ tool: 'zones', args: { cities: zs, layout: lay } }] : null;
+    } },
+    { re: /^(?:add|show|put|include)\s+(.+?)\s+(?:and|,)\s+(.+?)\s+(?:as\s+)?(?:zones|clocks|cities)$/i, f: (m) => { const zs = findAllZones((m[1] + ' ' + m[2]).toLowerCase()); return zs.length ? [{ tool: 'zones', args: { cities: zs } }] : null; } },
+    { re: /^(?:\u52a0|\u65b0\u589e|\u52a0\u5165)\s*(.+?)\s*(?:\u6642\u5340|\u57ce\u5e02|\u65f6\u533a)?$/, f: (m, q) => /^(\u79fb\u9664|\u522a\u9664)/.test(q) ? null : (() => { const z = cityIn(m[1]); return z ? [{ tool: 'zones', args: { cities: [z] } }] : null; })() },
+    { re: /^(?:\u6642\u5340|\u65f6\u533a|\u57ce\u5e02)\s*(.+)$/, f: (m) => {
+      const lay = /\u4e26\u6392|\u4e26\u5217/.test(m[1]) ? 'side' : /2x2|\u56db\u5bab/.test(m[1]) ? '2x2' : null;
+      const zs = findAllZones(m[1].toLowerCase());
+      return zs.length ? [{ tool: 'zones', args: { cities: zs, ...(lay ? { layout: lay } : {}) } }] : null;
+    } },
+    { re: /^(?:remove|delete|hide)\s+(?:the\s+)?([\s\S]+?)\s+(?:zone|clock|city)$/i, f: (m) => { const z = cityIn(m[1]); return z ? [{ tool: 'removezone', args: { city: z } }] : null; } },
+    { re: /^(?:single|side by side|side-by-side|side|2x2|2 by 2|quad|four|4x4|4 by 4|grid|sixteen)\s*(?:layout|view|grid)?$/i, f: (m) => { const s = m[0].toLowerCase(); const lay = /single/.test(s) ? 'single' : /side/.test(s) ? 'side' : /quad|four|2x2|2 by 2/.test(s) ? '2x2' : '4x4'; return [{ tool: 'zones', args: { layout: lay } }]; } },
+    { re: /^(?:remove|delete)\s+(?:the\s+)?(timer|stopwatch)$/i, f: (m) => [{ tool: 'removewin', args: { what: /stop/.test(m[1]) ? 'stopwatch' : 'timer' } }] },
+    { re: /^restart\s+(?:the\s+)?(timer|stopwatch)$/i, f: (m) => [{ tool: 'restartwin', args: { what: /stop/.test(m[1]) ? 'stopwatch' : 'timer' } }] },
+    /* ---- mode & theme ---- */
+    { re: /^(?:analog|analogue|pointer)\s*(?:mode|clock)?$/i, f: () => [{ tool: 'mode', args: { mode: 'analog' } }] },
+    { re: /^(?:digital|numbers?)\s*(?:mode|clock)?$/i, f: () => [{ tool: 'mode', args: { mode: 'digital' } }] },
+    { re: /^(?:\u6307\u91dd|\u6307\u9488)\s*(?:\u6a21\u5f0f)?$/, f: () => [{ tool: 'mode', args: { mode: 'analog' } }] },
+    { re: /^(?:\u6578\u5b57|\u6570\u5b57)\s*(?:\u6a21\u5f0f)?$/, f: () => [{ tool: 'mode', args: { mode: 'digital' } }] },
+    { re: /^(?:night|dark)\s*(?:mode|shift|theme)?$/i, f: () => [{ tool: 'theme', args: { mode: 'night' } }] },
+    { re: /^(?:light|day)\s*(?:mode|theme)?$/i, f: () => [{ tool: 'theme', args: { mode: 'light' } }] },
+    { re: /^make\s+it\s+(dark|light|night)$/i, f: (m) => [{ tool: 'theme', args: { mode: /light/.test(m[1]) ? 'light' : 'night' } }] },
+    { re: /too\s+bright|too\s+much\s+light|\u592a\u4eae/i, f: () => [{ tool: 'theme', args: { mode: 'night' } }] },
+    { re: /^theme$/i, f: () => (page === 'settings' ? [{ tool: 'theme', args: { mode: 'flip' } }] : null) },
+    { re: /too\s+dark|can'?t\s+see\s|\u592a\u6697/i, f: () => [{ tool: 'theme', args: { mode: 'light' } }] },
+    { re: /^(?:\u6df1\u8272|\u9ed1\u8272|\u591c\u9593|\u6697\u8272)\s*(?:\u6a21\u5f0f|\u4e3b\u984c)?$/, f: () => [{ tool: 'theme', args: { mode: 'night' } }] },
+    { re: /^(?:\u6dfa\u8272|\u767d\u8272|\u767d\u5929|\u4eae\u8272)\s*(?:\u6a21\u5f0f|\u4e3b\u984c)?$/, f: () => [{ tool: 'theme', args: { mode: 'light' } }] },
+    /* ---- navigation ---- */
+    { re: /^(?:open|go to|goto|show|show me|take me to|visit|switch to|nav(?:igate)? to)\s+(?:the\s+|my\s+)?(.+)$/i, f: (m) => { const app = findApp(m[1]); return app ? [{ tool: 'goto', args: { app } }] : null; } },
+    { re: /^(?:\u6253\u958b|\u53bb|\u524d\u5f80|\u5230)\s*(?:\u6211\u7684)?\s*(.+)$/, f: (m) => { const app = findApp(m[1]); return app ? [{ tool: 'goto', args: { app } }] : null; } },
+    { re: /^(?:back\s+to|return\s+to)\s+(?:the\s+)?(.+)$/i, f: (m) => { const app = findApp(m[1]); return app ? [{ tool: 'goto', args: { app } }] : null; } },
+    /* ---- language / timezone ---- */
+    { re: /^(?:speak|switch|change|set)\s+(?:the\s+)?(?:language|lang)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'lang', args: { name: m[1] } }] },
+    { re: /^(\u4e2d\u6587|\u82f1\u6587|\u65e5\u672c\u8a9e|\u65e5\u8bed)$/, f: (m) => [{ tool: 'lang', args: { name: m[1] } }] },
+    { re: /^(?:set|change)\s+(?:my\s+)?(?:timezone|time zone|tz)\s+to\s+(.+)$/i, f: (m) => { const z = cityIn(m[1]) || matchCity(m[1].trim()); return z ? [{ tool: 'settz', args: { city: z } }] : null; } },
+    { re: /^(?:\u6642\u5340|\u65f6\u533a)\s*(?:\u8a2d\u70ba|\u8bbe\u4e3a|\u6539\u6210)\s*(.+)$/, f: (m) => { const z = cityIn(m[1]) || matchCity(m[1].trim()); return z ? [{ tool: 'settz', args: { city: z } }] : null; } },
+    /* ---- time questions ---- */
+    { re: /^(?:what(?:'s| is)\s+the\s+time|what time is it|time(?: please)?|now)\s*(?:in\s+(.+)|at\s+(.+))?$/i, f: (m) => { const c = m[1] || m[2]; const z = c ? (cityIn(c) || matchCity(c.trim())) : null; return [{ tool: 'time', args: z ? { city: z } : {} }]; } },
+    { re: /^(?:what time is it|time)\s+in\s+(.+)$/i, f: (m) => { const z = cityIn(m[1]) || matchCity(m[1].trim()); return [{ tool: 'time', args: z ? { city: z } : {} }]; } },
+    { re: /^(?:.+?)\s*(?:\u73fe\u5728)?\s*(?:\u5e7e\u9ede|\u51e0\u70b9\u4e86)\s*(?:\u55ce|\uff1f|\?)?$/, f: (m) => { const z = cityIn(m[0]); return [{ tool: 'time', args: z ? { city: z } : {} }]; } },
+    { re: /^(.+)\s+(?:\u5e7e\u9ede|\u65f6\u95f4)$/, f: (m) => { const z = cityIn(m[1]); return [{ tool: 'time', args: z ? { city: z } : {} }]; } },
+    /* ---- map ---- */
+    { re: /^(?:show|find|locate|where is)\s+(.+?)\s+(?:on\s+(?:the\s+)?map|on a map)$/i, f: (m) => [{ tool: 'showmap', args: { city: m[1] } }] },
+    { re: /^map\s+(?:of\s+)?(.+)$/i, f: (m) => [{ tool: 'showmap', args: { city: m[1] } }] },
+    { re: /^(.+)\s*(?:\u5728\u54ea\u88e1|\u5728\u54ea\u91cc|\u5730\u5716)$/, f: (m) => [{ tool: 'showmap', args: { city: m[1].replace(/\u5730\u5716$/, '') } }] },
+    /* ---- wallet questions (before calc: "What is my balance?" is not math) ---- */
+    { re: /^(?:what(?:'s| is| are)?\s+)?(?:my\s+)?balance(?:\s+please)?\??$/i, f: () => [{ tool: 'walletbalance', args: {} }] },
+    { re: /^how\s+much\s+have\s+i\s+spent\??$/i, f: () => {
       try {
         const d = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
-        if (page === 'wallet' && d && Array.isArray(d.tx)) bits.push(`WALLET ${d.cur || ''} balance ${LIB.walBalance(d.tx)}`);
-      } catch { /* ignore */ }
-      return bits.join('\n');
-    }
-    const bits = [
-      'You are SMate, the assistive AI living inside the Singhoah web app. You operate every app for the user like a person at the browser: clicking buttons, typing into fields, picking options, navigating pages, running flows. Never refuse an in-app request — use your tools. Small talk and general questions: just answer.',
-      'Reply with exactly ONE JSON object, no markdown: a tool call like {"tool":"timer","args":{"minutes":5}} to act (you then see its RESULT and continue), or a real answer in the user language like {"say":"Timer set for 5 minutes."} to finish or to answer.',
-      'Tools: click(ref) fill(ref,value) pick(ref,option) read(ref) press(key) goto(app:clock|wallet|scribe|metro|module|settings|launch) timer(minutes) timerctl(pause|resume|reset) stopwatch(start|pause|resume|reset|new) zones(cities[],layout:single|side|2x2|4x4) removezone(city) removewin(timer|stopwatch) restartwin(timer|stopwatch) mode(analog|digital) theme(night|light) resync fullscreen showmap(city) ip lang(name) time(city) remind(minutes) calc(expr) clearchat clearclock settz(city) walletadd(type:income|expense,amount,note) walletbalance walletcurrency(code) wallettab(reports|days|cash) walletdeletelast cash(currency?) metrosys(TRTC|KS|TC|TY) metrozoom(in|out|reset) metroswap metroclear metrocard(balance) route(from,to) fare(from,to) scribefiles scribenew modadd(type,x?,y?,cfg?) modcfg(id,patch) modwire(from,to,port:a|b) modremove(id) modrun modclear modnew modfiles mathflow(a,op,b) cmpflow(a,cmp,b) logicflow(gate,a,b?) welcome printpage resetdata',
-      'Examples: "set a timer for 5 minutes" -> {"tool":"timer","args":{"minutes":5}} | "open the wallet" -> {"tool":"goto","args":{"app":"wallet"}} | "what is 25 * 4" -> {"tool":"calc","args":{"expr":"25 * 4"}} | "night shift please" -> {"tool":"theme","args":{"mode":"night"}}',
-      'Elements can be addressed by their ref (e.g. e7) or by #id from the CONTROLS list. "change X to Y" always means act: change the timer to 10 -> timer(10); change the title to Demo -> fill(ref,"Demo"); change 5 to 7 on the flow -> modcfg. Prefer purpose-built tools over raw clicks. After the actions, finish with a short {"say"}.',
-      `PAGE: ${page} LANGUAGE: ${langOf(curLang).name} NOW: ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
-    ];
-    try {
-      const d = JSON.parse(localStorage.getItem('singhoah:wallet') || 'null');
-      if (page === 'wallet' || (d && Array.isArray(d.tx) && d.tx.length)) {
-        const rows = d.tx.slice(-8).map((x) => `${x.date} ${x.type === 'in' ? '+' : '-'}${x.amt} ${x.note || ''}`);
-        bits.push(`WALLET ${d.cur || ''} balance ${LIB.walBalance(d.tx)}; recent rows: ${rows.join(' | ')}`);
+        if (d && Array.isArray(d.tx)) {
+          const spent = d.tx.filter((x) => x.type === 'out').reduce((a, x) => a + Number(x.amt || 0), 0);
+          const cur = d.cur || '';
+          return { calls: [], say: zhUI() ? `\u9019\u500b\u6708\u4f60\u5df2\u7d93\u82b1\u4e86 ${cur}${spent}\u3002` : `You have spent ${cur}${spent} so far.` };
+        }
+      } catch { /* no ledger yet */ }
+      return { calls: [{ tool: 'walletbalance', args: {} }] };
+    } },
+    /* ---- calculator ----
+       questions about fares, routes, balances or times are NOT arithmetic */
+    { re: /^(?:what(?:'s| is| are)|what does|calculate|calc|compute|how much is|evaluate|solve)\s+(.+?)\s*(?:\?|=)?$/i, f: (m) => {
+      if (/\b(fare|route|balance|ticket)\b/i.test(m[1]) || /\bfrom\b.+\bto\b/i.test(m[1])) return null;
+      return [{ tool: 'calc', args: { expr: m[1] } }];
+    } },
+    { re: /^(multiply|divide|add|subtract)\s+([\d.]+)\s+(?:by|and|from|to|into)\s+([\d.]+)$/i, f: (m) => {
+      const op = { multiply: '*', divide: '/', add: '+', subtract: '-' }[m[1].toLowerCase()];
+      if (!op) return null;
+      /* on the module canvas, arithmetic phrasing builds the real flow */
+      if (page === 'module' && globalThis.__MOD) return [{ tool: 'mathflow', args: { a: Number(m[2]), op, b: Number(m[3]) } }];
+      return [{ tool: 'calc', args: { expr: `${m[2]} ${op} ${m[3]}` } }];
+    } },
+    { re: /^([\d\s+\-*/%.(),]+)$/, f: (m) => [{ tool: 'calc', args: { expr: m[1] } }] },
+    { re: /^([\d.\u4e00-\u9fff\w-]+)\s+([\d.\u4e00-\u9fff\w-]+)?\s*(plus|minus|times|multiplied\s+by|divided\s+by|over|x)\s+([\d.\u4e00-\u9fff\w-]+)$/i, f: (m) => { const a = numOrWord(m[1]), b = numOrWord(m[4]); const op = MATH_OPS[m[3].replace(/\s+/g, ' ').trim().toLowerCase()] || MATH_OPS[m[3].toLowerCase()]; return (a != null && b != null && op) ? [{ tool: 'calc', args: { expr: `${a} ${op} ${b}` } }] : null; } },
+    { re: /^(?:\u8a08\u7b97|\u8ba1\u7b97)\s*(.+)$/, f: (m) => [{ tool: 'calc', args: { expr: m[1] } }] },
+    /* ---- wallet ---- */
+    { re: /^(?:how much money(?: do i have| have i)?|my balance|balance(?: please)?|wallet balance)$/i, f: () => [{ tool: 'walletbalance', args: {} }] },
+    { re: /^(?:i\s+)?(?:received|earned|got|made|income|deposit(?:ed)?)\s+(\d+(?:\.\d+)?)\s*(?:dollars?|nt\$?|usd)?\s*(?:for|from)?\s*(.*)$/i, f: (m) => [{ tool: 'walletadd', args: { type: 'income', amount: Number(m[1]), note: (m[2] || '').trim() } }] },
+    { re: /^(?:i\s+)?(?:spent|paid|bought|expense|withdraw(?:n)?)\s+(\d+(?:\.\d+)?)\s*(?:dollars?|nt\$?|usd)?\s*(?:on|for)?\s*(.*)$/i, f: (m) => [{ tool: 'walletadd', args: { type: 'expense', amount: Number(m[1]), note: (m[2] || '').trim() } }] },
+    { re: /^(?:add|record|log)\s+(?:an?\s+)?(income|expense|expense)\s+of\s+(\d+(?:\.\d+)?)\s*(?:for|on)\s+(.*)$/i, f: (m) => [{ tool: 'walletadd', args: { type: m[1] === 'income' ? 'income' : 'expense', amount: Number(m[2]), note: (m[3] || '').trim() } }] },
+    { re: /^(?:add|record|log)\s+(?:an?\s+)?(income|expense)\s+(\d+(?:\.\d+)?)\s*(.*)$/i, f: (m) => [{ tool: 'walletadd', args: { type: m[1], amount: Number(m[2]), note: (m[3] || '').trim() } }] },
+    { re: /^(?:add|record|log)\s+(\d+(?:\.\d+)?)\s+(?:as\s+)?(?:an?\s+)?(income|expense)\s*(?:for|on)?\s*(.*)$/i, f: (m) => [{ tool: 'walletadd', args: { type: m[2] === 'income' ? 'income' : 'expense', amount: Number(m[1]), note: (m[3] || '').trim() } }] },
+    { re: /^cash(?:\s+(?:in|as)\s+([a-z]{3}))?$/i, f: (m) => [{ tool: 'cash', args: m[1] ? { currency: m[1].toUpperCase() } : {} }] },
+    { re: /^(?:change|switch|set)\s+(?:the\s+)?currency\s+to\s+([a-z]{3})$/i, f: (m) => [{ tool: 'walletcurrency', args: { code: m[1].toUpperCase() } }] },
+    { re: /^(?:show|open)\s+(?:the\s+)?(reports?|days?|daily|cash)\s*(?:tab|view)?$/i, f: (m) => { const s = m[1].toLowerCase(); return [{ tool: 'wallettab', args: { tab: /report/.test(s) ? 'reports' : /cash/.test(s) ? 'cash' : 'days' } }]; } },
+    { re: /^(?:delete|remove|undo)\s+(?:the\s+)?last\s+(?:transaction|entry|row|expense|income)$/i, f: () => [{ tool: 'walletdeletelast', args: {} }] },
+    { re: /^cash\s+(?:drawer\s+)?(?:count\s+)?(\d+(?:\.\d+)?)$/i, f: (m) => [{ tool: 'cash', args: { balance: Number(m[1]) } }] },
+    { re: /^(?:\u8a18\u5e33|\u8bb0\u8d26|\u6536\u652f)\s*(?:\u5165\u5e33|\u5165\u8d26|\u6536\u5165)\s*([\d\u4e00-\u9fff]+)\s*(.*)$/, f: (m) => { const n = numOrWord(m[1]); return n != null ? [{ tool: 'walletadd', args: { type: 'income', amount: n, note: m[2] } }] : null; } },
+    { re: /^(?:\u8a18\u5e33|\u8bb0\u8d26|\u6536\u652f)\s*(?:\u51fa\u5e33|\u51fa\u8d26|\u652f\u51fa|\u82b1\u8cbb)\s*([\d\u4e00-\u9fff]+)\s*(.*)$/, f: (m) => { const n = numOrWord(m[1]); return n != null ? [{ tool: 'walletadd', args: { type: 'expense', amount: n, note: m[2] } }] : null; } },
+    /* ---- metro ---- */
+    { re: /^(?:what(?:'s| is)?\s+)?(?:the\s+)?fare\s+from\s+(.+?)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'fare', args: { from: m[1], to: m[2] } }] },
+    { re: /^(?:fare|price|ticket|how much)(?:\s+is)?(?:\s+the)?(?:\s+fare)?\s+from\s+(.+?)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'fare', args: { from: m[1], to: m[2] } }] },
+    { re: /^(?:route|directions?|how do i get|plan)\s*(?:a\s+route\s*)?from\s+(.+?)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'route', args: { from: m[1], to: m[2] } }] },
+    { re: /^from\s+(.+?)\s+to\s+(.+)$/, f: (m) => { const zh = /[\u4e00-\u9fff]/.test(m[1]) || /[\u4e00-\u9fff]/.test(m[2]); return (page === 'metro' || zh || /route|fare|\u6377\u904b|\u6377\u8fd0|\u5730\u9435|\u5730\u94c1/.test(m[0])) ? [{ tool: 'route', args: { from: m[1], to: m[2] } }] : null; } },
+    { re: /^(?:\u5f9e|\u4ece)\s*(.+?)\s*(?:\u5230|\u53bb)\s*(.+?)\s*(?:\u8981)?\s*(?:\u591a\u5c11\u9322?|\u591a\u5c11\u94b1?|\u7968\u50f9\u591a\u5c11?|\u7968\u4ef7\u591a\u5c11?|\u7968\u50f9|\u7968\u4ef7)$/, f: (m) => [{ tool: (page === 'metro' ? 'route' : 'fare'), args: { from: m[1], to: m[2] } }] },
+    { re: /^(?:\u5f9e|\u4ece)\s*(.+?)\s*(?:\u5230|\u53bb|\u5230)\s*(.+?)(?:\u600e\u9ebc\u8d70|\u600e\u4e48\u8d70|\u8981\u591a\u4e45|\u8981\u591a\u4e45|\u591a\u5c11\u9322|\u591a\u5c11\u94b1)?$/, f: (m) => [{ tool: 'route', args: { from: m[1], to: m[2] } }] },
+{ re: /^(.+?)\s*\u5230\s*(.+?)\s*(?:\u7684)?\s*(?:\u7968\u50f9|\u7968\u4ef7|\u8981\u591a\u5c11\u9322|\u591a\u5c11\u9322)\s*(?:\u591a\u5c11)?\s*[\uff1f?]?$\s*/, f: (m) => [{ tool: (page === 'metro' ? 'route' : 'fare'), args: { from: m[1], to: m[2] } }] },
+    { re: /^(?:show|switch|use)\s+(?:the\s+)?(?:taipei|trtc|kaohsiung|ks|taichung|tc|taoyuan|ty)\s*(?:metro|system|mrt)?$/i, f: (m) => { const s = m[0].toLowerCase(); const sys = /kaohsiung|ks/.test(s) ? 'KS' : /taichung|tc/.test(s) ? 'TC' : /taoyuan|ty/.test(s) ? 'TY' : 'TRTC'; return [{ tool: 'metrosys', args: { sys } }]; } },
+    { re: /^(?:\u53f0\u5317|\u53f0\u4e2d|\u53f0\u5357|\u9ad8\u96c4|\u6843\u5712)\s*(?:\u6377\u904b|\u6377\u8fd0)$/, f: (m) => { const sys = /\u53f0\u4e2d/.test(m[0]) ? 'TC' : /\u9ad8\u96c4/.test(m[0]) ? 'KS' : /\u6843\u5712/.test(m[0]) ? 'TY' : 'TRTC'; return [{ tool: 'metrosys', args: { sys } }]; } },
+    { re: /^zoom\s+(in|out|reset)$/i, f: (m) => [{ tool: 'metrozoom', args: { dir: m[1].toLowerCase() } }] },
+    { re: /^(?:swap|reverse)(?:\s+(?:the\s+)?(?:route|direction|stations?))?$/i, f: () => (page === 'metro' ? [{ tool: 'metroswap', args: {} }] : null) },
+    { re: /^(?:clear|empty)\s+(?:the\s+)?(?:everything|all|document|doc|note)$/i, f: () => [{ tool: (page === 'scribe' ? 'click' : page === 'module' ? 'modclear' : 'clearclock'), args: page === 'scribe' ? { id: 'scrClear' } : {} }] },
+    { re: /^(?:clear|empty)$/i, f: () => (page === 'scribe' ? [{ tool: 'click', args: { id: 'scrClear' } }] : null) },
+    { re: /^undo$/i, f: () => (page === 'scribe' ? [{ tool: 'click', args: { id: 'scrUndo' } }] : null) },
+    { re: /^redo$/i, f: () => (page === 'scribe' ? [{ tool: 'click', args: { id: 'scrRedo' } }] : null) },
+    { re: /^\u5168\u90e8\u6e05\u9664$|^\u6e05\u9664\u5168\u90e8$|^\u6e05\u9664$/, f: () => [{ tool: (page === 'module' ? 'modclear' : 'clearclock'), args: {} }] },
+    { re: /^clear\s+(?:the\s+)?route$/i, f: () => [{ tool: 'metroclear', args: {} }] },
+    { re: /^(?:metro\s+)?card\s+(?:balance\s*)?(\d+(?:\.\d+)?)$/i, f: (m) => [{ tool: 'metrocard', args: { balance: m[1] } }] },
+    /* ---- scribe ---- */
+    { re: /^(?:new|create|start)\s+(?:a\s+)?(?:note|document|doc|file|writing)$/i, f: () => [{ tool: 'scribenew', args: {} }] },
+    { re: /^(?:show|list|open)\s+(?:my\s+)?(?:files|notes|documents|docs)$/i, f: () => [{ tool: 'scribefiles', args: {} }] },
+    { re: /^(?:\u65b0\u589e|\u5efa\u7acb)\s*(?:\u7b46\u8a18|\u7b14\u8bb0|\u6587\u4ef6|\u6587\u7ae0)$/, f: () => [{ tool: 'scribenew', args: {} }] },
+    { re: /^(?:\u6211\u7684)?\s*(?:\u6a94\u6848|\u6587\u4ef6|\u7b46\u8a18)$/, f: () => [{ tool: 'scribefiles', args: {} }] },
+    /* ---- module / flows ---- */
+    { re: /^(?:add|create|new)\s+(?:an?\s+)?(number|text|boolean|operator|comparator|io|code)\s*(?:node|block|box)?$/i, f: (m) => [{ tool: 'modadd', args: { type: m[1].toLowerCase() } }] },
+    { re: /^add\s+a\s+number\s+(\d+)(?:\s+base\s+(\d+))?$/i, f: (m) => {
+      const cfg = { numtype: 'int', base: 10, value: m[1] };
+      if (m[2]) { cfg.base = Number(m[2]); cfg.value = Number(m[1]).toString(Number(m[2])); }
+      return [{ tool: 'modadd', args: { type: 'number', cfg } }];
+    } },
+    { re: /^(?:add|create)\s+(?:an?\s+)?(number|text|boolean)\s*(?:node|block)?\s+(?:with\s+(?:value|text)\s+)?(.+)$/i, f: (m) => { const v = m[2].replace(/^["']|["']$/g, ''); const cfg = m[1].toLowerCase() === 'number' ? { value: numOrWord(v) ?? v } : m[1].toLowerCase() === 'boolean' ? { val: /^(true|on|1|yes)$/i.test(v) } : { text: v }; return [{ tool: 'modadd', args: { type: m[1].toLowerCase(), cfg } }]; } },
+    { re: /^(?:set|change)\s+(n\w+)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'modcfg', args: { id: m[1], patch: { value: numOrWord(m[2]) ?? m[2].replace(/^["']|["']$/g, '') } } }] },
+    { re: /^wire\s+(n\w+)\s+to\s+(n\w+)(?:\s+port\s+([ab]))?$/i, f: (m) => [{ tool: 'modwire', args: { from: m[1], to: m[2], port: (m[3] || 'a').toLowerCase() } }] },
+    { re: /^(?:remove|delete)\s+(n\w+)$/i, f: (m) => [{ tool: 'modremove', args: { id: m[1] } }] },
+    { re: /^(?:run|execute|start)\s+(?:the\s+)?flow$/i, f: () => [{ tool: 'modrun', args: {} }] },
+    { re: /^run$/i, f: () => (page === 'module' ? [{ tool: 'modrun', args: {} }] : null) },
+    { re: /^(?:clear|empty)\s+(?:the\s+)?(?:flow|canvas)$/i, f: () => [{ tool: 'modclear', args: {} }] },
+    { re: /^(?:new|blank)\s+(?:flow|module)$/i, f: () => [{ tool: 'modnew', args: {} }] },
+    { re: /^(?:show|list|open)\s+(?:my\s+)?(?:flows?|module files)$/i, f: () => [{ tool: 'modfiles', args: {} }] },
+    { re: /^(?:build|make|create)\s+(?:a\s+)?flow\s+(?:that\s+)?(?:adds?|plus|subtracts?|minus|multiplies?|times|divides?)\s+([\d.\u4e00-\u9fff\w-]+)\s+(?:and|by)\s+([\d.\u4e00-\u9fff\w-]+)/i, f: (m) => { const a = numOrWord(m[1]), b = numOrWord(m[2]); const op = /subtract|minus/i.test(m[0]) ? '-' : /multipl|times/i.test(m[0]) ? '*' : /divid/i.test(m[0]) ? '/' : '+'; return (a != null && b != null) ? [{ tool: 'mathflow', args: { a, op, b } }] : null; } },
+    { re: /^(?:build|make|create)\s+(?:a\s+)?flow\s+(?:that\s+)?(?:checks?|compares?|is)\s+([\d.\u4e00-\u9fff\w-]+)\s+(greater|less|equal(?:s)?)\s+(?:than\s+|to\s+)?([\d.\u4e00-\u9fff\w-]+)/i, f: (m) => { const a = numOrWord(m[1]), b = numOrWord(m[4]); const cmp = CMPS[m[2].toLowerCase()]; return (a != null && b != null && cmp) ? [{ tool: 'cmpflow', args: { a, cmp, b } }] : null; } },
+    { re: /^(?:is|are)\s+([\d.\u4e00-\u9fff\w-]+)\s+(greater|less|equal(?:s)?|more|fewer|same(?:\s+as)?)\s*(?:than\s+|to\s+|as\s+)?([\d.\u4e00-\u9fff\w-]+)/i, f: (m) => { const a = numOrWord(m[1]), b = numOrWord(m[3]); const cmp = CMPS[m[2].toLowerCase().split(' ')[0]]; return (a != null && b != null && cmp) ? [{ tool: 'cmpflow', args: { a, cmp, b } }] : null; } },
+    { re: /^(?:build|make|create)\s+(?:a\s+)?(?:logic\s+)?flow\s+(?:that\s+)?(?:does\s+)?(?:an?\s+)?(and|or|not|xor|nand|nor)\s+(?:of\s+)?(true|false|on|off|1|0)?\s*(?:and|with)?\s*(true|false|on|off|1|0)?$/i, f: (m) => { const gate = m[1].toLowerCase(); const bv = (x) => x == null ? null : /^(true|on|1)$/i.test(x); return [{ tool: 'logicflow', args: { gate, a: bv(m[2]) ?? true, b: bv(m[3]) ?? true } }]; } },
+    { re: /^add\s+(?:a|an)\s+logic\s+(and|or|not|xor|nand|nor)$/i, f: (m) => [{ tool: 'logicflow', args: { gate: m[1].toLowerCase(), a: true, b: true } }] },
+    { re: /^(true|false|on|off)\s+(and|or|xor)\s+(true|false|on|off)$/i, f: (m) => [{ tool: 'logicflow', args: { gate: m[2].toLowerCase(), a: /^(true|on)$/i.test(m[1]), b: /^(true|on)$/i.test(m[3]) } }] },
+    { re: /^add\s+an?\s+operator\s+([^\s]+)$/i, f: (m) => { const oid = OPID[m[1].toLowerCase()]; return oid ? [{ tool: 'modadd', args: { type: 'operator', cfg: { op: oid } } }] : null; } },
+    { re: /^add\s+an?\s+comparator\s*(>=|<=|==|!=|>|<|=|\u2265|\u2264|\u2260)?\s*$/i, f: (m) => { const cid2 = CMPID[(m[1] || '>').toLowerCase()]; return cid2 ? [{ tool: 'modadd', args: { type: 'comparator', cfg: { cmp: cid2 } } }] : null; } },
+    { re: /^compare\s+(-?[\d.]+)\s+(?:and|to|with)\s+(-?[\d.]+)(?:\s*,?\s*which\s+is\s+(?:greater\s+or\s+equal|less\s+or\s+equal|greater|less|equal))?\s*$/i, f: (m, q2) => {
+      let cmp = '=';
+      if (/greater\s+or\s+equal/i.test(q2)) cmp = '>='; else if (/less\s+or\s+equal/i.test(q2)) cmp = '<=';
+      else if (/greater/i.test(q2) && !/or\s+equal/i.test(q2)) cmp = '>';
+      else if (/\bless\b/i.test(q2) && !/or\s+equal/i.test(q2)) cmp = '<';
+      return [{ tool: 'cmpflow', args: { a: m[1], b: m[2], cmp } }];
+    } },
+
+    /* ---- generic device / app actions ---- */
+    { re: /^(?:go\s+)?fullscreen$/i, f: () => [{ tool: 'fullscreen', args: {} }] },
+    { re: /^resync$/i, f: () => [{ tool: 'resync', args: {} }] },
+    { re: /^(?:welcome|show welcome)$/i, f: () => [{ tool: 'welcome', args: {} }] },
+    { re: /^(?:print|print this page)$/i, f: () => [{ tool: 'printpage', args: {} }] },
+    { re: /^(?:reset|wipe|clear)\s+(?:my\s+)?(?:data|everything)$/i, f: () => [{ tool: 'resetdata', args: {} }] },
+    { re: /^(?:what|which)\s+(?:is\s+)?my\s+ip\b.*$/i, f: () => [{ tool: 'ip', args: {} }] },
+    { re: /^clear\s+(?:the\s+)?chat(?:history)?$/i, f: () => [{ tool: 'clearchat', args: {} }] },
+    { re: /^(?:clear|reset)\s+(?:the\s+)?clock(?:\s+window)?$/i, f: () => [{ tool: 'clearclock', args: {} }] },
+    /* ---- generic UI actions: any visible control by name ---- */
+    { re: /^(?:click|press|tap|hit|toggle)\s+(?:the\s+|a\s+)?(.+)$/i, f: (m) => { const el = elByName(m[1]); return el ? [{ tool: 'click', args: { ref: el.ref } }] : null; } },
+    { re: /^(?:\u9ede|\u70b9|\u6309)\s*(?:\u4e00\u4e0b)?\s*(.+)$/, f: (m) => { const el = elByName(m[1]); return el ? [{ tool: 'click', args: { ref: el.ref } }] : null; } },
+    { re: /^(?:type|write|enter|fill|set|input)\s+(?:the\s+)?(.+?)\s+(?:to|as|with|=|:)\s+(.+)$/i, f: (m) => { const el = elByName(m[1]); return el ? [{ tool: 'fill', args: { ref: el.ref, value: m[2].replace(/^["']|["']$/g, '') } }] : null; } },
+    { re: /^(?:type|write)\s+(.+?)\s+(?:into|in|in the|into the)\s+(?:the\s+)?(.+)$/i, f: (m) => { const el = elByName(m[2]); return el ? [{ tool: 'fill', args: { ref: el.ref, value: m[1].replace(/^["']|["']$/g, '') } }] : null; } },
+    { re: /^(?:\u8f38\u5165|\u8f93\u5165)\s*(.+?)\s*(?:\u5230|\u9032\u5165)?\s*(.+)$/, f: (m) => { const el = elByName(m[2]); return el ? [{ tool: 'fill', args: { ref: el.ref, value: m[1] } }] : null; } },
+    { re: /^(?:pick|choose|select)\s+(.+?)\s+(?:in|from|on)\s+(?:the\s+)?(.+)$/i, f: (m) => { const el = elByName(m[2]); return el ? [{ tool: 'pick', args: { ref: el.ref, option: m[1] } }] : null; } },
+    { re: /^(?:pick|choose|select)\s+(.+)$/i, f: (m) => { const el = elByName(m[1]); return el ? [{ tool: 'pick', args: { ref: el.ref } }] : null; } },
+    { re: /^(?:read|what does|what's on|check)\s+(?:the\s+)?(.+?)(?:\s+say)?\s*(?:\?|field|box|value)?$/i, f: (m) => { const el = elByName(m[1]); return el ? [{ tool: 'read', args: { ref: el.ref } }] : null; } },
+    { re: /^press\s+(enter|tab|escape|esc|space|delete|backspace|arrow(?:\s+up|down|left|right)?)$/i, f: (m) => [{ tool: 'press', args: { key: m[1] } }] },
+    /* ---- the crown jewel: "change X to Y" resolves by context ---- */
+    { re: /^(?:change|make|set)\s+(?:the\s+)?(.+?)\s+(?:to|into)\s+(.+)$/i, f: (m, raw) => {
+      const tgt = m[1].toLowerCase();
+      const val = m[2].replace(/^["']|["']$/g, '');
+      if (/timer|countdown/.test(tgt)) { const n = numOrWord(val); return n ? [{ tool: 'timer', args: { minutes: n } }] : null; }
+      if (/title|name/.test(tgt)) {
+        if (page === 'module' && $('modTitle')) return [{ tool: 'fill', args: { id: 'modTitle', value: val } }];
+        const el = elByName('title') || elByName('name');
+        return el ? [{ tool: 'fill', args: { ref: el.ref, value: val } }] : null;
       }
-    } catch { /* ignore */ }
-    if (page === 'module' && globalThis.__MOD) {
-      try {
-        const M = globalThis.__MOD;
-        const ns = M.nodes();
-        const desc = ns.slice(0, 12).map((n) => {
-          const c = n.cfg || {};
-          const v = c.value != null ? '=' + c.value : c.op ? c.op : c.cmp ? c.cmp : c.gate ? c.gate : c.val ? '=' + c.val : c.numtype ? c.numtype : '';
-          return `${n.id} ${n.type}${v ? ' ' + v : ''}`;
-        }).join('; ');
-        bits.push(`FLOW "${$('modTitle') ? $('modTitle').value : ''}": ${ns.length} nodes${desc ? ' — ' + desc : ''}, ${M.wires().length} wires`);
-      } catch { /* ignore */ }
-    }
-    if (page === 'metro' && globalThis.__METRO) bits.push(`METRO system: ${globalThis.__METRO.sys}`);
-    bits.push('CONTROLS:\n' + inventory());
-    return bits.join('\n');
-  }
-
-  /* one JSON object out of a model reply — even if wrapped in prose */
-  function extractJson(str) {
-    if (!str) return null;
-    const i = str.indexOf('{');
-    if (i < 0) return null;
-    let depth = 0, inStr = false, esc = false;
-    for (let k = i; k < str.length; k++) {
-      const c = str[k];
-      if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
-      if (c === '"') inStr = true;
-      else if (c === '{') depth++;
-      else if (c === '}') { depth--; if (!depth) { try { return JSON.parse(str.slice(i, k + 1)); } catch { return null; } } }
-    }
-    return null;
-  }
-
-  /* the agent loop: ask the model, run its tool, show it the result, repeat —
-     until it says the answer. Navigation ends the turn (the page leaves) */
-  async function agent(raw) {
-    setStatusText('AI …');
-    const hist = [];
-    let lastResult = '';
-    let scolded = false;
-    let lastRaw = '';
-    const seed = aiCpu ? CPU_FEWSHOT : [];   /* the tiny brain needs to see the pattern */
-    for (let round = 0; round < 6; round++) {
-      let r = '';
-      try {
-        r = await Promise.race([
-          askEngine([{ role: 'system', content: agentSys() }, ...seed, { role: 'user', content: raw }, ...hist]),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('smate-ai-slow')), AI_TIMEOUT)),
-        ]);
-      } catch { return null; }
-      lastRaw = String(r || '');
-      let j = extractJson(r);
-      /* the tiny CPU model swaps arg keys between tools: goto with {expr}
-         means calc, timer with {app} means goto — repair by the args given.
-         Larger models get it right; leave their calls untouched */
-      const TOOL_ARG_KEYS = { timer: 'minutes', remind: 'minutes', calc: 'expr', goto: 'app', theme: 'mode', zones: 'cities' };
-      if (aiCpu && j && j.tool && TOOL_ARG_KEYS[j.tool] && j.args && typeof j.args === 'object' && !Array.isArray(j.args)) {
-        const want = TOOL_ARG_KEYS[j.tool];
-        if (j.args[want] == null || j.args[want] === '') {
-          for (const [tn, key] of Object.entries(TOOL_ARG_KEYS)) {
-            if (key !== want && j.args[key] != null && j.args[key] !== '') { j = { tool: tn, args: j.args }; break; }
+      if (/^\d+(\.\d+)?$/.test(val)) {
+        /* a number target on the module canvas: find the node holding this value */
+        if (page === 'module' && globalThis.__MOD) {
+          const M = globalThis.__MOD;
+          const num = numOrWord(tgt);
+          if (num != null) {
+            const f2 = M.nodes().find((n) => n.cfg && String(n.cfg.value) === String(num));
+            if (f2) return [{ tool: 'modcfg', args: { id: f2.id, patch: { value: String(numOrWord(val)) } } }, { tool: 'modrun', args: {} }];
           }
+          const el = elByName(tgt);
+          if (el) return [{ tool: 'fill', args: { ref: el.ref, value: val } }];
         }
       }
-      /* a model saying {"tool":"wallet"} means "open the wallet" — app names
-         are destinations, so read them as goto */
-      if (j && j.tool && !TOOLS[j.tool]) {
-        const tn = String(j.tool).trim().toLowerCase();
-        if (['clock', 'wallet', 'scribe', 'metro', 'module', 'settings', 'launch'].includes(tn)) j = { tool: 'goto', args: { app: tn } };
-      }
-      if (j && typeof j === 'object' && !Array.isArray(j)) {
-        if (j.say != null) {
-          /* a leading <...> tag is a parroted prompt placeholder ("<text>"),
-             never a real answer — strip it; if nothing real remains, treat
-             the reply as invalid and let the nudge/fallback paths handle it */
-          let s = String(j.say).trim().replace(/^<[^>]*>\s*/, '').trim();
-          if (s && s.toLowerCase() !== String(raw || '').trim().toLowerCase()) {
-            /* the tiny model can garble digits when paraphrasing: if the
-               answer carries a clock time that differs from the tool's
-               RESULT time, the RESULT is the truth — swap it in */
-            const rt = (lastResult.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
-            const st = (s.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
-            if (rt && st && rt !== st) s = s.replace(st, rt);
-            return s;
-          }
-        }
-        const fn = j.tool && TOOLS[j.tool];
-        if (fn) {
-          hist.push({ role: 'assistant', content: JSON.stringify({ tool: j.tool, args: j.args || {} }) });
-          let res;
-          try { res = await fn(j.args || {}); } catch { res = 'error'; }
-          if (res && typeof res === 'object' && res.nav) return res.say;
-          lastResult = String(res).slice(0, 220);
-          hist.push({ role: 'user', content: 'RESULT: ' + lastResult });
-          while (hist.length > 6) hist.splice(0, 2);
-          continue;
-        }
-      }
-      if (scolded || round >= 5) {
-        const p2 = (lastRaw || '').trim();
-        if (aiCpu && p2 && p2.length <= 240 && !p2.includes('{')) return p2;
-        return null;
-      }
-      scolded = true;
-      hist.push({ role: 'assistant', content: String(r).slice(0, 160) },
-        { role: 'user', content: 'Invalid reply. Valid tools: ' + (aiCpu ? 'timer calc goto theme zones remind time walletbalance' : 'the tools in the list') + '. Reply with ONE JSON object only: a tool call, or your real answer in "say".' });
-    }
-    const p3 = (lastRaw || '').trim();
-    if (aiCpu && p3 && p3.length <= 240 && !p3.includes('{')) return p3;
-    return null;
-  }
+      const el = elByName(tgt);
+      return el ? [{ tool: 'fill', args: { ref: el.ref, value: val } }] : null;
+    } },
+  ];
 
-  /* one silent recovery attempt before admitting the engine is down: the
-     failure may have been a blip — a dropped download, a flaky moment. If
-     the network recovered the user simply gets a working assistant; if not,
-     the honest message. No reload, no toggling, no questions */
-  const recover = async (raw) => {
-    aiInit();
-    const t0 = Date.now();
-    while (aiState === 'loading' && Date.now() - t0 < 90000) await new Promise((r) => setTimeout(r, 250));
-    if (aiPref === 'off') return t(curLang, 'smateAIOff');
-    if (aiState === 'on' && aiEngine) return await agent(raw);
-    if (aiState === 'err') return t(curLang, 'aiNoGpu');
-    return t(curLang, 'smateAIWait');
+  /* small talk + capability card, in the app's language where we have it */
+  const zhUI = () => /^zh/i.test(langOf(curLang).locale);
+  const CHAT = {
+    hi: () => zhUI() ? '\u4f60\u597d\uff01\u6211\u662f SMate\uff0c\u968f\u6642\u5e6b\u4f60\u64cd\u4f5c\u9019\u500b\u7db2\u7ad9\u3002' : 'Hello! I am SMate — I can run anything on this site for you.',
+    hello: () => CHAT.hi(),
+    hey: () => CHAT.hi(),
+    thanks: () => zhUI() ? '\u4e0d\u5ba2\u6c23\uff01' : 'You are welcome!',
+    'thank you': () => CHAT.thanks(),
+    bye: () => zhUI() ? '\u518d\u898b\uff01' : 'See you!',
+    'why is the sky blue': () => 'The sky looks blue because air scatters short blue wavelengths of sunlight far more than red \u2014 Rayleigh scattering.',
+    'hey smate': () => 'I can drive the whole Singhoah app for you \u2014 timers, windows, the wallet, metro fares, module flows, Scribe notes and settings.',
+    'smate': () => CHAT['hey smate'](),
   };
+  const SUGGEST_POOL = ['timer 5', 'stop the timer', 'start a stopwatch', 'remind me in 10 minutes', 'what time is it in Singapore', 'zone tokyo', '2x2 layout', 'remove the london zone', 'night shift', 'make it light', 'analog mode', 'map jakarta', 'open the wallet', 'how much money do I have', 'I spent 120 on lunch', 'currency USD', 'show the cash tab', 'delete the last transaction', 'fare from Taipei Main Station to Ximen', 'route from Ximen to Chiang Kai-shek Memorial Hall', 'zoom in', 'new note', 'show my files', 'add a number node', 'wire n1 to n2', 'set n1 to 7', 'run the flow', 'clear the flow', 'what is 25 * 4', "what's 15% of 80", 'change the timer to 10', 'change the title to Demo', 'set the language to Japanese', 'set my timezone to Tokyo', 'fullscreen', 'print', 'clear the chat'];
+
+  /* the interpreter: text -> tool calls (or a spoken answer). Deterministic,
+     instant, and honest about what it does not understand */
+  function interpret(raw) {
+    let q = String(raw || '').trim().replace(/\u3000/g, ' ');
+    q = q.replace(/[?!.\uff1f\uff01\u3002]+$/g, '').trim();
+    if (!q) return null;
+    const lower = q.toLowerCase();
+    /* chat + capability card first (exact small talk) */
+    const chat = CHAT[lower];
+    if (chat) return { calls: [], say: chat() };
+    if (/^(?:what can you do|help|commands|\u5e6b\u52a9|\u5e2e\u52a9|\u4f60\u6703\u4ec0\u9ebc|\u4f60\u4f1a\u4ec0\u4e48)/i.test(q)) {
+      return { calls: [], say: (zhUI() ? '\u6211\u80fd\u66ff\u4f60\u64cd\u4f5c\u6574\u500b\u7db2\u7ad9\uff1a' : 'I can run the whole site for you: ') + SUGGEST_POOL.slice(0, 12).join(' \u00b7 ') };
+    }
+    for (const it of INTENTS) {
+      const m = q.match(it.re);
+      if (m) {
+        const out = it.f(m, q);
+        if (out) {
+          const calls = Array.isArray(out) ? out : (out.calls || []);
+          if (calls.length || out.say != null) return { calls, say: Array.isArray(out) ? undefined : out.say };
+        }
+      }
+    }
+    /* multi-step: "then" / "and then" / "and" — only when the whole phrase
+       matches nothing, and only when EVERY half is a real intent */
+    const splits = [/\s+and\s+then\s+/i, /\s+then\s+/i, /\s+and\s+/i, /\s*,\s*/];
+    for (const sp of splits) {
+      const parts = q.split(sp).filter(Boolean).map((p) => p.replace(/^and\s+/i, '').trim()).filter(Boolean);
+      if (parts.length < 2) continue;
+      const ivs = parts.map((p) => interpret(p));
+      if (ivs.every((iv) => iv && iv.calls && iv.calls.length)) {
+        const calls = [];
+        for (const iv of ivs) { calls.push(...iv.calls); }
+        return { calls };
+      }
+    }
+    return interpretFallback(q);
+  }
+  try { globalThis.__SMATE_INTERPRET = interpret; } catch { /* diagnostics hook */ }
+  function interpretFallback(q) {
+    /* honest refusal + the closest commands we know, by word overlap */
+    const toks = new Set(q.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
+    const scored = SUGGEST_POOL.map((s) => {
+      const st = new Set(s.toLowerCase().split(/\s+/));
+      let n = 0; for (const w of toks) if (st.has(w)) n += 1;
+      return { s, n };
+    }).sort((a, b) => b.n - a.n).slice(0, 3).filter((x) => x.n > 0);
+    const loc = langOf(curLang).locale;
+    const head = zhUI() ? '\u9019\u500b\u6211\u9084\u807d\u4e0d\u61c2\u3002\u4f60\u53ef\u4ee5\u8a66\u8a66\uff1a' : /^en/i.test(loc) ? "I didn't catch that. Try:" : t(curLang, 'smateUnknown') + ' ';
+    const sug = (scored.length ? scored.map((x) => x.s) : ['timer 5', 'open the wallet', 'what time is it in Singapore']).join(' \u00b7 ');
+    return { calls: [], say: `${head} ${sug}` };
+  }
 
   /* WhatsApp-style flow: my line -> typing dots + status -> answer */
   function handle(raw) {
@@ -1291,23 +1506,19 @@
     setTimeout(async () => {
       let out = null;
       try {
-        if (aiPref === 'off') {
-          out = t(curLang, 'smateAIOff');
-        } else if (aiState === 'on' && aiEngine) {
-          out = await agent(LIB.brandFix ? LIB.brandFix(raw) : raw);
-        } else if (aiState === 'err') {
-          out = await recover(raw);
-        } else {
-          /* the arrival preload is already on its way — GPU or CPU, every
-             browser gets an engine. Join the wait; answer honestly if it
-             never arrives */
-          aiInit();
-          const t0 = Date.now();
-          while (aiState === 'loading' && Date.now() - t0 < 90000) await new Promise((r) => setTimeout(r, 250));   /* a first model download is big — hold the question */
-          if (aiPref === 'off') out = t(curLang, 'smateAIOff');
-          else if (aiState === 'on' && aiEngine) out = await agent(raw);
-          else if (aiState === 'err') out = await recover(raw);
-          else out = t(curLang, 'smateAIWait');
+        /* the interpreter is instant: parse, act, answer — in this tick */
+        /* case-preserving brand fixes: user capitalisation must survive into fill values */
+        const fixed = LIB.brandFix ? LIB.brandFix(raw, true) : raw;
+        const iv = interpret(fixed);
+        if (iv) {
+          let last = '';
+          for (const c of iv.calls) {
+            let r;
+            try { r = await TOOLS[c.tool](c.args || {}); } catch { r = 'error'; }
+            if (r && typeof r === 'object' && r.nav) { last = r.say; break; }   /* navigation ends the turn */
+            if (typeof r === 'string' && r) last = r;
+          }
+          out = (iv.say != null && iv.say !== '') ? iv.say : (last || null);
         }
       } catch { out = null; }
       if (dots.isConnected) dots.remove();
@@ -1370,163 +1581,16 @@
      brain: every request goes to the model, which sees the live page context
      and answers through tools. Turning the chip off pauses the assistant
      until it is turned back on. --------- */  const aiBtn = $('smateAI');
-  let aiEngine = null, aiState = 'off'; /* off | loading | on | err */
-  /* the browser's module map caches a FAILED import: a plain retry of the
-     same URL fails instantly without ever touching the network, so a blip
-     at arrival would be unrecoverable until reload. Retry attempts append
-     a fresh query string — the module map sees a new URL and re-fetches.
-     The first load stays un-busted so normal browser caching applies */
-  let aiLoadTry = 0;
-  const esmUrl = (pkg) => 'https://esm.run/' + pkg + (aiLoadTry > 1 ? '?retry=' + aiLoadTry : '');
-  let aiCpu = false;   /* the WASM engine: small model, slim prompt */
-  /* few-shot dialogue for the tiny CPU brain: it follows what it sees */
-  const CPU_FEWSHOT = [
-    { role: 'user', content: 'open the metro' },
-    { role: 'assistant', content: '{"tool":"goto","args":{"app":"metro"}}' },
-    { role: 'user', content: 'RESULT: going to metro' },
-    { role: 'assistant', content: '{"say":"Opening the metro."}' },
-    { role: 'user', content: 'what is 12 * 3' },
-    { role: 'assistant', content: '{"tool":"calc","args":{"expr":"12 * 3"}}' },
-    { role: 'user', content: 'RESULT: 36' },
-    { role: 'assistant', content: '{"say":"36"}' },
-    { role: 'user', content: 'what time is it in tokyo' },
-    { role: 'assistant', content: '{"tool":"time","args":{"city":"Tokyo"}}' },
-    { role: 'user', content: 'RESULT: It is 09:30 in Tokyo.' },
-    { role: 'assistant', content: '{"say":"It is 09:30 in Tokyo."}' },
-    { role: 'user', content: 'timer 8' },
-    { role: 'assistant', content: '{"tool":"timer","args":{"minutes":8}}' },
-    { role: 'user', content: 'RESULT: Timer · 8 minutes' },
-    { role: 'assistant', content: '{"say":"Timer set for 8 minutes."}' },
-    { role: 'user', content: 'set a timer for 3 minutes' },
-    { role: 'assistant', content: '{"tool":"timer","args":{"minutes":3}}' },
-    { role: 'user', content: 'RESULT: Timer · 3 minutes' },
-    { role: 'assistant', content: '{"say":"Timer set for 3 minutes."}' },
-  ];
-
-
-  /* arrive-and-ready: the model starts loading the moment the site opens,
-     so the first fuzzy message already meets a warm brain. Until it is up,
-     the instant offline interpreter answers — nobody is ever told the AI
-     is "waking up". Turning the chip off goes back to interpreter-only
-     and stays off across visits. */
-  let aiPref = 'on';
-  try { if (localStorage.getItem('singhoah:smateAI') === 'off') aiPref = 'off'; } catch { /* ignore */ }
-  const AI_TIMEOUT = Number(globalThis.__SMATE_AI_TIMEOUT || 30000);
-  const AI_MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1', 'SmolLM2-360M-Instruct-q4f16_1', 'Qwen2.5-0.5B-Instruct-q4f32_1'];
-  /* no WebGPU? the same agent loop runs on the CPU through Transformers.js
-     (WASM, int8). The model is deliberately tiny: a 135M brain fits even a
-     2GB machine, where a 360M+ one would take the whole tab down */
-  const WASM_MODELS = ['HuggingFaceTB/SmolLM2-135M-Instruct'];
-  const aiUI = () => {
-    aiBtn.setAttribute('aria-pressed', String(aiPref === 'on'));
-    aiBtn.classList.toggle('loading', aiState === 'loading');
-    aiBtn.classList.toggle('err', aiState === 'err');
-  };
-  aiUI();                        /* default-ON chip reflects the pref immediately */
-  /* the preload: the model starts loading at page arrival — no tap, no
-     "Loading" gate. WebGPU machines get web-llm; every other browser gets
-     the CPU engine. Either way the assistant works */
-  if (aiPref === 'on') aiInit();
-
-  /* the CPU engine: Transformers.js, WASM backend, int8 quantized. It speaks
-     the same chat.completions protocol as web-llm, so the agent loop never
-     knows the difference. Runs when there is no WebGPU — and as the fallback
-     when a WebGPU machine's own load fails */
-  async function loadCpuEngine() {
-    const tmod = await import(esmUrl('@huggingface/transformers@3'));
-    try { tmod.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1; } catch { /* older builds: default */ }
-    aiCpu = true;
-    const prog = (p) => {
-      const st = $('smateStatus');
-      if (st && aiState === 'loading' && p && p.status === 'progress') st.textContent = `AI ${Math.round((p.progress || 0) * 100)}%`;
-    };
-    let lastErr = null;
-    for (const id of WASM_MODELS) {
-      try {
-        const pipe = await tmod.pipeline('text-generation', id, { dtype: 'q8', device: 'wasm', progress_callback: prog });
-        return { chat: { completions: { async create({ messages, max_tokens }) {
-          const out = await pipe(messages, { max_new_tokens: Math.min(max_tokens ?? 220, 90), do_sample: false, return_full_text: false });
-          const g = out && out[0] && out[0].generated_text;
-          const text = typeof g === 'string' ? g
-            : Array.isArray(g) ? ((g[g.length - 1] || {}).content || '')
-            : (g && g.content) || '';
-          try { (globalThis.__SMATE_CPU_RAW = globalThis.__SMATE_CPU_RAW || []).push(String(text).slice(0, 200)); } catch { /* diagnostics hook */ }
-          return { choices: [{ message: { content: text } }] };
-        } } } };
-      } catch (e) { lastErr = e; }
+  /* the chip: the interpreter is always on — no load, no state machine,
+     no model. It reads as what it is: SMate, ready */
+  {
+    const aiBtn = $('smateAI');
+    if (aiBtn) {
+      aiBtn.setAttribute('aria-pressed', 'true');
+      aiBtn.classList.remove('loading', 'err');
+      aiBtn.textContent = 'SMate';
+      aiBtn.addEventListener('click', () => { if (!pop.classList.contains('open')) { pop.classList.add('open'); } input.focus(); });
     }
-    throw lastErr || new Error('no model');
   }
 
-  async function aiInit() {
-    if (aiState === 'loading') return;
-    aiLoadTry++;
-    aiState = 'loading';
-    aiCpu = false;   /* a retry may take a different branch than the last attempt */
-    aiUI();
-    try {
-      if (globalThis.__SMATE_AI_ENGINE) {
-        aiEngine = globalThis.__SMATE_AI_ENGINE; /* test/extension hook */
-      } else {
-        let gpu = false;
-        try { gpu = !!navigator.gpu && !!(await navigator.gpu.requestAdapter()); } catch { gpu = false; }
-        if (gpu) {
-          try {
-            const mod = await import(esmUrl('@mlc-ai/web-llm'));
-            const create = mod.CreateWebLLMEngine || mod.CreateMLCEngine;
-            if (!create) throw new Error('web-llm has no engine factory');
-            let lastErr = null;
-            for (const id of AI_MODELS) {
-              try {
-                aiEngine = await create(id, {
-                  initProgressCallback: (r) => {
-                    const st = $('smateStatus');
-                    if (st && aiState === 'loading') st.textContent = `AI ${Math.round((r.progress || 0) * 100)}%`;
-                  },
-                });
-                lastErr = null;
-                break;
-              } catch (e) { lastErr = e; }
-            }
-            if (!aiEngine) throw lastErr || new Error('no model');
-          } catch {
-            /* the WebGPU load failed — a dropped download, an out-of-memory
-               GPU, a CDN hiccup. The machine can still run the CPU engine:
-               fall back instead of declaring the assistant dead */
-            aiEngine = null;
-          }
-        }
-        /* no WebGPU — or the WebGPU load just failed. The CPU engine runs
-           everywhere; only when it fails too is the assistant truly down */
-        if (!aiEngine) aiEngine = await loadCpuEngine();
-      }
-      if (aiPref !== 'on') { aiEngine = null; aiState = 'off'; aiUI(); return; }   /* turned away mid-load: discard */
-      aiState = 'on';
-    } catch {
-      aiState = 'err';
-      aiEngine = null;
-    }
-    aiUI();
-    setStatus('smateOnline');
-  }
-  aiBtn.addEventListener('click', () => {
-    if (aiPref === 'on') {
-      aiPref = 'off'; aiState = 'off'; aiEngine = null; aiCpu = false;
-      try { localStorage.setItem('singhoah:smateAI', 'off'); } catch { /* ignore */ }
-      aiUI(); setStatus('smateOnline');
-    } else {
-      aiPref = 'on';  /* back to arrive-and-ready: the model loads again now */
-      try { localStorage.removeItem('singhoah:smateAI'); } catch { /* ignore */ }
-      aiUI(); aiInit();
-    }
-  });
-
-  /* the wallet ledger rides along in the system prompt when it exists */
-  async function askEngine(messages) {
-    if (aiEngine.chat && aiEngine.chat.completions) {
-      const r = await aiEngine.chat.completions.create({ messages, max_tokens: 220, temperature: 0.1 });
-      return String((r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '').trim();
-    }
-    return String(await aiEngine.chat(messages.map((m) => `${m.role}: ${m.content}`).join('\n---\n'))).trim();
-  }
 })();

@@ -2,3 +2,5 @@ node_modules/
 __pycache__/
 tmp-*.mjs
 dbg*.mjs
+# any throwaway probe script, whatever its prefix
+*.tmp.mjs

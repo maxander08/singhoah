@@ -169,9 +169,26 @@ let cppInRun = false, cppFirst = false, cppBuf = '';
 async function cpp(id) {
   if (cppApi) return cppApi;
   status(id, 'clang');
+  /* CDNs occasionally hand back an error page instead of the binary (seen
+     in the wild: a page starting "Pack..." instead of the wasm magic) —
+     fetch with ok-check and retries so a bad edge response never becomes a
+     confusing compile error */
+  const fetchBytes = async (u) => {
+    let last = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await fetch(u + V);
+        if (!r.ok) { last = new Error('CDN ' + r.status); continue; }
+        const b = await r.arrayBuffer();
+        if (b.byteLength > 4) return b;   /* any real file; magic checked at compile */
+        last = new Error('CDN empty');
+      } catch (e) { last = e; }
+    }
+    throw last || new Error('CDN unreachable');
+  };
   cppApi = new API({
-    readBuffer: async (u) => (await fetch(u + V)).arrayBuffer(),
-    compileStreaming: async (u) => WebAssembly.compile(await (await fetch(u + V)).arrayBuffer()),
+    readBuffer: fetchBytes,
+    compileStreaming: async (u) => WebAssembly.compile(await fetchBytes(u)),
     /* toolchain chatter is status; only the program's own output is output */
     hostWrite: (s) => {
       const clean = stripAnsi(s);
