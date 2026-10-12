@@ -8,6 +8,7 @@
 const LIB = globalThis.__SING_LIB;
 const { LANGS, t, langOf, ccFlag, makeLangPicker, langTitleOf } = LIB;
 const FS = await import('./filesys.js');
+const UNT = await import('./units.js');
 const $ = (id) => document.getElementById(id);
 
 let lang = 'en';
@@ -32,6 +33,10 @@ const TYPES = {
      The verdict shows as true/false and flows on as 1/0 (base-10 integer), so
      a comparison can feed the Operator. Same two input nodes as the Operator. */
   comparator: { w: 210, color: '#4a8f9e', name: () => t(lang, 'mComparator'), hasIn: true, hasOut: true, inPorts: ['a', 'b'] },
+  /* Converter: every unit to every compatible unit — SI, CGS, imperial and
+     the obsolete scales (Réaumur, Rankine, DeLisle…) — on the same exact
+     BigInt rationals as the Number module, so no decimal ever drifts */
+  converter: { w: 230, color: '#5e4a9e', name: () => t(lang, 'mConverter'), hasIn: true, hasOut: true },
   /* Logic: every logic gate over its wired boolean inputs — ~ NOT, + OR,
      * AND, ↓ NOR, ↑ NAND, ⊕ XOR, ≡ XNOR. NOT is unary: it takes the single
      top input node and the second node retires while it is selected. */
@@ -379,6 +384,46 @@ function computeComparator(cfg, va, vb) {
   const v = id === 'gt' ? l > r : id === 'lt' ? l < r : id === 'gte' ? l >= r
     : id === 'lte' ? l <= r : id === 'eq' ? l === r : l !== r;
   return { ok: true, out: v ? 'true' : 'false', val: v };
+}
+
+/* ---------- the Converter module: exact unit math on BigInt fractions ----------
+   Length, mass, time, speed, area, volume, pressure, energy, power, force,
+   data, angle, frequency, viscosity, radiation — SI, CGS, imperial and the
+   obsolete scales. Factors are exact rationals; temperature is affine
+   (K = m·x + b). The result renders exactly like the Operator's plain
+   decimal: full precision when it terminates, 30 significant digits when
+   the ratio runs on (5 km → 3.106855961186… mi). */
+function computeConverter(cfg, va) {
+  if (!va) return { ok: false, why: 'needA' };
+  const x = ratOf(va);
+  if (!x) return { ok: false, why: 'bad' };
+  const cat = (cfg.cat && UNT.UNITS[cfg.cat]) ? cfg.cat : UNT.CATS[0][0];
+  const list = UNT.UNITS[cat];
+  const f = list.find((u) => u[0] === cfg.from) || list[0];
+  const tt = list.find((u) => u[0] === cfg.to) || list[1] || list[0];
+  const r = UNT.convertRat(cat, f[0], tt[0], x);
+  if (!r) return { ok: false, why: 'bad' };
+  const m = ratMantissa(r, 45);
+  const out = m.exact ? renderPlain(m.D, m.k, m.neg) : ((rr) => renderPlain(rr.D, rr.k, rr.neg))(roundSig(m.D, m.k, 30));
+  return { ok: true, out, rat: r, fromSym: f[1], toSym: tt[1] };
+}
+/* the Converter node: the conversion shows in the hint line (5 km = 3.106… mi),
+   failures in the red status line; the number flows on plain, so it can chain
+   into the Operator or another Converter like any Number */
+function runConverterNode(n, va) {
+  const el = nodeEl(n.id);
+  const stat = el && el.querySelector('.mod-cstat');
+  const hint = el && el.querySelector('.mod-ophint');
+  const setStat = (txt, cls) => { if (stat) { stat.textContent = txt; stat.className = 'mod-cstat' + (cls ? ' ' + cls : ''); } };
+  const r = computeConverter(n.cfg, va);
+  if (!r.ok) {
+    if (hint) hint.textContent = '';
+    setStat(r.why === 'needA' ? t(lang, 'mNeedIn') : t(lang, 'mBadOperand'), 'bad');
+    return { text: '', err: '' };
+  }
+  if (hint) hint.textContent = `${(va && va.text) ?? '?'} ${r.fromSym} = ${r.out} ${r.toSym}`;
+  setStat('', '');
+  return { text: r.out, num: { numtype: 'dec', base: 10, digits: 6, n: r.rat.n, d: r.rat.d } };
 }
 
 /* ---------- text encoders ---------- */
@@ -795,10 +840,25 @@ function wirePath(a, b, toPort) {
   return `M ${x1} ${y1} H ${mid} V ${y2} H ${x2}`;
 }
 
+/* the data-on-the-move overlay: while a run pushes values along a wire,
+   little light-gray squares travel it, so the flow of data is visible */
+const wireFlowSet = new Set();
+let wireFlowTimer = 0;
+function wireFlow(fromId) {
+  let added = false;
+  doc.wires.forEach((w, i) => { if (w.from === fromId && !wireFlowSet.has(i)) { wireFlowSet.add(i); added = true; } });
+  if (added) redrawWires();
+}
+function wireFlowClear() {
+  if (!wireFlowSet.size) return;
+  wireFlowSet.clear();
+  redrawWires();
+}
 function redrawWires() {
   const sel = selectedWire;
   wiresSvg.innerHTML = doc.wires.map((w, i) =>
-    `<path d="${wirePath(w.from, w.to, w.toPort)}" class="mod-wire${i === sel ? ' sel' : ''}" data-i="${i}"/>`).join('');
+    `<path d="${wirePath(w.from, w.to, w.toPort)}" class="mod-wire${i === sel ? ' sel' : ''}" data-i="${i}"/>` +
+    (wireFlowSet.has(i) ? `<path d="${wirePath(w.from, w.to, w.toPort)}" class="mod-wire-sq" data-i="${i}"/>` : '')).join('');
   [...wiresSvg.querySelectorAll('.mod-wire')].forEach((p) => {
     p.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -947,7 +1007,7 @@ function wireCodeEditor(el, n) {
 /* Singhoah's dropdown, miniaturized for node settings: a borderless chip that
    turns a solid blue on hover, and a sharp popup panel below, left-aligned,
    clamped to the viewport on small screens. No native <select> anywhere. */
-function modDropdown(n, key, label, options, onPick) {
+function modDropdown(n, key, label, options, onPick, chipFmt) {
   const wrap = document.createElement('div');
   wrap.className = 'mod-dd';
   const btn = document.createElement('button');
@@ -968,7 +1028,8 @@ function modDropdown(n, key, label, options, onPick) {
   list.hidden = true;
   const cur = () => n.cfg[key] || options[0][0];
   const sync = () => {
-    txt.textContent = (options.find((o) => o[0] === cur()) || options[0])[1];
+    const lbl = (options.find((o) => o[0] === cur()) || options[0])[1];
+    txt.textContent = chipFmt ? chipFmt(cur(), lbl) : lbl;
     [...list.children].forEach((b, i) => {
       const sel = options[i][0] === cur();
       b.classList.toggle('sel', sel);
@@ -1126,6 +1187,11 @@ function renderNode(n) {
     /* the Logic module shares the Operator's body: gate select, hint line
        with the gate's verdict, red status line only on bad input */
     body = `<div class="mod-body"><div class="mod-dd-slot"></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
+  } else if (n.type === 'converter') {
+    /* the Converter module: category select, from → to unit selects (unit
+       symbols on the chips, full names in the lists), hint line with the
+       conversion, red status line on bad input — the family rhythm */
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><div class="mod-ddrow mod-cvrow"></div><p class="mod-numhint mod-ophint"></p><div class="mod-cstat" aria-live="polite"></div></div>`;
   } else if (n.type === 'boolean') {
     /* the Boolean module: one lone control — true or false — spanning its
        row exactly, and a status line that only speaks when something is wrong */
@@ -1224,6 +1290,33 @@ function renderNode(n) {
         redrawWires();
         touch();
       }));
+  } else if (slot && n.type === 'converter') {
+    const catKey = () => (n.cfg.cat && UNT.UNITS[n.cfg.cat]) ? n.cfg.cat : UNT.CATS[0][0];
+    const fixUnits = () => {
+      const list = UNT.UNITS[catKey()];
+      if (!list.find((u) => u[0] === n.cfg.from)) n.cfg.from = list[0][0];
+      if (!list.find((u) => u[0] === n.cfg.to)) n.cfg.to = (list[1] || list[0])[0];
+    };
+    fixUnits();
+    slot.appendChild(modDropdown(n, 'cat', t(lang, 'mConverter'),
+      UNT.CATS.map(([k, ik]) => [k, t(lang, ik)]),
+      (v) => { n.cfg.cat = v; fixUnits(); renderNode(n); }));
+    const row = el.querySelector('.mod-cvrow');
+    const buildSide = (key, label) => {
+      const list = UNT.UNITS[catKey()];
+      const dd = modDropdown(n, key, label,
+        list.map((u) => [u[0], `${u[1]}  ${u[2]}`]),
+        (v) => { n.cfg[key] = v; touch(); },
+        (v) => (list.find((u) => u[0] === v) || list[0])[1]);   /* chips show the symbol alone */
+      return dd;
+    };
+    row.appendChild(buildSide('from', t(lang, 'mFrom')));
+    const ar = document.createElement('span');
+    ar.className = 'mod-cvarrow';
+    ar.textContent = '\u2192';
+    ar.setAttribute('aria-hidden', 'true');
+    row.appendChild(ar);
+    row.appendChild(buildSide('to', t(lang, 'mTo')));
   } else if (slot && n.type === 'boolean') {
     slot.appendChild(modDropdown(n, 'val', t(lang, 'mBoolean'),
       [['true', t(lang, 'mTrue')], ['false', t(lang, 'mFalse')]],
@@ -1338,7 +1431,7 @@ function addNode(type, x, y) {
   const n = {
     id: 'n' + (++seq) + Date.now().toString(36).slice(-3),
     type, x: snap(x), y: snap(y),
-    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : type === 'comparator' ? { cmp: 'gt' } : type === 'logic' ? { gate: 'or' } : type === 'boolean' ? { val: 'true' } : {},
+    cfg: type === 'text' ? { text: '', enc: 'plain' } : type === 'io' ? { text: '' } : type === 'code' ? { lang: 'js', code: CODE_DEFAULTS.js } : type === 'number' ? { numtype: 'int', base: 10, digits: 6, value: '0' } : type === 'operator' ? { op: 'add' } : type === 'comparator' ? { cmp: 'gt' } : type === 'converter' ? { cat: 'length', from: 'm', to: 'ft' } : type === 'logic' ? { gate: 'or' } : type === 'boolean' ? { val: 'true' } : {},
   };
   doc.nodes.push(n);
   renderNode(n);
@@ -1471,6 +1564,11 @@ async function run() {
         v = { text: n.cfg.val === 'false' ? 'false' : 'true' };
         v.num = { numtype: 'int', base: 10, digits: 6, n: v.text === 'true' ? 1n : 0n, d: 1n };
       }
+      else if (n.type === 'converter') {
+        /* one input node feeds the value; the converted number flows on */
+        const wa = doc.wires.find((w) => w.to === n.id);
+        v = runConverterNode(n, wa ? val[wa.from] : undefined);
+      }
       else if (n.type === 'code') {
         /* stdin: the text typed into attached I/O nodes first, then whatever
            Text modules wire into the left port. An empty I/O pane contributes
@@ -1504,9 +1602,13 @@ async function run() {
       val[n.id] = v;
       done.add(n.id);
       progressed = true;
+      /* a value just moved out of this node: light the wires it travels */
+      if (v && (String(v.text || '').length || v.num || v.html !== undefined)) wireFlow(n.id);
     }
     if (!progressed) break; /* cycle or waiting on nothing: stop */
   }
+  clearTimeout(wireFlowTimer);
+  wireFlowTimer = setTimeout(wireFlowClear, 1800);   /* a brief linger, then the wires rest */
   return outs;
   } finally { running = false; $('modRun').disabled = false; }
 }
@@ -1632,7 +1734,7 @@ $('modGrid').addEventListener('click', () => {
   touch();
 });
 /* the module picker: one ribbon button, Singho's dropdown UI (tz-pop) */
-const ADD_KEYS = { text: 'mText', number: 'mNumber', operator: 'mOperator', comparator: 'mComparator', logic: 'mLogic', boolean: 'mBoolean', code: 'mCode', io: 'mIO' };
+const ADD_KEYS = { text: 'mText', number: 'mNumber', operator: 'mOperator', comparator: 'mComparator', converter: 'mConverter', logic: 'mLogic', boolean: 'mBoolean', code: 'mCode', io: 'mIO' };
 function buildAddList() {
   const list = $('modAddList');
   list.innerHTML = '';
@@ -1808,7 +1910,7 @@ globalThis.__MOD = {
   removeNode,
   clear: clearCanvas,
   cfg: (id, patch) => { const n = doc.nodes.find((x) => x.id === id); if (!n) return null; Object.assign(n.cfg, patch); const el = nodeEl(id); if (el && patch && patch.text !== undefined) { const ta = el.querySelector('.mod-ta'); if (ta) ta.value = patch.text; } if (el && patch && patch.code !== undefined) { const ta = el.querySelector('.mod-codeta'); if (ta) { ta.value = patch.code; ta.dispatchEvent(new Event('input', { bubbles: true })); } } if (el && patch.value !== undefined) { const ni = el.querySelector('.mod-numin'); if (ni) { ni.value = patch.value; ni.dispatchEvent(new Event('input', { bubbles: true })); } }
-  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined || patch.op !== undefined || patch.cmp !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
+  if (el && (patch.enc !== undefined || patch.lang !== undefined || patch.numtype !== undefined || patch.base !== undefined || patch.digits !== undefined || patch.op !== undefined || patch.cmp !== undefined || patch.cat !== undefined || patch.from !== undefined || patch.to !== undefined)) renderNode(n); touch();   /* programmatic edits (SMate, flows) persist and sync like typed ones */ return { ...n.cfg }; },
   grid: (v) => { if (v !== undefined) { doc.grid = !!v; $('modGrid').setAttribute('aria-pressed', String(doc.grid)); applyView(); touch(); } return doc.grid; },
   outputText: () => [...world.querySelectorAll('.mod-node .mod-result')].map((r) => r.textContent).join('\n'),
   view: () => ({ ...view }),

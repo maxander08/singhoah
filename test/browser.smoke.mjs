@@ -3875,6 +3875,181 @@ await prn.close();
   ok('no stray navigations through any of it', kstray.length === 0, JSON.stringify(kstray));
   await kscx.close();
 
+  /* ---- the Converter module: every unit to every compatible unit, exactly ---- */
+  const cvcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const cvp = await cvcx.newPage();
+  await cvp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await cvp.waitForTimeout(900);
+  const cvr = await cvp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const out = {};
+    const flow = async (cfg, val) => {
+      const na = M.add('number', 40, 40); const cv = M.add('converter', 360, 40); const io = M.add('io', 680, 40);
+      M.cfg(na.id, { numtype: 'dec', value: val });
+      M.cfg(cv.id, cfg);
+      M.wire(na.id, cv.id, 'a'); M.wire(cv.id, io.id);
+      const r = await M.run();
+      return { out: r[r.length - 1] || '', hint: document.querySelector(`.mod-node[data-id="${cv.id}"] .mod-ophint`).textContent };
+    };
+    out.kmMi = await flow({ cat: 'length', from: 'km', to: 'mi' }, '5');
+    out.tenth = await flow({ cat: 'length', from: 'km', to: 'm' }, '0.1');
+    out.cToRe = await flow({ cat: 'temp', from: 'degC', to: 'degRe' }, '25');
+    out.fToC = await flow({ cat: 'temp', from: 'degF', to: 'degC' }, '-40');
+    out.btu = await flow({ cat: 'energy', from: 'btu', to: 'kJ' }, '1');
+    /* the obsolete scales are on the temperature list */
+    const t = M.add('converter', 40, 400);
+    const dd = document.querySelector(`.mod-node[data-id="${t.id}"] .mod-dd-btn`);
+    M.cfg(t.id, { cat: 'temp' });
+    const labs = [...document.querySelectorAll('.mod-node[data-id="' + t.id + '"] .mod-dd-list .mod-dd-lab')].map((x) => x.textContent);
+    out.scales = labs.join('|');
+    /* the wire squares are moving right now (runs above just fired) */
+    out.sq = !!document.querySelector('#modWires .mod-wire-sq');
+    out.sqAnim = getComputedStyle(document.querySelector('#modWires .mod-wire-sq')).animationName;
+    return out;
+  });
+  ok('Converter: 5 km → 3.10685596118666984808717092182 mi (30 significant digits, exact BigInt)',
+    cvr.kmMi.out === '3.10685596118666984808717092182' && cvr.kmMi.hint.includes('km') && cvr.kmMi.hint.includes('mi'),
+    JSON.stringify(cvr.kmMi));
+  ok('Converter is BigDecimal-exact: 0.1 km → 100 m — never 100.000000001',
+    cvr.tenth.out === '100' && cvr.tenth.hint === '0.1 km = 100 m', JSON.stringify(cvr.tenth));
+  ok('Converter: 25 °C → 20 °Réaumur, and −40 °F → −40 °C (the scales cross exactly there)',
+    cvr.cToRe.out === '20' && cvr.fToC.out === '-40', JSON.stringify([cvr.cToRe, cvr.fToC]));
+  ok('Converter: 1 BTU → 1.05505585262 kJ (exact historical definition)',
+    cvr.btu.out === '1.05505585262', JSON.stringify(cvr.btu));
+  ok('the obsolete scales ship: Réaumur, Rankine, DeLisle, Rømer, Newton',
+    /Réaumur/.test(cvr.scales) && /Rankine/.test(cvr.scales) && /DeLisle/.test(cvr.scales) && /Rømer/.test(cvr.scales) && /Newton/.test(cvr.scales),
+    cvr.scales);
+  ok('data visibly moves: light-gray squares travel the wires during a run',
+    cvr.sq && cvr.sqAnim === 'modWireFlow', JSON.stringify(cvr));
+  await cvp.waitForTimeout(2300);   /* the squares linger briefly, then rest */
+  const cvAfter = await cvp.evaluate(() => !!document.querySelector('#modWires .mod-wire-sq'));
+  ok('the squares come to rest once the run is done', cvAfter === false);
+  /* the Number module in unison with the family: same 30px chip bars, same insets */
+  const uni = await cvp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const n = M.add('number', 40, 700);
+    const o = M.add('operator', 360, 700);
+    const body = document.querySelector(`.mod-node[data-id="${n.id}"] .mod-body`);
+    const r = (el) => { const b = el.getBoundingClientRect(); return { h: Math.round(b.height), x: Math.round(b.x), w: Math.round(b.width) }; };
+    return {
+      step: r(document.querySelector(`.mod-node[data-id="${n.id}"] .mod-step`)),
+      dd: r(document.querySelector(`.mod-node[data-id="${n.id}"] .mod-dd`)),
+      numin: r(document.querySelector(`.mod-node[data-id="${n.id}"] .mod-numin`)),
+      opdd: r(document.querySelector(`.mod-node[data-id="${o.id}"] .mod-dd`)),
+      pad: getComputedStyle(body).padding,
+    };
+  });
+  ok('the Number module is in unison: stepper, chip and value field all 30px bars on the same 10px insets',
+    uni.step.h === 30 && uni.dd.h === 30 && uni.numin.h === 30 && uni.opdd.h === 30 &&
+    Math.abs(uni.step.x - (uni.dd.x + uni.dd.w + 6)) <= 2 && Math.abs(uni.step.w - uni.dd.w) <= 2 &&   /* two equal bars, 6px apart */
+    Math.abs(uni.numin.w - (uni.step.w + uni.dd.w + 6)) <= 2 && uni.numin.x === uni.dd.x && uni.pad === '10px',
+    JSON.stringify(uni));
+  await cvcx.close();
+
+  /* SMate speaks conversions: on the canvas it builds the real flow */
+  const cscx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const csp = await cscx.newPage();
+  await csp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await csp.waitForTimeout(900);
+  await csp.click('#smateBtn');
+  await csp.waitForTimeout(300);
+  const csend = async (txt) => { await csp.fill('#smateIn', txt); await csp.keyboard.press('Enter'); await csp.waitForTimeout(2200); };
+  await csend('convert 5 km to miles');
+  const csm = await csp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const cv = M.nodes().filter((n) => n.type === 'converter').pop();
+    const io = M.nodes().filter((n) => n.type === 'io').pop();
+    return { cfg: cv && cv.cfg, out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim() : '' };
+  });
+  ok('SMate: "convert 5 km to miles" builds and runs the real Converter flow',
+    csm.cfg && csm.cfg.cat === 'length' && csm.cfg.from === 'km' && csm.cfg.to === 'mi' && csm.out.startsWith('3.1068559611'),
+    JSON.stringify(csm));
+  await csend('把 30 攝氏 轉換成 華氏');
+  const csm2 = await csp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const cv = M.nodes().filter((n) => n.type === 'converter').pop();
+    const io = M.nodes().filter((n) => n.type === 'io').pop();
+    return { cfg: cv && cv.cfg, out: io ? document.querySelector(`.mod-node[data-id="${io.id}"] .mod-result`).textContent.trim() : '' };
+  });
+  ok('SMate: 「把 30 攝氏 轉換成 華氏」 builds the same flow in Chinese',
+    csm2.cfg && csm2.cfg.cat === 'temp' && csm2.cfg.from === 'degC' && csm2.cfg.to === 'degF' && csm2.out === '86',
+    JSON.stringify(csm2));
+  await cscx.close();
+
+  /* off the canvas, the answer comes straight to chat */
+  const ccx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const ccp = await ccx.newPage();
+  await ccp.goto(URL + 'index.html', { waitUntil: 'load' });
+  await ccp.waitForTimeout(600);
+  await ccp.click('#smateBtn');
+  const ccsend = async (txt) => { await ccp.fill('#smateIn', txt); await ccp.click('#smateSend'); await ccp.waitForTimeout(1400); };
+  await ccsend('convert 5 km to miles');
+  const cchat = await ccp.evaluate(() => [...document.querySelectorAll('.smate-it')].pop().textContent);
+  await ccsend('30 c to f');
+  const cchat2 = await ccp.evaluate(() => [...document.querySelectorAll('.smate-it')].pop().textContent);
+  ok('SMate answers conversions anywhere: "5 km = ≈ 3.1068559611 mi", "30 °C = 86 °F"',
+    cchat.includes('3.1068559611') && cchat.includes('km') && cchat2.includes('86') && cchat2.includes('°C'),
+    JSON.stringify([cchat, cchat2]));
+  await ccx.close();
+
+  /* 中文介面: the Converter node and its categories speak Chinese */
+  const cvzh = await browser.newContext({ viewport: { width: 1280, height: 900 } } );
+  await cvzh.addInitScript(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
+  const cvzp = await cvzh.newPage();
+  await cvzp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await cvzp.waitForTimeout(900);
+  const cvzhr = await cvzp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const cv = M.add('converter', 40, 40);
+    return {
+      name: document.querySelector(`.mod-node[data-id="${cv.id}"] .mod-nname`).textContent,
+      cat: document.querySelector(`.mod-node[data-id="${cv.id}"] .mod-dd-slot .mod-dd-btn .mod-dd-txt`).textContent,
+    };
+  });
+  ok('中文：轉換器節點與「長度」分類 — the Converter is fully localized',
+    cvzhr.name === '轉換器' && cvzhr.cat === '長度', JSON.stringify(cvzhr));
+  await cvzh.close();
+
+  /* mobile: the Converter fits a phone */
+  const cvmcx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const cvmp = await cvmcx.newPage();
+  await cvmp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await cvmp.waitForTimeout(900);
+  const cvmob = await cvmp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    M.add('number', 20, 20);
+    M.add('converter', 20, 240);
+    M.add('io', 20, 520);
+    return document.documentElement.scrollWidth <= window.innerWidth + 1;
+  });
+  ok('mobile: the Converter node fits a 390px phone', cvmob);
+  await cvmcx.close();
+
+  /* light mode: the moving squares + the Converter keep their own palette */
+  const cvlcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await cvlcx.addInitScript(() => localStorage.setItem('singhoah:night', '0'));
+  const cvlp = await cvlcx.newPage();
+  await cvlp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await cvlp.waitForTimeout(900);
+  const cvlr = await cvlp.evaluate(async () => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const na = M.add('number', 40, 40); const cv = M.add('converter', 360, 40); const io = M.add('io', 680, 40);
+    M.cfg(na.id, { numtype: 'dec', value: '5' });
+    M.cfg(cv.id, { cat: 'length', from: 'km', to: 'mi' });
+    M.wire(na.id, cv.id, 'a'); M.wire(cv.id, io.id);
+    await M.run();
+    const sq = document.querySelector('#modWires .mod-wire-sq');
+    return { light: !document.documentElement.classList.contains('dark'), sqStroke: sq && getComputedStyle(sq).stroke, anim: sq && getComputedStyle(sq).animationName };
+  });
+  ok('light mode: the squares travel in their light palette and the conversion is exact',
+    cvlr.light && cvlr.sqStroke === 'rgb(153, 162, 173)' && cvlr.anim === 'modWireFlow',
+    JSON.stringify(cvlr));
+  await cvlcx.close();
+
   /* ---- canvas zoom + placement: cursor-anchored zoom, in-view adds,
          connection nodes on the standard alignment ---- */
   const zcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -4100,11 +4275,11 @@ await prn.close();
       const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
       const nb = el.getBoundingClientRect();
       const num = el.querySelector('.mod-numin').getBoundingClientRect();
-      const btns = el.querySelector('.mod-stepbtns').getBoundingClientRect();
+      const step = el.querySelector('.mod-step').getBoundingClientRect();
       const ddTxt = el.querySelector('.mod-dd-txt');
       const r = { modW: +nb.width.toFixed(1), numinW: +num.width.toFixed(1),
-        flush: +Math.abs(btns.right - num.right).toFixed(1),
-        toBorder: +(nb.right - btns.right).toFixed(1),
+        flush: +Math.abs(step.right - num.right).toFixed(1),
+        toBorder: +(nb.right - step.right).toFixed(1),
         ddClip: ddTxt.scrollWidth > ddTxt.clientWidth };
       M.removeNode(n.id);
       return r;
@@ -4166,11 +4341,11 @@ await prn.close();
       fits: r.left >= 0 && r.right <= innerWidth && r.top > 0,
     };
   });
-  ok('the button opens Singho\'s dropdown UI: 8 rows (text…io), translated, color dots, inside the viewport',
-    palOpen.open && palOpen.expanded === 'true' && palOpen.n === 8
-      && palOpen.order === 'text,number,operator,comparator,logic,boolean,code,io'
-      && palOpen.names === 'Text,Number,Operator,Comparator,Logic,Boolean,Code,I/O'
-      && palOpen.dot === 'rgb(184, 74, 143)' && palOpen.fits, JSON.stringify(palOpen));
+  ok('the button opens Singho\'s dropdown UI: 9 rows (text…io), translated, color dots, inside the viewport',
+    palOpen.open && palOpen.expanded === 'true' && palOpen.n === 9
+      && palOpen.order === 'text,number,operator,comparator,converter,logic,boolean,code,io'
+      && palOpen.names === 'Text,Number,Operator,Comparator,Converter,Logic,Boolean,Code,I/O'
+      && palOpen.dot === 'rgb(94, 74, 158)' && palOpen.fits, JSON.stringify(palOpen));   /* row 5 is the Converter's indigo dot */
   const palAct = await lgp.evaluate(() => {
     const M = globalThis.__MOD;
     if (document.getElementById('modEditor').hidden) M.newDoc();
@@ -4382,7 +4557,7 @@ await prn.close();
       pageFits: document.documentElement.scrollWidth <= window.innerWidth + 1 };
   });
   ok('mobile: the ribbon picker opens Singho\'s dropdown with full names, anchored inside the phone screen, tapping adds',
-    mg.btnReachable && mg.n === 8 && mg.named && mg.fits && mg.added === 'logic' && mg.closed && mg.pageFits,
+    mg.btnReachable && mg.n === 9 && mg.named && mg.fits && mg.added === 'logic' && mg.closed && mg.pageFits,
     JSON.stringify(mg));
   await mgcx.close();
 }

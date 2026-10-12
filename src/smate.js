@@ -853,6 +853,7 @@
     return findZone(name);
   };
   const LAYMAP = { single: 1, side: 2, '2x2': 4, quad: 4, '4x4': 16, grid: 16 };
+  let UNITS = null;   /* units.js, imported on first convert */
   const OPID = { 'add': 'add', '+': 'add', 'plus': 'add', 'sub': 'sub', '-': 'sub', 'minus': 'sub', 'mul': 'mul', '*': 'mul', 'x': 'mul', '×': 'mul', 'div': 'div', '/': 'div', 'mod': 'mod', '%': 'mod', 'pow': 'pow', '^': 'pow' };
   const CMPID = { 'gt': 'gt', '>': 'gt', 'greater': 'gt', 'lt': 'lt', '<': 'lt', 'less': 'lt', 'gte': 'gte', '>=': 'gte', '≥': 'gte', 'lte': 'lte', '<=': 'lte', '≤': 'lte', 'eq': 'eq', '=': 'eq', '==': 'eq', 'equal': 'eq', 'neq': 'neq', '!=': 'neq', '≠': 'neq' };
   const GATEID = { 'not': 'not', '~': 'not', '¬': 'not', 'or': 'or', '+': 'or', 'and': 'and', '*': 'and', 'nor': 'nor', '↓': 'nor', 'nand': 'nand', '↑': 'nand', 'xor': 'xor', '⊕': 'xor', 'xnor': 'xnor', '≡': 'xnor' };
@@ -1067,6 +1068,37 @@
     async modclear() { const M = globalThis.__MOD; if (!M) return 'module page only'; modEditorOpen(); const oc = window.confirm; window.confirm = () => true; const r = M.clear(); window.confirm = oc; if (r) abPush({ k: 'done', t: t(curLang, 'mClearCv') }); return r ? doneT() : 'already empty'; },
     async modnew() { const M = globalThis.__MOD; if (!M) return 'module page only'; M.newDoc(); abPush({ k: 'done', t: `${t(curLang, 'flNew')} · ${t(curLang, 'lpModule')}` }); return doneT(); },
     async modfiles() { const M = globalThis.__MOD; if (!M) return 'module page only'; M.home(); abPush({ k: 'done', t: t(curLang, 'flFiles') }); return t(curLang, 'flFiles'); },
+    async convert(a) {
+      /* the Converter's whole unit database, loaded on demand — it ships
+         with the site, so this works offline on every page */
+      if (!UNITS) { try { UNITS = await import('./units.js'); } catch { UNITS = null; } }
+      if (!UNITS) return 'converter not available here';
+      const fu = UNITS.findUnit(String(a.from || '')), tu = UNITS.findUnit(String(a.to || ''));
+      if (!fu || !tu) return zhUI() ? '\u6211\u4e0d\u8a8d\u8b58\u9019\u500b\u55ae\u4f4d' : 'I do not know that unit';
+      if (fu.cat !== tu.cat) return zhUI() ? '\u9019\u5169\u500b\u55ae\u4f4d\u7121\u6cd5\u4e92\u63db' : 'those units cannot be converted into each other';
+      const s = String(a.value ?? '').replace(/,/g, '');
+      if (!/^-?\d+(?:\.\d+)?$|^\.\d+$/.test(s)) return zhUI() ? '\u8981\u5148\u544a\u8a34\u6211\u6578\u503c' : 'a number is needed first';
+      const neg = s.startsWith('-');
+      const body = s.replace(/^-/, '');
+      const [ip, fp = ''] = body.split('.');
+      const x = { n: BigInt((neg ? '-' : '') + (ip || '0') + fp), d: 10n ** BigInt(fp.length) };
+      const r = UNITS.convertRat(fu.cat, fu.u[0], tu.u[0], x);
+      if (!r) return zhUI() ? '\u7121\u6cd5\u63db\u7b97' : 'cannot convert that';
+      const out = UNITS.ratToDecimal(r, 10);
+      /* on the module canvas the conversion is built for real, like math */
+      if (page === 'module' && globalThis.__MOD) {
+        const M = globalThis.__MOD;
+        const na = M.add('number'); const cv = M.add('converter', na.x + 320, na.y); const io = M.add('io', na.x + 640, na.y);
+        M.cfg(na.id, { numtype: 'dec', value: body || '0' });
+        M.cfg(cv.id, { cat: fu.cat, from: fu.u[0], to: tu.u[0] });
+        M.wire(na.id, cv.id, 'a'); M.wire(cv.id, io.id);
+        const rr = await M.run();
+        const o = (rr && rr.length) ? rr.join(' · ') : '';
+        sayBlock({ k: 'done', t: `${t(curLang, 'lpModule')} · ${t(curLang, 'mConverter')}`, b: o.slice(0, 140) || t(curLang, 'mResult') });
+        return o || '(no output)';
+      }
+      return `${(neg ? '\u2212' : '')}${body} ${fu.u[1]} = ${out} ${tu.u[1]}`;
+    },
     async mathflow(a) {
       const M = globalThis.__MOD; if (!M) return 'module page only';
       const oid = OPID[String(a.op || '').toLowerCase()] || 'add';
@@ -1317,6 +1349,10 @@
     { re: /^cash\s+(?:drawer\s+)?(?:count\s+)?(\d+(?:\.\d+)?)$/i, f: (m) => [{ tool: 'cash', args: { balance: Number(m[1]) } }] },
     { re: /^(?:\u8a18\u5e33|\u8bb0\u8d26|\u6536\u652f)\s*(?:\u5165\u5e33|\u5165\u8d26|\u6536\u5165)\s*([\d\u4e00-\u9fff]+)\s*(.*)$/, f: (m) => { const n = numOrWord(m[1]); return n != null ? [{ tool: 'walletadd', args: { type: 'income', amount: n, note: m[2] } }] : null; } },
     { re: /^(?:\u8a18\u5e33|\u8bb0\u8d26|\u6536\u652f)\s*(?:\u51fa\u5e33|\u51fa\u8d26|\u652f\u51fa|\u82b1\u8cbb)\s*([\d\u4e00-\u9fff]+)\s*(.*)$/, f: (m) => { const n = numOrWord(m[1]); return n != null ? [{ tool: 'walletadd', args: { type: 'expense', amount: n, note: m[2] } }] : null; } },
+    /* ---- unit conversion: "convert 5 km to miles", "30 c to f", "5 公里 換成 英里" ---- */
+    { re: /^(?:convert|change|turn)\s+(-?[\d.,]+)\s+([^\s]+)\s+(?:to|into|in|as)\s+([^\s]+)$/i, f: (m) => [{ tool: 'convert', args: { value: m[1], from: m[2], to: m[3] } }] },
+    { re: /^(-?[\d.,]+)\s*([a-zA-Z\u00b0\u00b5\u03bc\u00b2\u00b3][a-zA-Z\u00b0\u00b5\u03bc\u00b2\u00b3\/]*)\s+(?:to|in|as)\s+([a-zA-Z\u00b0\u00b5\u03bc\u00b2\u00b3][a-zA-Z\u00b0\u00b5\u03bc\u00b2\u00b3\/]*)$/i, f: (m) => [{ tool: 'convert', args: { value: m[1], from: m[2], to: m[3] } }] },
+    { re: /^(?:\u628a\s*)?(-?[\d.,]+)\s*([^\s]+?)\s*(?:\u8f49\u63db\u6210|\u8f6c\u6362\u6210|\u8f6c\u6362\u4e3a|\u8f6c\u6362|\u6362\u7b97\u6210|\u6362\u7b97|\u63db\u6210|\u6362\u6210|\u8f49\u63db|\u7b49\u65bc)\s*([^\s]+)$/, f: (m) => [{ tool: 'convert', args: { value: m[1], from: m[2], to: m[3] } }] },
     /* ---- metro ---- */
     { re: /^(?:what(?:'s| is)?\s+)?(?:the\s+)?fare\s+from\s+(.+?)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'fare', args: { from: m[1], to: m[2] } }] },
     { re: /^(?:fare|price|ticket|how much)(?:\s+is)?(?:\s+the)?(?:\s+fare)?\s+from\s+(.+?)\s+to\s+(.+)$/i, f: (m) => [{ tool: 'fare', args: { from: m[1], to: m[2] } }] },

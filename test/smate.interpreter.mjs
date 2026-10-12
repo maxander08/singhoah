@@ -87,6 +87,11 @@ await T('files', 'show my files', async (r) => /file|done|檔/i.test(r));
 await T('click generic', 'click the night button', async (r) => /clicked/i.test(r));
 await T('hi', 'hi', async (r) => /SMate|hello|你好/i.test(r));
 await T('help', 'what can you do', async (r) => /timer|zone/i.test(r));
+/* unit conversion */
+await T('convert km to miles', 'convert 5 km to miles', async (r) => /3\.1068559611/.test(r) && /km/.test(r) && /mi/.test(r));
+await T('convert bare form', '30 c to f', async (r) => /86/.test(r) && /°C/.test(r));
+await T('convert zh', '5 公里 換成 英里', async (r) => /3\.1068559611/.test(r));
+await T('convert mismatched units is honest', 'convert 5 km to celsius', async (r) => /cannot|無法/i.test(r));
 await T('fallback suggests', 'blah blah whatever xyzzy', async (r) => /try|timer|試/i.test(r));
 console.log(`\n${pass} PASS / ${fail} FAIL | page errors: ${errs.length}`);
 await browser.close();

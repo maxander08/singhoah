@@ -1545,6 +1545,14 @@ mark.scr-hl.scr-cur { outline: 2px solid var(--notification); outline-offset: 1p
 .mod-wire:hover { stroke-width: 3.5; }
 .mod-wire.sel { stroke: var(--notification, #000dff); stroke-width: 3; }
 .mod-wire.temp { stroke-dasharray: 5 4; }
+/* data on the move: while a run pushes values down a wire, little
+   light-gray squares travel it (4×4, one every 18px) so the user can
+   SEE the data flow. They never catch the pointer, and they bow out
+   entirely for reduced-motion users. */
+.mod-wire-sq { fill: none; stroke: #aeb9c6; stroke-width: 4; stroke-dasharray: 4 14; stroke-linecap: butt; pointer-events: none; animation: modWireFlow .9s linear infinite; }
+@keyframes modWireFlow { to { stroke-dashoffset: -18; } }
+:root:not(.dark) .mod-wire-sq { stroke: #99a2ad; }
+@media (prefers-reduced-motion: reduce) { .mod-wire-sq { animation: none; display: none; } }
 .mod-wdel { position: absolute; width: 22px; height: 22px; display: grid; place-items: center; background: var(--notification, #000dff); color: #fff; border: none; cursor: pointer; }
 /* ---- module nodes: paper cards, strong outlines, sharp corners ---- */
 .mod-node { position: absolute; background: var(--paper); border: 2px solid var(--border); border-radius: 0; box-shadow: 4px 4px 0 rgb(0 0 0 / .10); user-select: none; }
@@ -1611,21 +1619,23 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-hint { margin: 0; font: 12.5px/1.45 var(--font-sans); color: var(--pigeon); background: var(--paper-2); border: 1px solid rgb(127 127 127 / .30); padding: 7px 9px; }
 /* the Number module: chip row (type + base/digits), mono value field, hint */
 .mod-ddrow { display: flex; gap: 6px; }
-.mod-ddrow .mod-dd { flex: 1; min-width: 0; }
-.mod-ddrow .mod-step { flex: 0 0 auto; }   /* the stepper keeps its natural
-   width — label, field, arrows — and the dropdown yields; squeezed arrows
-   used to overflow into the module's border */
-.mod-numin { width: 100%; box-sizing: border-box; background: var(--paper-2); border: 1px solid rgb(127 127 127 / .40); color: var(--black); font: 500 13px/1.3 var(--font-sans); font-variation-settings: 'MONO' 100; padding: 7px 9px; border-radius: 0; min-height: 32px; }
+.mod-ddrow .mod-dd { flex: 1 1 0; min-width: 0; }
+.mod-ddrow .mod-step { flex: 1 1 0; min-width: 0; }   /* chip and stepper share
+   the row evenly — two clean bars, never a squeezed arrow */
+.mod-numin { width: 100%; box-sizing: border-box; background: var(--paper-2); border: 1px solid rgb(127 127 127 / .40); color: var(--black); font: 500 13px/1.3 var(--font-sans); font-variation-settings: 'MONO' 100; padding: 5px 9px; border-radius: 0; min-height: 30px; }
 .mod-numin:focus { outline: none; border-color: var(--notification); box-shadow: inset 0 0 0 1px var(--notification); background: var(--paper); }
 .mod-numin::placeholder { color: var(--pigeon); }
 .mod-numhint { margin: 0; font: 11.5px/1.4 var(--font-sans); color: var(--pigeon); min-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* the stepper: mono field + stacked up/down buttons, hold to repeat */
-.mod-step { display: flex; align-items: stretch; gap: 4px; min-width: 0; flex: 1; }
-.mod-step-lab { align-self: center; font: 650 11px/1 var(--font-sans); color: var(--pigeon); flex: 0 0 auto; }
-.mod-stepin { width: 44px; min-width: 44px; box-sizing: border-box; background: var(--paper-2); border: 1px solid rgb(127 127 127 / .40); color: var(--black); font: 500 12.5px/1 var(--font-sans); font-variation-settings: 'MONO' 100; padding: 0 6px; border-radius: 0; text-align: center; min-height: 30px; }
-.mod-stepin:focus { outline: none; border-color: var(--notification); box-shadow: inset 0 0 0 1px var(--notification); background: var(--paper); }
-.mod-stepbtns { display: flex; flex-direction: column; }
-.mod-stepbtn { border: 0; border-radius: 0; background: var(--paper-2); color: var(--black); width: 22px; flex: 1; padding: 0; display: grid; place-items: center; cursor: pointer; }
+/* the stepper: a chip bar in the family silhouette — one border, one
+   background, 30px tall, label left and mono value centre, the − / +
+   segments right — so the Number module's rows read exactly like the
+   Operator's and Comparator's single-control rows */
+.mod-step { display: flex; align-items: stretch; min-width: 0; border: 1px solid rgb(127 127 127 / .40); background: var(--paper-2); min-height: 30px; }
+.mod-step-lab { align-self: center; font: 650 11.5px/1 var(--font-sans); color: var(--pigeon); flex: 0 0 auto; padding: 0 0 0 9px; }
+.mod-stepin { flex: 1 1 auto; width: auto; min-width: 0; box-sizing: border-box; background: transparent; border: 0; color: var(--black); font: 500 13px/1 var(--font-sans); font-variation-settings: 'MONO' 100; padding: 0 6px; border-radius: 0; text-align: center; min-height: 0; }
+.mod-stepin:focus { outline: none; background: var(--paper); }
+.mod-stepbtns { display: flex; flex-direction: column; border-left: 1px solid rgb(127 127 127 / .40); }
+.mod-stepbtn { border: 0; border-radius: 0; background: transparent; color: var(--black); width: 24px; flex: 1; padding: 0; display: grid; place-items: center; cursor: pointer; }
 .mod-stepbtn:hover:not(:disabled) { background: var(--notification); color: var(--on-notification); }
 .mod-stepbtn:active:not(:disabled) { background: var(--notification); color: var(--on-notification); }
 .mod-stepbtn:disabled { color: var(--pigeon); opacity: .4; cursor: default; }
@@ -1697,6 +1707,12 @@ textarea.mod-codeta:focus { background: transparent; outline: none; box-shadow: 
 .mod-dd-opt { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 5px 9px; border: 0; border-radius: 0; background: transparent; color: inherit; font: 550 13px/1.2 var(--font-sans); font-variation-settings: "wght" 550; cursor: pointer; text-align: left; }
 .mod-dd-opt:hover { background: var(--notification); color: var(--on-notification); }
 .mod-dd-lab { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* long lists (the Converter's units) scroll inside the panel, mobile included */
+.mod-dd-list { max-height: min(340px, 60vh); overflow-y: auto; }
+/* the Converter's from → to row: two unit chips with an arrow between */
+.mod-cvrow { display: flex; align-items: center; gap: 6px; }
+.mod-cvrow .mod-dd { flex: 1 1 0; min-width: 0; }
+.mod-cvarrow { flex: 0 0 auto; color: var(--pigeon); font: 650 13px/1 var(--font-sans); }
 .mod-dd-chk { flex: 0 0 auto; visibility: hidden; }
 .mod-dd-opt.sel { font-weight: 650; }
 .mod-dd-opt.sel .mod-dd-chk { visibility: visible; }
