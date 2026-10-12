@@ -3126,21 +3126,16 @@ await prn.close();
     const inp = getComputedStyle(el.querySelector('.mod-numin'));
     return {
       outOnly: !!el.querySelector('.mod-port.out') && !el.querySelector('.mod-port.in'),
-      dd, step: {
-        lab: (el.querySelector('.mod-step-lab') || {}).textContent,
-        val: (el.querySelector('.mod-stepin') || {}).value,
-        arrows: el.querySelectorAll('.mod-stepbtn').length,
-      },
+      dd,
       radius: std.borderRadius + '/' + inp.borderRadius, w: std.fontWeight,
     };
   }, numId);
-  ok('the Number node is a source: one out port, a type select and a base stepper, standardized chips',
-    struct.outOnly && struct.dd.join('|') === 'Integer'
-      && struct.step.lab === 'Base' && struct.step.val === '10' && struct.step.arrows === 2
+  ok('the Number node is a source: one out port, a type chip and a base chip, standardized',
+    struct.outOnly && struct.dd.join('|') === 'Integer|10 · Decimal'
       && struct.radius === '0px/0px' && struct.w === '650',
     JSON.stringify(struct));
-  /* the type select offers the four number types; the base is a stepper
-     (field + stacked arrows), never a 36-item dropdown */
+  /* the type chip offers the four number types; the base is a list where the
+     named bases say their name */
   const typeDd = await np.evaluate(async (ids) => {
     const el = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
     const dd = el.querySelectorAll('.mod-dd')[0].querySelector('.mod-dd-btn');
@@ -3150,29 +3145,26 @@ await prn.close();
     const float = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt')].find((b) => b.textContent.trim() === 'Float');
     float.click();                                                                 /* pick Float */
     await new Promise((r) => setTimeout(r, 150));
-    /* Float swaps the base stepper for a digits stepper */
+    /* Float swaps the Base chip for the Digits chip */
     const el2 = document.querySelector(`.mod-node[data-id="${ids.n}"]`);
-    const lab = el2.querySelector('.mod-step-lab').textContent;
-    const btns = el2.querySelectorAll('.mod-stepbtn');
-    const stacked = getComputedStyle(el2.querySelector('.mod-stepbtns')).flexDirection === 'column';
-    /* step up: 6 digits -> 7 */
-    btns[0].click();
-    await new Promise((r) => setTimeout(r, 120));
-    const afterUp = el2.querySelector('.mod-stepin').value;
-    /* type 100, then up is disabled at the ceiling */
-    const inp = el2.querySelector('.mod-stepin');
-    inp.value = '100'; inp.dispatchEvent(new Event('change', { bubbles: true }));
-    const atMax = { v: inp.value, up: btns[0].disabled };
-    /* out-of-range typing clamps into 1-100 */
-    inp.value = '500'; inp.dispatchEvent(new Event('change', { bubbles: true }));
-    const clamped = inp.value;
-    return { list, lab, stacked, afterUp, atMax, clamped };
+    const chip = el2.querySelectorAll('.mod-dd-btn')[1].querySelector('.mod-dd-txt').textContent;
+    /* the digits list: 1..100, scrolling inside the panel */
+    el2.querySelectorAll('.mod-dd-btn')[1].click();
+    await new Promise((r) => setTimeout(r, 150));
+    const rows = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-lab')].map((b) => b.textContent);
+    const pick8 = [...document.querySelectorAll('.mod-dd-list:not([hidden]) .mod-dd-opt')][7];
+    pick8.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const M = globalThis.__MOD;
+    const digits = M.nodes().find((x) => x.id === ids.n).cfg.digits;
+    const chipAfter = document.querySelector(`.mod-node[data-id="${ids.n}"]`).querySelectorAll('.mod-dd-btn')[1].querySelector('.mod-dd-txt').textContent;
+    return { list, chip, nRows: rows.length, first: rows[0], last: rows[rows.length - 1], digits, chipAfter };
   }, numId);
-  ok('the type select reveals Integer, Decimal, Float, Fixed — Float swaps Base for a digits stepper',
-    typeDd.list.join('|') === 'Integer|Decimal|Float|Fixed' && typeDd.lab === 'digits',
+  ok('the type chip reveals Integer, Decimal, Float, Fixed — Float swaps the Base chip for the Digits chip',
+    typeDd.list.join('|') === 'Integer|Decimal|Float|Fixed' && /6 digits/i.test(typeDd.chip),
     JSON.stringify(typeDd));
-  ok('the stepper: stacked arrows step the value (6→7), the field accepts typing, 1–100 clamps at both ends',
-    typeDd.stacked && typeDd.afterUp === '7' && typeDd.atMax.v === '100' && typeDd.atMax.up === true && typeDd.clamped === '100',
+  ok('the digits list runs 1–100 and picking 8 sticks in the chip and the cfg',
+    typeDd.nRows === 100 && typeDd.first === '1' && typeDd.last === '100' && typeDd.digits === 8 && /8 digits/i.test(typeDd.chipAfter),
     JSON.stringify(typeDd));
   /* integer bases: hex, unary, base 36 — the hint shows the base-10 equivalent */
   const hints = {};
@@ -3932,18 +3924,19 @@ await prn.close();
     const o = M.add('operator', 360, 700);
     const body = document.querySelector(`.mod-node[data-id="${n.id}"] .mod-body`);
     const r = (el) => { const b = el.getBoundingClientRect(); return { h: Math.round(b.height), x: Math.round(b.x), w: Math.round(b.width) }; };
+    const dds = [...document.querySelectorAll(`.mod-node[data-id="${n.id}"] .mod-dd`)];
     return {
-      step: r(document.querySelector(`.mod-node[data-id="${n.id}"] .mod-step`)),
-      dd: r(document.querySelector(`.mod-node[data-id="${n.id}"] .mod-dd`)),
+      dd1: r(dds[0]),
+      dd2: r(dds[1]),
       numin: r(document.querySelector(`.mod-node[data-id="${n.id}"] .mod-numin`)),
       opdd: r(document.querySelector(`.mod-node[data-id="${o.id}"] .mod-dd`)),
       pad: getComputedStyle(body).padding,
     };
   });
-  ok('the Number module is in unison: stepper, chip and value field all 30px bars on the same 10px insets',
-    uni.step.h === 30 && uni.dd.h === 30 && uni.numin.h === 30 && uni.opdd.h === 30 &&
-    Math.abs(uni.step.x - (uni.dd.x + uni.dd.w + 6)) <= 2 && Math.abs(uni.step.w - uni.dd.w) <= 2 &&   /* two equal bars, 6px apart */
-    Math.abs(uni.numin.w - (uni.step.w + uni.dd.w + 6)) <= 2 && uni.numin.x === uni.dd.x && uni.pad === '10px',
+  ok('the Number module is in unison: Type and Base chips and the value field are all full-width 30px bars on the same insets',
+    uni.dd1.h === 30 && uni.dd2.h === 30 && uni.numin.h === 30 && uni.opdd.h === 30 &&
+    uni.dd1.x === uni.dd2.x && uni.dd2.x === uni.numin.x &&
+    uni.dd1.w === uni.dd2.w && uni.dd2.w === uni.numin.w && uni.pad === '10px',
     JSON.stringify(uni));
   await cvcx.close();
 
@@ -4259,8 +4252,8 @@ await prn.close();
     JSON.stringify({ clBefore, clAfter, clStray }));
   await clcx.close();
 
-  /* ---- the Number module's stepper row: arrows flush with the value field,
-     never squeezed against the module border ---- */
+  /* ---- the Number module's rows: one full-width control per row — the
+     family rhythm. Type chip, Base/Digits chip, then the value field ---- */
   const stcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const stp = await stcx.newPage();
   await stp.goto(URL + 'module.html', { waitUntil: 'load' });
@@ -4274,13 +4267,11 @@ await prn.close();
       if (type !== 'int') M.cfg(n.id, { numtype: type });
       const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
       const nb = el.getBoundingClientRect();
+      const bars = [...el.querySelectorAll('.mod-dd-btn')].map((b) => { const r = b.getBoundingClientRect(); return { h: Math.round(r.height), x: Math.round(r.x - nb.x), w: Math.round(r.width) }; });
       const num = el.querySelector('.mod-numin').getBoundingClientRect();
-      const step = el.querySelector('.mod-step').getBoundingClientRect();
-      const ddTxt = el.querySelector('.mod-dd-txt');
-      const r = { modW: +nb.width.toFixed(1), numinW: +num.width.toFixed(1),
-        flush: +Math.abs(step.right - num.right).toFixed(1),
-        toBorder: +(nb.right - step.right).toFixed(1),
-        ddClip: ddTxt.scrollWidth > ddTxt.clientWidth };
+      const r = { modW: +nb.width.toFixed(1), rows: bars.length, numinW: +num.width.toFixed(1),
+        bars, numH: Math.round(num.height), numX: Math.round(num.x - nb.x),
+        ddClip: [...el.querySelectorAll('.mod-dd-txt')].some((t2) => t2.scrollWidth > t2.clientWidth) };
       M.removeNode(n.id);
       return r;
     };
@@ -4293,11 +4284,29 @@ await prn.close();
     }
     return out;
   });
-  ok('Number module: the stepper arrows end flush with the value field, clear of the border (int)',
-    stg.int.modW === 220 && stg.int.numinW === 196 && stg.int.flush <= 1 && stg.int.toBorder === 12 && !stg.int.ddClip,
+  ok('Number module: one full-width control per row — Type and Base chips and the value field, all 30px bars on the same insets',
+    stg.int.modW === 220 && stg.int.rows === 2 && stg.int.numinW === 196 &&
+    stg.int.bars.every((b) => b.h === 30 && b.x === 12 && b.w === 196) &&
+    stg.int.numH === 30 && stg.int.numX === 12 && !stg.int.ddClip,
     JSON.stringify(stg.int));
-  ok('Number module: same alignment with the Float variant\'s longer label',
-    stg.float.flush <= 1 && stg.float.toBorder === 12 && !stg.float.ddClip, JSON.stringify(stg.float));
+  ok('Number module: the Float variant swaps the Base chip for the Digits chip, same silhouette',
+    stg.float.rows === 2 && stg.float.bars.every((b) => b.h === 30 && b.x === 12 && b.w === 196) && !stg.float.ddClip,
+    JSON.stringify(stg.float));
+  /* the base list: the named bases say their name; picking hexadecimal sticks */
+  const stp2 = await stp.evaluate(() => {
+    const M = globalThis.__MOD;
+    const n = M.add('number', 100, 700);
+    const el = document.querySelector(`.mod-node[data-id="${n.id}"]`);
+    el.querySelectorAll('.mod-dd-btn')[1].click();
+    const list = [...el.querySelectorAll('.mod-dd-list')].find((l) => !l.hidden);
+    const labs = [...list.querySelectorAll('.mod-dd-lab')].map((l) => l.textContent);
+    const named = labs.filter((l) => /^(1|2|8|10|16) · /.test(l));
+    [...list.querySelectorAll('.mod-dd-opt')].find((o) => o.querySelector('.mod-dd-lab').textContent.startsWith('16')).click();
+    return { named, nNamed: named.length, base: M.nodes().find((x) => x.id === n.id).cfg.base, chip: el.querySelectorAll('.mod-dd-btn')[1].querySelector('.mod-dd-txt').textContent };
+  });
+  ok('Number module: the base list names the named bases (unary, binary, octal, decimal, hexadecimal) and picking 16 sticks',
+    stp2.nNamed === 5 && stp2.base === 16 && stp2.chip.includes('16') && /Hexadecimal|十六進位/i.test(stp2.chip),
+    JSON.stringify(stp2));
   ok('every other module keeps its width (the tweak touches only the Number module)',
     stg.text === 230 && stg.code === 310 && stg.operator === 210 && stg.comparator === 210 && stg.io === 250,
     JSON.stringify({ text: stg.text, code: stg.code, operator: stg.operator, comparator: stg.comparator, io: stg.io }));

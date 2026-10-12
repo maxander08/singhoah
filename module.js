@@ -494,8 +494,8 @@ const CODE_DEFAULTS = {
   cpp: '#include <iostream>\n#include <string>\nint main() {\n  std::string s;\n  std::getline(std::cin, s);\n  std::cout << "Hello from C++! " << s << "\\n";\n}',
   java: 'public class Main {\n  public static void main(String[] a) throws Exception {\n    System.out.println("Hello from Java!");\n    System.out.println(new String(System.in.readAllBytes()).trim());\n  }\n}',
 };
-const BUILD = '46e7841a';
-const BV = BUILD === '46e7841a' ? '' : '?v=' + BUILD;
+const BUILD = '7cc48b56';
+const BV = BUILD === '7cc48b56' ? '' : '?v=' + BUILD;
 const WORKER_TIMEOUT = { js: 10000, python: 120000, cpp: 180000 };
 const codeWorkers = {};
 
@@ -1079,78 +1079,6 @@ function modDropdown(n, key, label, options, onPick, chipFmt) {
   return wrap;
 }
 
-/* A Singhoah number stepper: a mono field with a stacked up/down control —
-   type any value, tap or hold the arrows, or use the arrow keys. The buttons
-   repeat while held, so base 1–36 and 1–100 digits never need a long scroll. */
-function modStepper(n, key, label, min, max, onChange) {
-  const wrap = document.createElement('div');
-  wrap.className = 'mod-step';
-  const lab = document.createElement('span');
-  lab.className = 'mod-step-lab';
-  lab.textContent = label;
-  const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.className = 'mod-stepin';
-  inp.inputMode = 'numeric';
-  inp.setAttribute('aria-label', label);
-  const clamp = (v) => Math.min(max, Math.max(min, v));
-  const cur = () => clamp(n.cfg[key] | 0 || min);
-  const up = document.createElement('button');
-  const dn = document.createElement('button');
-  const apply = (v) => {
-    const c = clamp(v);
-    n.cfg[key] = c;
-    inp.value = String(c);
-    up.disabled = c >= max;
-    dn.disabled = c <= min;
-    onChange(c);
-    touch();
-  };
-  up.type = 'button';
-  up.className = 'mod-stepbtn';
-  up.setAttribute('aria-label', t(lang, 'zoomIn'));
-  up.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 15 7-7 7 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  dn.type = 'button';
-  dn.className = 'mod-stepbtn';
-  dn.setAttribute('aria-label', t(lang, 'zoomOut'));
-  dn.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 9 7 7 7-7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  /* hold to repeat: a long press sweeps the range, no scrolling through lists */
-  const hold = (btn, dir) => {
-    let iv = 0;
-    let lastPtr = 0;
-    const stop = () => { clearInterval(iv); iv = 0; };
-    btn.addEventListener('pointerdown', (e) => {
-      e.stopPropagation(); e.preventDefault();
-      lastPtr = Date.now();
-      apply(cur() + dir);
-      iv = setInterval(() => apply(cur() + dir), 90);
-      const done = () => { stop(); document.removeEventListener('pointerup', done, true); document.removeEventListener('pointercancel', done, true); };
-      document.addEventListener('pointerup', done, true);
-      document.addEventListener('pointercancel', done, true);
-    });
-    btn.addEventListener('pointerleave', stop);
-    /* keyboard or synthetic activation still steps once; a real tap already
-       stepped on pointerdown, so the click that follows is ignored */
-    btn.addEventListener('click', (e) => { e.stopPropagation(); if (Date.now() - lastPtr < 700) return; apply(cur() + dir); });
-  };
-  hold(up, 1);
-  hold(dn, -1);
-  const commit = () => { const m = /^-?\d{1,4}$/.exec(inp.value.trim()); apply(m ? parseInt(inp.value, 10) : cur()); };
-  inp.addEventListener('change', commit);
-  inp.addEventListener('blur', commit);
-  inp.addEventListener('keydown', (e) => {
-    if (e.isComposing) return;
-    if (e.key === 'ArrowUp') { e.preventDefault(); apply(cur() + 1); }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); apply(cur() - 1); }
-    else if (e.key === 'Enter') { e.preventDefault(); commit(); }
-  });
-  const btns = document.createElement('span');
-  btns.className = 'mod-stepbtns';
-  btns.append(up, dn);
-  wrap.append(lab, inp, btns);
-  requestAnimationFrame(() => { inp.value = String(cur()); up.disabled = cur() >= max; dn.disabled = cur() <= min; });
-  return wrap;
-}
 
 function renderNode(n) {
   const T = TYPES[n.type];
@@ -1200,7 +1128,7 @@ function renderNode(n) {
     /* the Number module: type select + base select (Integer/Decimal) or digit
        count (Float/Fixed), a mono value field, and a base-10 hint. The value
        itself is always plain digits a–z — never localized numerals. */
-    body = `<div class="mod-body"><div class="mod-ddrow mod-dd-slot"></div><input class="mod-numin" spellcheck="false" autocomplete="off" placeholder="${t(lang, 'mValue')}" aria-label="${t(lang, 'mValue')}"><p class="mod-numhint"></p><div class="mod-cstat"></div></div>`;
+    body = `<div class="mod-body"><div class="mod-dd-slot"></div><input class="mod-numin" spellcheck="false" autocomplete="off" placeholder="${t(lang, 'mValue')}" aria-label="${t(lang, 'mValue')}"><p class="mod-numhint"></p><div class="mod-cstat"></div></div>`;
   } else if (n.type === 'io') {
     /* a terminal, recognizable at a glance: traffic-light dots, always-dark
        screen, monospace type, a > prompt marking the input line */
@@ -1261,9 +1189,18 @@ function renderNode(n) {
     slot.appendChild(modDropdown(n, 'numtype', t(lang, 'mType'), NUM_TYPES,
       (v) => { n.cfg.numtype = v; renderNode(n); }));   /* rebuild: the second dropdown depends on the type */
     if (nt === 'int' || nt === 'dec') {
-      slot.appendChild(modStepper(n, 'base', t(lang, 'mBase'), 1, 36, () => revalidate()));
+      /* base 1–36 as a list: the named bases say their name, the rest are
+         just numbers — one full-width chip, exactly like the Type row */
+      const BASE_NAME = { 1: 'mUnary', 2: 'mBinary', 8: 'mOcta', 10: 'mDec', 16: 'mHexa' };
+      const BASE_OPTS = Array.from({ length: 36 }, (_, i) => i + 1)
+        .map((b) => [b, BASE_NAME[b] ? `${b} · ${t(lang, BASE_NAME[b])}` : String(b)]);
+      slot.appendChild(modDropdown(n, 'base', t(lang, 'mBase'), BASE_OPTS,
+        (v) => { n.cfg.base = Number(v); revalidate(); touch(); }));
     } else {
-      slot.appendChild(modStepper(n, 'digits', t(lang, 'mDigits'), 1, 100, () => revalidate()));
+      const DIGIT_OPTS = Array.from({ length: 100 }, (_, i) => [i + 1, String(i + 1)]);
+      slot.appendChild(modDropdown(n, 'digits', t(lang, 'mDigits'), DIGIT_OPTS,
+        (v) => { n.cfg.digits = Number(v); revalidate(); touch(); },
+        (v) => `${v} ${t(lang, 'mDigits')}`));   /* the chip says what it is: "6 digits" */
     }
     const nin = el.querySelector('.mod-numin');
     if (nin) {
