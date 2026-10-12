@@ -4,3 +4,6 @@ tmp-*.mjs
 dbg*.mjs
 # any throwaway probe script, whatever its prefix
 *.tmp.mjs
+
+# local design notes, not site assets
+number-module-redesign.png
