@@ -1145,7 +1145,13 @@ function renderNode(n) {
   const inPortsHtml = effPorts
     ? effPorts.map((pt, i) => `<span class="mod-port in p${pt}" data-port="${pt}" style="top:${13 + i * 32}px"></span>`).join('')
     : (T.hasIn ? '<span class="mod-port in" data-port="a"></span>' : '');
-  el.innerHTML = head + body + inPortsHtml + (T.hasOut ? '<span class="mod-port out"></span>' : '');
+  /* the Text and Code windows carry a resize bar: a Singho-style footer with
+     six tiny squares to grab — drag (mouse or touch) or focus + arrow keys */
+  const resizable = n.type === 'text' || n.type === 'code';
+  const resizeHtml = resizable
+    ? `<div class="mod-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${t(lang, 'mResize')}"><span class="mod-grip"><span></span><span></span><span></span><span></span><span></span><span></span></span></div>`
+    : '';
+  el.innerHTML = head + body + inPortsHtml + (T.hasOut ? '<span class="mod-port out"></span>' : '') + resizeHtml;
   el.querySelectorAll('.mod-port').forEach((p) => { p.style.borderColor = T.color; });
 
   const ta = el.querySelector('.mod-ta');
@@ -1260,6 +1266,45 @@ function renderNode(n) {
       (v) => { n.cfg.val = v; touch(); }));
   }
   el.querySelector('.mod-nx').addEventListener('click', () => removeNode(n.id));
+  if (resizable) {
+    const rz = el.querySelector('.mod-resize');
+    const tgt = n.type === 'text' ? el.querySelector('.mod-ta') : el.querySelector('.mod-codeta');
+    const MINH = n.type === 'text' ? 64 : 132;
+    if (tgt && n.cfg.h > 0) tgt.style.height = `${n.cfg.h | 0}px`;   /* the saved size rides in the flow, so it syncs */
+    const apply = (h) => {
+      const v = Math.max(MINH, Math.min(900, Math.round(h)));
+      tgt.style.height = `${v}px`;
+      return v;
+    };
+    if (rz && tgt) {
+      rz.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();   /* never pans the canvas, never drags the node */
+        rz.setPointerCapture(e.pointerId);
+        const y0 = e.clientY, h0 = tgt.getBoundingClientRect().height;
+        rz.classList.add('on');
+        const move = (ev) => { apply(h0 + (ev.clientY - y0) / view.z); };   /* 1:1 with the pointer at any zoom */
+        const up = () => {
+          rz.classList.remove('on');
+          rz.removeEventListener('pointermove', move);
+          rz.removeEventListener('pointerup', up);
+          rz.removeEventListener('pointercancel', up);
+          n.cfg.h = Math.round(tgt.getBoundingClientRect().height);
+          touch();
+        };
+        rz.addEventListener('pointermove', move);
+        rz.addEventListener('pointerup', up);
+        rz.addEventListener('pointercancel', up);
+      });
+      rz.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault(); e.stopPropagation();
+          const step = (e.key === 'ArrowDown' ? 16 : -16) * (e.shiftKey ? 4 : 1);
+          n.cfg.h = apply(tgt.getBoundingClientRect().height + step);
+          touch();
+        }
+      });
+    }
+  }
 
   /* drag the node by its header (mouse or touch, one pointer API) */
   el.querySelector('.mod-head').addEventListener('pointerdown', (e) => {

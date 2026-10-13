@@ -4571,6 +4571,118 @@ await prn.close();
   await mgcx.close();
 }
 
+/* ---- the Text and Code windows are resizable: a Singho-style footer bar ---- */
+{
+  const rzcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const rzp = await rzcx.newPage();
+  await rzp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await rzp.waitForTimeout(900);
+  const rzids = await rzp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    return { t: M.add('text', 40, 60).id, c: M.add('code', 400, 60).id };
+  });
+  await rzp.waitForTimeout(300);
+  const rzGeo = () => rzp.evaluate((ids) => {
+    const g = (sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return { h: Math.round(r.height), x: Math.round(r.x), w: Math.round(r.width), y: Math.round(r.y) }; };
+    return {
+      tBar: g(`.mod-node[data-id="${ids.t}"] .mod-resize`),
+      tTa: g(`.mod-node[data-id="${ids.t}"] .mod-ta`),
+      cBar: g(`.mod-node[data-id="${ids.c}"] .mod-resize`),
+      cTa: g(`.mod-node[data-id="${ids.c}"] .mod-codeta`),
+      grip: document.querySelectorAll(`.mod-node[data-id="${ids.t}"] .mod-grip span`).length,
+      nodeX: Math.round(document.querySelector(`.mod-node[data-id="${ids.t}"]`).getBoundingClientRect().x),
+      nodeW: Math.round(document.querySelector(`.mod-node[data-id="${ids.t}"]`).getBoundingClientRect().width),
+      noNative: getComputedStyle(document.querySelector(`.mod-node[data-id="${ids.t}"] .mod-ta`)).resize === 'none',
+    };
+  }, rzids);
+  const rz0 = await rzGeo();
+  ok('the Text and Code windows carry a Singho resize footer: six 4px grip squares, full node width, no generic native handle',
+    rz0.grip === 6 && rz0.tBar.x === rz0.nodeX + 2 && rz0.tBar.w === rz0.nodeW - 4 && rz0.noNative,
+    JSON.stringify(rz0));
+  /* drag the Text bar down 80px */
+  await rzp.mouse.move(rz0.tBar.x + rz0.tBar.w / 2, rz0.tBar.y + rz0.tBar.h / 2);
+  await rzp.mouse.down();
+  await rzp.mouse.move(rz0.tBar.x + rz0.tBar.w / 2, rz0.tBar.y + rz0.tBar.h / 2 + 80, { steps: 6 });
+  await rzp.mouse.up();
+  await rzp.waitForTimeout(250);
+  const rz1 = await rzGeo();
+  const rzCfg = await rzp.evaluate((ids) => globalThis.__MOD.nodes().find((n) => n.id === ids.t).cfg.h, rzids);
+  ok('dragging the Text footer grows the textarea 1:1 (80px) and saves the height into the flow',
+    rz1.tTa.h - rz0.tTa.h === 80 && rzCfg === rz1.tTa.h,
+    JSON.stringify({ grew: rz1.tTa.h - rz0.tTa.h, cfgH: rzCfg }));
+  /* the height survives a re-render (it rides in the node cfg, so it syncs) */
+  await rzp.evaluate((ids) => globalThis.__MOD.cfg(ids.t, { enc: 'b64' }), rzids);
+  await rzp.waitForTimeout(250);
+  const rz2 = await rzGeo();
+  ok('the saved height survives a re-render — and rides in the flow, so it syncs across devices',
+    rz2.tTa.h === rz1.tTa.h, JSON.stringify({ before: rz1.tTa.h, after: rz2.tTa.h }));
+  /* drag the Code bar down 96px: the editor, highlight overlay and gutter grow glued */
+  await rzp.mouse.move(rz1.cBar.x + rz1.cBar.w / 2, rz1.cBar.y + rz1.cBar.h / 2);
+  await rzp.mouse.down();
+  await rzp.mouse.move(rz1.cBar.x + rz1.cBar.w / 2, rz1.cBar.y + rz1.cBar.h / 2 + 96, { steps: 6 });
+  await rzp.mouse.up();
+  await rzp.waitForTimeout(250);
+  const rzGlue = await rzp.evaluate((ids) => {
+    const el = document.querySelector(`.mod-node[data-id="${ids.c}"]`);
+    const ta = el.querySelector('.mod-codeta').getBoundingClientRect();
+    const hl = el.querySelector('.mod-hl').getBoundingClientRect();
+    const gut = el.querySelector('.mod-gut').getBoundingClientRect();
+    return { taH: Math.round(ta.height), hlH: Math.round(hl.height), gutH: Math.round(gut.height), sameTop: Math.abs(ta.top - hl.top) < 2 };
+  }, rzids);
+  ok('dragging the Code footer grows the editor — the highlight overlay and gutter stay glued to it',
+    rzGlue.taH >= 132 + 90 && rzGlue.hlH === rzGlue.taH && rzGlue.gutH === rzGlue.taH && rzGlue.sameTop,
+    JSON.stringify(rzGlue));
+  /* keyboard: focus the bar, arrow keys step ±16 (Shift ×4) */
+  await rzp.evaluate((ids) => document.querySelector(`.mod-node[data-id="${ids.t}"] .mod-resize`).focus(), rzids);
+  const kb0 = await rzGeo();
+  await rzp.keyboard.press('ArrowDown');
+  await rzp.waitForTimeout(150);
+  const kb1 = await rzGeo();
+  ok('the resize bar is keyboard-reachable: focus + ArrowDown steps the height 16px',
+    kb1.tTa.h - kb0.tTa.h === 16, JSON.stringify({ delta: kb1.tTa.h - kb0.tTa.h }));
+  await rzcx.close();
+
+  /* mobile: the bar is a real touch target — 24px tall, full width, touch-action none */
+  const rzmcx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const rzmp = await rzmcx.newPage();
+  await rzmp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await rzmp.waitForTimeout(900);
+  const rzmob = await rzmp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const t = M.add('text', 20, 20);
+    const el = document.querySelector(`.mod-node[data-id="${t.id}"]`);
+    const rz = el.querySelector('.mod-resize').getBoundingClientRect();
+    const nb = el.getBoundingClientRect();
+    return { h: Math.round(rz.height), full: Math.abs(rz.width - (nb.width - 4)) <= 1, touch: getComputedStyle(el.querySelector('.mod-resize')).touchAction, fits: document.documentElement.scrollWidth <= window.innerWidth + 1 };
+  });
+  ok('mobile: the resize bar is a 24px full-width touch target with touch-action none, and the node still fits the phone',
+    rzmob.h === 24 && rzmob.full && rzmob.touch === 'none' && rzmob.fits,
+    JSON.stringify(rzmob));
+  await rzmcx.close();
+
+  /* light mode: the footer wears the light palette */
+  const rzlcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await rzlcx.addInitScript(() => localStorage.setItem('singhoah:night', '0'));
+  const rzlp = await rzlcx.newPage();
+  await rzlp.goto(URL + 'module.html', { waitUntil: 'load' });
+  await rzlp.waitForTimeout(900);
+  const rzlight = await rzlp.evaluate(() => {
+    const M = globalThis.__MOD;
+    if (document.getElementById('modEditor').hidden) M.newDoc();
+    const t = M.add('text', 40, 60);
+    const rz = document.querySelector(`.mod-node[data-id="${t.id}"] .mod-resize`);
+    const cs = getComputedStyle(rz);
+    const dark = document.documentElement.classList.contains('dark');
+    return { light: !dark, bg: cs.backgroundColor, squares: getComputedStyle(rz.querySelector('.mod-grip span')).backgroundColor, cursor: cs.cursor, visible: cs.backgroundColor !== 'rgba(0, 0, 0, 0)' };
+  });
+  ok('light mode: the resize footer wears the light palette with visible grip squares',
+    rzlight.light && rzlight.visible && rzlight.squares !== 'rgba(0, 0, 0, 0)' && rzlight.cursor === 'ns-resize',
+    JSON.stringify(rzlight));
+  await rzlcx.close();
+}
+
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */
 {
   /* the code editor is a wide text area: long lines must scroll sideways with
