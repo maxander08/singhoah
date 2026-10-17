@@ -685,7 +685,7 @@
       return t(curLang, 'done');
     },
     nav(where) {
-      const map = { wallet: 'wallet.html', clock: 'index.html', settings: 'settings.html', scribe: 'scribe.html', launch: 'launch.html', metro: 'metro.html', module: 'module.html' };
+      const map = { wallet: 'wallet.html', clock: 'index.html', settings: 'settings.html', scribe: 'scribe.html', launch: 'launch.html', metro: 'metro.html', module: 'module.html', fonts: 'fonts.html' };
       const target = map[where];
       if (!target) return null;
       if (target === `${page}.html` || (page === 'clock' && where === 'clock')) return t(curLang, 'done');
@@ -1181,6 +1181,7 @@
     metro: ['metro', 'subway', 'mrt', 'transit', '\u5730\u9435', '\u5730\u94c1', '\u6377\u904b', '\u6377\u8fd0'],
     module: ['module', 'modules', 'module studio', 'the module studio', 'logic', 'the flow', 'flow canvas', 'singhomodule', '\u6a21\u7d44', '\u6a21\u5757', '\u908f\u8f2f', '\u903b\u8f91'],
     settings: ['settings', 'singhosettings', 'singho settings', 'preferences', 'the settings', '\u8a2d\u5b9a', '\u8bbe\u7f6e', '\u504f\u597d'],
+    fonts: ['fonts', 'font', 'typeface', 'typefaces', 'font previewer', 'the fonts', 'singhofonts', 'singho fonts', '\u5b57\u578b', '\u5b57\u9ad4', '\u5b57\u4f53', '\u5b57\u578b\u9810\u89bd', '\u5b57\u4f53\u9884\u89c8'],
     launch: ['launch', 'launchpad', 'home', 'start page', '\u9996\u9801', '\u9996\u9875', '\u555f\u52d5\u9801', '\u542f\u52a8\u9875'],
   };
   const findApp = (q) => {

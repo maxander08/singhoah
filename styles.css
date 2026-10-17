@@ -690,7 +690,9 @@ button { font: inherit; color: inherit; }
 }
 .lp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  /* 220px min: three columns fit the 720px rail, so a growing app list
+     adds cards before it adds rows — short windows never clip */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: clamp(8px, 1.5vh, 12px);
   width: min(720px, 100%);
 }
@@ -1752,4 +1754,43 @@ body.mod-fileshome .mod-app { display: none; }
   .mod-bar { padding: 6px 8px; flex-wrap: nowrap; overflow-x: auto; }
   .mod-bar .btn { flex: 0 0 auto; }
   .mod-title { flex: 0 0 100px; }
+}
+
+/* ---- SinghoFonts: the typeface previewer ---- */
+.fp-app { max-width: 1080px; margin: 0 auto; padding: 18px clamp(12px, 3vw, 28px) 70px; }
+.fp-chips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.fp-chip { padding: 4px 11px; font-weight: 650; font-size: 12.5px; }
+.fp-chip.on { background: var(--notification); color: var(--on-notification); border-color: var(--notification); }
+.fp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.fp-card { text-align: left; background: var(--paper); border: 2px solid var(--border); box-shadow: 4px 4px 0 rgb(0 0 0 / .10); padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 5px; cursor: pointer; border-radius: 0; color: var(--black); font: inherit; }
+.fp-card:hover { border-color: var(--notification); }
+.fp-card:hover .fp-glyph { color: var(--notification); }
+.fp-glyph { font-size: 54px; line-height: 1.15; min-height: 64px; color: var(--black); }
+.fp-glyph.pend { color: transparent; width: 64px; border: 2px dashed var(--pigeon); }
+.fp-cname { font-weight: 650; font-size: 15px; margin-top: 4px; }
+.fp-csub { font-size: 12px; color: var(--pigeon); }
+.fp-badge { align-self: flex-start; margin-top: 4px; font-size: 11px; font-weight: 650; padding: 2px 7px; border: 1px solid var(--pigeon); color: var(--pigeon); }
+.fp-badge.ok { color: var(--notification); border-color: var(--notification); }
+.fp-badge.pend { border-style: dashed; }
+.fp-dtop { display: flex; flex-direction: column; gap: 10px; }
+.fp-dhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.fp-name { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+.fp-sub { color: var(--pigeon); font-size: 13px; margin: 0; }
+.fp-controls { display: flex; flex-wrap: wrap; gap: 16px 22px; margin: 16px 0 14px; align-items: center; }
+.fp-size { display: flex; align-items: center; gap: 8px; }
+.fp-clab { font-size: 11.5px; font-weight: 650; color: var(--pigeon); }
+.fp-sbtn { min-width: 30px; padding: 3px 9px; font-weight: 700; }
+.fp-sval { font-variation-settings: 'MONO' 100; min-width: 36px; text-align: center; font-weight: 550; }
+.fp-weights, .fp-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.fp-pending { background: var(--paper-2); border: 1px dashed var(--pigeon); color: var(--black); padding: 10px 14px; margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+.fp-preview { background: var(--paper-2); border: 1px solid rgb(127 127 127 / .40); padding: 18px 20px; min-height: 150px; line-height: 1.55; outline: none; white-space: pre-wrap; overflow-wrap: break-word; color: var(--black); }
+.fp-preview:focus { border-color: var(--notification); box-shadow: inset 0 0 0 1px var(--notification); }
+.fp-preview.fallback { opacity: .55; }
+.fp-rows { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.fp-row { font-size: 17px; line-height: 1.6; color: var(--black); border-left: 3px solid var(--border); padding-left: 12px; white-space: pre-wrap; overflow-wrap: break-word; }
+@media (max-width: 640px) {
+  .fp-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .fp-glyph { font-size: 42px; min-height: 52px; }
+  .fp-name { font-size: 21px; }
+  .fp-controls { gap: 10px 14px; }
 }

@@ -4683,6 +4683,171 @@ await prn.close();
   await rzlcx.close();
 }
 
+/* ---- SinghoFonts: the typeface previewer ---- */
+{
+  /* the launchpad carries the app */
+  const lfcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const lfp = await lfcx.newPage();
+  await lfp.goto(URL + 'launch.html', { waitUntil: 'load' });
+  await lfp.waitForTimeout(600);
+  const lfr = await lfp.evaluate(() => {
+    const c = document.getElementById('cardFonts');
+    return { card: !!c, href: c && c.getAttribute('href'), label: c && c.querySelector('#lpFontsT').textContent, sub: c && c.querySelector('#lpFontsS').textContent };
+  });
+  ok('SinghoLaunch carries SinghoFonts: a card linking fonts.html, labeled in the UI language',
+    lfr.card && lfr.href === 'fonts.html' && lfr.label === 'Fonts' && lfr.sub === 'Typeface previewer',
+    JSON.stringify(lfr));
+  await lfcx.close();
+
+  const fpcx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const fpp = await fpcx.newPage();
+  const fperrs = [];
+  fpp.on('pageerror', (e) => fperrs.push(String(e)));
+  await fpp.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await fpp.waitForTimeout(700);
+  const fpr = await fpp.evaluate(() => {
+    const cards = [...document.querySelectorAll('.fp-card')];
+    return {
+      cards: cards.length,
+      latin: cards.filter((c) => c.querySelector('.fp-csub').textContent.includes('system') || c.querySelector('.fp-csub').textContent.includes('OFL')).length,
+      chips: [...document.querySelectorAll('#fpChips .fp-chip')].map((b) => b.textContent),
+      badges: [...new Set(cards.map((c) => c.querySelector('.fp-badge').textContent))].sort(),
+    };
+  });
+  ok('SinghoFonts opens with all 19 typefaces: 6 Latin + 13 Chinese S/T, with honest state badges',
+    fpr.cards === 19 && fpr.badges.join('|') === 'File pending|Loaded|System font',
+    JSON.stringify(fpr));
+  await fpp.click('.fp-chip:nth-child(2)');
+  await fpp.waitForTimeout(200);
+  const fpLat = await fpp.evaluate(() => document.querySelectorAll('.fp-card').length);
+  await fpp.click('.fp-chip:nth-child(3)');
+  await fpp.waitForTimeout(200);
+  const fpCjk = await fpp.evaluate(() => document.querySelectorAll('.fp-card').length);
+  await fpp.click('.fp-chip:nth-child(1)');
+  ok('the filter chips work: Latin shows 6, Chinese (S/T) shows 13',
+    fpLat === 6 && fpCjk === 13, JSON.stringify({ fpLat, fpCjk }));
+  /* Inter loads on demand and previews in its own letterforms */
+  await fpp.evaluate(() => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === 'inter').click());
+  await fpp.waitForTimeout(900);
+  const fpInter = await fpp.evaluate(() => ({
+    name: document.getElementById('fpName').textContent,
+    family: document.getElementById('fpPreview').style.fontFamily,
+    loaded: document.fonts.check('16px Inter'),
+    text: document.getElementById('fpPreview').textContent,
+  }));
+  ok('Inter previews live: the file loads on demand (nothing downloads until opened)',
+    fpInter.name === 'Inter' && /Inter/.test(fpInter.family) && fpInter.loaded && fpInter.text.includes('quick brown fox'),
+    JSON.stringify(fpInter));
+  await fpp.evaluate(() => [...document.querySelectorAll('#fpWeights .fp-chip')][1].click());
+  await fpp.waitForTimeout(400);
+  const fpBold = await fpp.evaluate(() => document.getElementById('fpPreview').style.fontWeight);
+  await fpp.click('#fpSUp');
+  const fpSize = await fpp.evaluate(() => document.getElementById('fpPreview').style.fontSize);
+  ok('weight and size controls drive the preview (Bold = 700, +4px steps)',
+    fpBold === '700' && fpSize === '36px', JSON.stringify({ fpBold, fpSize }));
+  await fpp.evaluate(() => [...document.querySelectorAll('#fpPresets .fp-chip')].find((b) => b.textContent.includes('繁')).click());
+  await fpp.waitForTimeout(200);
+  const fpTrad = await fpp.evaluate(() => ({ lang: document.getElementById('fpPreview').lang, text: document.getElementById('fpPreview').textContent.slice(0, 6) }));
+  ok('the 蘭亭序 (T) preset shows the Traditional sample with the right lang tag',
+    fpTrad.lang === 'zh-Hant' && fpTrad.text === '永和九年，歲', JSON.stringify(fpTrad));
+  /* Academico: four real faces */
+  await fpp.click('#fpBack');
+  await fpp.waitForTimeout(200);
+  await fpp.evaluate(() => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === 'academico').click());
+  await fpp.waitForTimeout(900);
+  const fpAc = await fpp.evaluate(() => ({
+    weights: [...document.querySelectorAll('#fpWeights .fp-chip')].map((b) => b.textContent),
+    loaded: document.fonts.check('16px Academico'),
+  }));
+  await fpp.evaluate(() => [...document.querySelectorAll('#fpWeights .fp-chip')][2].click());
+  await fpp.waitForTimeout(500);
+  const fpIt = await fpp.evaluate(() => ({ style: document.getElementById('fpPreview').style.fontStyle, loaded: document.fonts.check('italic 16px Academico') }));
+  ok('Academico ships its four faces: Regular, Bold, Italic, Bold italic — each loads on demand',
+    fpAc.weights.join('|') === 'Regular|Bold|Italic|Bold italic' && fpAc.loaded && fpIt.style === 'italic' && fpIt.loaded,
+    JSON.stringify({ fpAc, fpIt }));
+  /* a system font: referenced, not downloaded */
+  await fpp.click('#fpBack');
+  await fpp.waitForTimeout(200);
+  await fpp.evaluate(() => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === 'arial').click());
+  await fpp.waitForTimeout(300);
+  const fpAr = await fpp.evaluate(() => ({ badge: document.getElementById('fpBadge').textContent, family: document.getElementById('fpPreview').style.fontFamily }));
+  ok('Arial is referenced from the device, honestly badged as a system font',
+    fpAr.badge === 'System font' && /Arial/.test(fpAr.family), JSON.stringify(fpAr));
+  /* a pending Chinese face: the honest state */
+  await fpp.click('#fpBack');
+  await fpp.waitForTimeout(200);
+  await fpp.evaluate(() => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === 'hymitang').click());
+  await fpp.waitForTimeout(400);
+  const fpHy = await fpp.evaluate(() => ({
+    badge: document.getElementById('fpBadge').textContent,
+    pending: !document.getElementById('fpPendingBox').hidden,
+    msg: document.getElementById('fpPendingBox').textContent,
+    fallback: document.getElementById('fpPreview').classList.contains('fallback'),
+  }));
+  ok('HYMiTangTi W shows the honest pending state: badge, message, dimmed fallback preview — never a fake',
+    fpHy.badge === 'File pending' && fpHy.pending && fpHy.msg.length > 20 && fpHy.fallback,
+    JSON.stringify(fpHy));
+  ok('no page errors through any of SinghoFonts', fperrs.length === 0, JSON.stringify(fperrs.slice(0, 2)));
+  await fpcx.close();
+
+  /* 中文介面 */
+  const fzh = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await fzh.addInitScript(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
+  const fzhp = await fzh.newPage();
+  await fzhp.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await fzhp.waitForTimeout(600);
+  const fzhr = await fzhp.evaluate(() => ({
+    chips: [...document.querySelectorAll('#fpChips .fp-chip')].map((b) => b.textContent),
+    back: document.getElementById('fpBackText').textContent,
+    wordmark: document.querySelector('.wordmark-zh').textContent,
+  }));
+  ok('中文：字型、分類與狀態全都翻譯 — SinghoFonts speaks the UI language',
+    fzhr.chips.join('|') === '全部|拉丁|中文（簡／繁）' && fzhr.back === '所有字型' && fzhr.wordmark === '字型',
+    JSON.stringify(fzhr));
+  await fzh.close();
+
+  /* mobile */
+  const fpm = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const fpmp = await fpm.newPage();
+  await fpmp.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await fpmp.waitForTimeout(600);
+  const fpmob = await fpmp.evaluate(() => ({
+    fits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+    cards: document.querySelectorAll('.fp-card').length,
+    chips: [...document.querySelectorAll('#fpChips .fp-chip')].every((b) => b.getBoundingClientRect().width > 0),
+  }));
+  ok('mobile: the full catalog fits a 390px phone, chips and cards all reachable',
+    fpmob.fits && fpmob.cards === 19 && fpmob.chips, JSON.stringify(fpmob));
+  await fpm.close();
+
+  /* light mode */
+  const fpl = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await fpl.addInitScript(() => localStorage.setItem('singhoah:night', '0'));
+  const fplp = await fpl.newPage();
+  await fplp.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await fplp.waitForTimeout(600);
+  const fplr = await fplp.evaluate(() => ({
+    light: !document.documentElement.classList.contains('dark'),
+    card: getComputedStyle(document.querySelector('.fp-card')).backgroundColor,
+    ink: getComputedStyle(document.querySelector('.fp-cname')).color,
+  }));
+  ok('light mode: paper cards, dark ink — the catalog reads cleanly on light',
+    fplr.light && fplr.card !== 'rgba(0, 0, 0, 0)' && fplr.ink !== 'rgba(0, 0, 0, 0)', JSON.stringify(fplr));
+  await fpl.close();
+
+  /* SMate navigates to it */
+  const fps = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const fpsp = await fps.newPage();
+  await fpsp.goto(URL + 'index.html', { waitUntil: 'load' });
+  await fpsp.waitForTimeout(500);
+  await fpsp.click('#smateBtn');
+  await fpsp.fill('#smateIn', 'open sing ho fonts');
+  await fpsp.click('#smateSend');
+  try { await fpsp.waitForURL('**/fonts.html', { timeout: 6000 }); } catch { /* asserted below */ }
+  ok('SMate opens SinghoFonts ("open sing ho fonts")', /fonts\.html$/.test(fpsp.url()), fpsp.url());
+  await fps.close();
+}
+
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */
 {
   /* the code editor is a wide text area: long lines must scroll sideways with
