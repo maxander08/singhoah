@@ -1794,3 +1794,10 @@ body.mod-fileshome .mod-app { display: none; }
   .fp-name { font-size: 21px; }
   .fp-controls { gap: 10px 14px; }
 }
+
+/* SinghoFonts cycle 44 — stand-in and auto-detected states */
+:root { --fp-go: #2e7d4f; --fp-warn: #8a6116; }
+.dark { --fp-go: #58b588; --fp-warn: #d9a03f; }
+.fp-badge.found { color: var(--fp-go); border-color: var(--fp-go); }
+.fp-badge.sub { color: var(--fp-warn); border-color: var(--fp-warn); }
+.fp-pending.sub { border-style: solid; border-color: var(--fp-warn); }

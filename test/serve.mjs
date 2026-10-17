@@ -17,7 +17,8 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 createServer((req, res) => {
@@ -38,5 +39,7 @@ createServer((req, res) => {
     'content-length': st.size,
     'cache-control': 'no-cache',
   });
+  /* HEAD (the fonts page probes webfonts/ for uploaded files) */
+  if (req.method === 'HEAD') return res.end();
   createReadStream(file).pipe(res);
 }).listen(4173, '0.0.0.0', () => console.log(`serve.mjs up on 4173 (${HERMETIC ? 'HERMETIC — model refused' : 'model served'})`));

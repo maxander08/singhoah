@@ -1,6 +1,7 @@
 /* Real-browser smoke test for the clock app (Playwright / Chromium).
    Run: node test/browser.smoke.mjs   (needs the static server on :4173) */
 import { chromium } from 'playwright';
+import { copyFileSync, rmSync, existsSync } from 'fs';
 
 const URL = process.env.APP_URL || 'http://127.0.0.1:4173/';
 const results = [];
@@ -4715,7 +4716,7 @@ await prn.close();
     };
   });
   ok('SinghoFonts opens with all 19 typefaces: 6 Latin + 13 Chinese S/T, with honest state badges',
-    fpr.cards === 19 && fpr.badges.join('|') === 'File pending|Loaded|System font',
+    fpr.cards === 19 && fpr.badges.join('|') === 'File pending|Loaded|Stand-in|System font',
     JSON.stringify(fpr));
   await fpp.click('.fp-chip:nth-child(2)');
   await fpp.waitForTimeout(200);
@@ -4846,6 +4847,141 @@ await prn.close();
   try { await fpsp.waitForURL('**/fonts.html', { timeout: 6000 }); } catch { /* asserted below */ }
   ok('SMate opens SinghoFonts ("open sing ho fonts")', /fonts\.html$/.test(fpsp.url()), fpsp.url());
   await fps.close();
+}
+
+/* ---- SinghoFonts cycle 44: stand-in twins, upload auto-detect, RTL ---- */
+{
+  const cx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p = await cx.newPage();
+  await p.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await p.waitForTimeout(900);
+
+  /* the open twins ship with the app */
+  const twinFiles = ['webfonts/arimo.woff2', 'webfonts/carlito-400.woff2', 'webfonts/carlito-700.woff2', 'webfonts/texgyreschola-regular.otf', 'webfonts/texgyreschola-bold.otf'];
+  const heads = await Promise.all(twinFiles.map((u) => p.evaluate(async (uu) => (await fetch(uu, { method: 'HEAD' })).ok, u)));
+  ok('the open twins ship with the app: Arimo, Carlito, TeX Gyre Schola', heads.every(Boolean), JSON.stringify(heads));
+
+  /* every system face: the badge tells the truth about THIS device, and the
+     twin loads exactly when the badge says Stand-in */
+  const TWINS = { cschoolbook: 'TeX Gyre Schola', arial: 'Arimo', helvetica: 'Arimo', calibri: 'Carlito' };
+  const sys = {};
+  let standins = 0;
+  for (const [id, twin] of Object.entries(TWINS)) {
+    await p.evaluate((iid) => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === iid).click(), id);
+    await p.waitForTimeout(500);
+    sys[id] = await p.evaluate((tn) => ({
+      badge: document.getElementById('fpBadge').textContent,
+      note: !document.getElementById('fpPendingBox').hidden,
+      twinFaces: [...document.fonts].filter((f) => f.family.replace(/"/g, '') === tn).length,
+    }), twin);
+    if (sys[id].badge === 'Stand-in') standins++;
+    await p.click('#fpBack');
+    await p.waitForTimeout(150);
+  }
+  const honest = Object.values(sys).every((st) =>
+    (st.badge === 'Stand-in' && st.note && st.twinFaces >= 1) || (st.badge === 'System font' && !st.note));
+  ok('a device without a system face gets its open twin, badged Stand-in — a device that has it references its own copy',
+    honest && standins >= 1, JSON.stringify(sys));
+
+  /* the note names the stand-in outright */
+  const sid = Object.keys(sys).find((k) => sys[k].badge === 'Stand-in');
+  await p.evaluate((iid) => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === iid).click(), sid);
+  await p.waitForTimeout(500);
+  const namedTwin = await p.evaluate((tn) => document.getElementById('fpPendingBox').textContent.includes(tn), TWINS[sid]);
+  ok('the note says exactly which twin is previewing', namedTwin, JSON.stringify(sys[sid]));
+  await p.click('#fpBack');
+  await p.waitForTimeout(200);
+
+  /* nothing uploaded: every Chinese face stays honestly pending */
+  const neg = await p.evaluate(() => [...document.querySelectorAll('.fp-card')].filter((c) => c.dataset.id.startsWith('hy')).every((c) => c.querySelector('.fp-badge').textContent === 'File pending'));
+  ok('with nothing uploaded, every Chinese face stays honestly File pending', neg, 'neg');
+
+  await cx.close();
+}
+
+/* a file uploaded straight to the repository lights up on its own */
+{
+  const staged = ['webfonts/HYMiTangTiW.woff2', 'webfonts/HYXiaoSenLinW.ttf'];
+  const clean = () => { for (const f of staged) if (existsSync(f)) rmSync(f); };
+  clean(); /* never let a stray fixture survive a crashed run */
+  const cx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  try {
+    for (const f of staged) copyFileSync('webfonts/inter.woff2', f);
+    const p = await cx.newPage();
+    await p.goto(URL + 'fonts.html', { waitUntil: 'load' });
+    await p.waitForTimeout(900);
+    const ready = await p.evaluate(() => {
+      const g = (id) => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === id);
+      return { mi: g('hymitang').querySelector('.fp-badge').textContent, xl: g('hyxiaosenlin').querySelector('.fp-badge').textContent, other: g('hybudai').querySelector('.fp-badge').textContent };
+    });
+    ok('a font dropped into webfonts/ is detected by itself — any common format (.woff2, .ttf, .otf, .woff)',
+      ready.mi === 'Ready' && ready.xl === 'Ready' && ready.other === 'File pending', JSON.stringify(ready));
+    await p.evaluate(() => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === 'hymitang').click());
+    await p.waitForTimeout(700);
+    const opened = await p.evaluate(() => ({
+      badge: document.getElementById('fpBadge').textContent,
+      faces: [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'HYMiTangTi W').length,
+      pending: !document.getElementById('fpPendingBox').hidden,
+      dimmed: document.getElementById('fpPreview').classList.contains('fallback'),
+    }));
+    ok('opening the detected file loads it for real: badge flips to Loaded, preview undimmed, no pending note',
+      opened.badge === 'Loaded' && opened.faces === 1 && !opened.pending && !opened.dimmed, JSON.stringify(opened));
+    await p.click('#fpBack');
+    await p.waitForTimeout(200);
+    const glyph = await p.evaluate(() => [...document.querySelectorAll('.fp-card')].find((c) => c.dataset.id === 'hymitang').querySelector('.fp-glyph').textContent);
+    ok('once opened, the card itself previews in the real letterforms', glyph === '永', JSON.stringify(glyph));
+  } finally { clean(); }
+  await cx.close();
+}
+
+/* light mode carries the new states */
+{
+  const lc = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await lc.addInitScript(() => localStorage.setItem('singhoah:night', '0'));
+  const lp = await lc.newPage();
+  await lp.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await lp.waitForTimeout(900);
+  const lr = await lp.evaluate(() => ({
+    light: !document.documentElement.classList.contains('dark'),
+    sub: document.querySelector('.fp-badge.sub') ? getComputedStyle(document.querySelector('.fp-badge.sub')).color : 'absent',
+    ink: getComputedStyle(document.querySelector('.fp-cname')).color,
+  }));
+  ok('light mode carries the new states: amber stand-in badge, dark ink on paper',
+    lr.light && (lr.sub === 'rgb(138, 97, 22)' || lr.sub === 'absent') && lr.ink === 'rgb(29, 29, 27)', JSON.stringify(lr));
+  await lc.close();
+}
+
+/* العربية: the page mirrors */
+{
+  const ac = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ac.addInitScript(() => localStorage.setItem('singhoah:lang', 'ar'));
+  const ap = await ac.newPage();
+  await ap.goto(URL + 'fonts.html', { waitUntil: 'load' });
+  await ap.waitForTimeout(900);
+  const ar = await ap.evaluate(() => ({
+    dir: getComputedStyle(document.documentElement).direction,
+    fits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+    cards: document.querySelectorAll('.fp-card').length,
+    sub: (document.querySelector('.fp-badge.sub') || {}).textContent || 'none',
+  }));
+  ok('العربية: SinghoFonts mirrors for RTL and the new states translate (بديل = stand-in)',
+    ar.dir === 'rtl' && ar.fits && ar.cards === 19 && (ar.sub === 'بديل' || ar.sub === 'none'), JSON.stringify(ar));
+  await ac.close();
+}
+
+/* SMate in Chinese */
+{
+  const sc = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await sc.addInitScript(() => localStorage.setItem('singhoah:lang', 'zh-Hant'));
+  const sp = await sc.newPage();
+  await sp.goto(URL + 'index.html', { waitUntil: 'load' });
+  await sp.waitForTimeout(500);
+  await sp.click('#smateBtn');
+  await sp.fill('#smateIn', '打開字型');
+  await sp.click('#smateSend');
+  try { await sp.waitForURL('**/fonts.html', { timeout: 6000 }); } catch { /* asserted below */ }
+  ok('SMate understands Chinese too: 打開字型 opens SinghoFonts', /fonts\.html$/.test(sp.url()), sp.url());
+  await sc.close();
 }
 
 /* ---- Singhoah scrollbars: every scrollable surface, every app ---- */
