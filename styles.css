@@ -1124,7 +1124,7 @@ button { font: inherit; color: inherit; }
 @media (pointer: coarse) {
   html, body { height: auto; overflow-y: auto; }
   body { min-height: 100vh; min-height: 100svh; }  /* status bar hugs the bottom when short */
-  .wallet-app, .launch { overflow: visible; }
+  .wallet-app, .launch, .fp-app { overflow: visible; }
   .wal-body { overflow: visible; }
   .lp-dial { width: 88px; }
   .lp-clock { font-size: 30px; }
@@ -1757,8 +1757,12 @@ body.mod-fileshome .mod-app { display: none; }
 }
 
 /* ---- SinghoFonts: the typeface previewer ---- */
-.fp-app { max-width: 1080px; margin: 0 auto; padding: 18px clamp(12px, 3vw, 28px) 70px; }
-.fp-chips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.fp-app {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;   /* the catalog outgrows the window: scroll, never clip */
+}
+.fp-wrap { max-width: 1080px; margin: 0 auto; padding: 18px clamp(12px, 3vw, 28px) 70px; }
 .fp-chip { padding: 4px 11px; font-weight: 650; font-size: 12.5px; }
 .fp-chip.on { background: var(--notification); color: var(--on-notification); border-color: var(--notification); }
 .fp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
@@ -1795,9 +1799,7 @@ body.mod-fileshome .mod-app { display: none; }
   .fp-controls { gap: 10px 14px; }
 }
 
-/* SinghoFonts cycle 44 — stand-in and auto-detected states */
-:root { --fp-go: #2e7d4f; --fp-warn: #8a6116; }
-.dark { --fp-go: #58b588; --fp-warn: #d9a03f; }
+/* SinghoFonts — the auto-detected state: file landed in webfonts/, not opened yet */
+:root { --fp-go: #2e7d4f; }
+.dark { --fp-go: #58b588; }
 .fp-badge.found { color: var(--fp-go); border-color: var(--fp-go); }
-.fp-badge.sub { color: var(--fp-warn); border-color: var(--fp-warn); }
-.fp-pending.sub { border-style: solid; border-color: var(--fp-warn); }
